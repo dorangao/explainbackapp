@@ -577,6 +577,11 @@ body {
 .author-workspace .workspace-heading {
   margin-bottom: 32px;
 }
+.author-workspace .workspace-heading h1 {
+  max-width: 720px;
+  font-size: clamp(2.35rem, 4.4vw, 3.4rem);
+  letter-spacing: -0.045em;
+}
 .studio-steps {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -591,6 +596,8 @@ body {
   grid-template-columns: 28px 1fr;
   column-gap: 10px;
   align-items: baseline;
+  border-top: 2px solid #cadbd0;
+  padding-top: 14px;
 }
 .studio-steps li > span {
   font-size: 0.7rem;
@@ -639,7 +646,17 @@ body {
   margin: 10px 0 0;
   font-size: 1.05rem;
   min-height: 145px;
-  padding: 20px;
+  padding: 20px 22px;
+  border-radius: 18px;
+  border-color: #c7d6cc;
+  box-shadow: 0 6px 24px rgba(32, 51, 47, 0.04);
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.author-form > textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 8px 28px rgba(17, 109, 96, 0.1);
 }
 .author-form > label {
   font-size: 0.95rem;
@@ -659,6 +676,17 @@ body {
 .app-shell .topic-starters .text-button {
   color: var(--accent);
   font-size: 0.74rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #d4e1d8;
+  border-radius: 999px;
+  background: #f5f8f2;
+  transition:
+    background 0.18s,
+    border-color 0.18s;
+}
+.app-shell .topic-starters .text-button:hover:not(:disabled) {
+  background: #e5f0e8;
+  border-color: #a9cabb;
 }
 .author-settings {
   display: grid;
@@ -669,6 +697,8 @@ body {
   display: block;
   width: 100%;
   margin-top: 8px;
+  border-radius: 12px;
+  min-height: 48px;
 }
 .image-attachment {
   border-block: 1px solid var(--line);
@@ -728,6 +758,10 @@ body {
   align-items: center;
   gap: 24px;
   margin-top: 24px;
+}
+.app-shell .author-submit > button {
+  border-radius: 999px;
+  padding-inline: 1.45rem;
 }
 .author-privacy {
   margin: 18px 0 0;
@@ -792,8 +826,9 @@ body {
 .review-notice {
   font-size: 0.84rem;
   color: var(--muted);
-  border-left: 2px solid #ad9663;
-  padding: 0.5rem 1rem;
+  border-left: 3px solid #ad9663;
+  border-radius: 0 12px 12px 0;
+  padding: 0.8rem 1rem;
   background: #f1eee0;
 }
 .review-chapter {
@@ -822,8 +857,8 @@ body {
 }
 .definition {
   background: #eef1e8;
-  border-radius: 8px;
-  padding: 18px;
+  border-radius: 16px;
+  padding: 20px;
   margin-top: 20px;
 }
 .definition > summary {
@@ -1038,6 +1073,7 @@ body {
   padding: 20px 24px;
   background: #e9eee4;
   border-left: 3px solid #8cab94;
+  border-radius: 0 16px 16px 0;
   font-family: Georgia, "Songti SC", serif;
   font-size: 1.45rem;
   line-height: 1.5;
@@ -1104,7 +1140,7 @@ body {
 .experiment-surface {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 18px;
   padding: 20px;
   margin: 24px 0;
 }

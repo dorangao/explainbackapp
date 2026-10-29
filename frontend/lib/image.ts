@@ -1,4 +1,5 @@
-const LIMIT = 1_200_000;
+// Leave room for the lesson schema and prompt within Meta's 1 MiB background limit.
+const LIMIT = 750_000;
 export async function prepareImage(
   file: File,
 ): Promise<{ name: string; dataUrl: string }> {

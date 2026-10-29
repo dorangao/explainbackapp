@@ -592,8 +592,8 @@ export const messages = {
   },
   "Studio.newTopicDemo": { en: "New topic demo", zh: "新主题演示" },
   "Studio.oneModelRequestWhenYou": {
-    en: "One model request when you click Create. Images are sent once and are not stored. Use synthetic examples. Export a lesson to keep it.",
-    zh: "点击创建时调用一次模型。图片仅发送一次，不会存储。请使用虚构示例，导出课程以便保留。",
+    en: "One model request when you click Create. Wonder runs in the background: Meta stores the request and response, including any image. Use synthetic examples and export a lesson to keep it.",
+    zh: "点击创建时调用一次模型。Wonder 在后台运行：Meta 会存储请求和响应，包括图片。请使用虚构示例，导出课程以便保留。",
   },
   "Studio.optionalUpTo12Mb": {
     en: "Optional · up to 12 MB",

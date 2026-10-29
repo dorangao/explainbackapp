@@ -134,7 +134,7 @@ export function createHandler({
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/compose','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/compose','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -179,6 +179,17 @@ export function createHandler({
         if(!s||s.owner!==tester.id)throw new RequestError(404,'Session expired. Start a new session.');
       }
       const save=async rows=>{if(!await state.save(body.sessionId,s,lock,rows))throw new RequestError(409,'Session was reset or expired; the response was discarded.');};
+      if(s.workflow==='lesson-studio'&&path==='/api/studio/poll'){
+        if(!s.background)throw new RequestError(404,'No background lesson is available.');
+        if(s.background.result){json(200,s.background.result);return;}
+        let raw;try{raw=await router.pollBackground(s.llm.id,s.background.id);}catch{throw new RequestError(502,'Could not retrieve the background lesson. Try again.');}
+        if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
+        if(raw.pending){json(200,{pending:true,attemptsRemaining:8-s.attempts});return;}
+        if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;}
+        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
+        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};
+        s.background={result:answer};await save();json(200,answer);return;
+      }
       if(path==='/api/trace'){
         if(body.clear!==undefined&&typeof body.clear!=='boolean')throw new RequestError(400,'Use a boolean clear flag.');
         if(body.clear)await state.writeTrace(body.sessionId,[],lock);json(200,{records:await state.readTrace(body.sessionId)});return;
@@ -209,13 +220,27 @@ export function createHandler({
       if(s.workflow==='lesson-studio'){
         const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
-        // The tryout always runs on the tester role, whatever model the session pinned for creation.
-        const llm=mode==='tryout'?selected(roles.tester):s.llm;
-        if(mode==='tryout'&&!llm.configured)throw new RequestError(503,'The test learner model is not configured.');
+        // Quick learner feedback and the test learner use Spark regardless of the creator model.
+        const llm=['tryout','guide'].includes(mode)?selected(roles.tester):s.llm;
+        if(!llm.configured)throw new RequestError(503,'The selected model is not configured.');
         let args;try{args=mode==='tryout'?learnerTryoutRequest(body):mode==='show'?showRequest(body):lessonAuthorRequest(body,mode);}catch{throw new RequestError(400,'Use a short topic or a valid lesson and experiment.');}
+        const background=mode==='compose'&&body.background===true&&s.llm.provider==='meta'&&s.llm.model.startsWith('muse-wonder')&&typeof router.startBackground==='function';
+        if(body.background!==undefined&&typeof body.background!=='boolean')throw new RequestError(400,'Invalid background request.');
+        if(background&&args.images?.some(image=>image.length>800_000))throw new RequestError(413,'Use a smaller image for background creation.');
+        if(s.background&&!s.background.result)throw new RequestError(409,'A background lesson is still in progress.');
+        if(s.background?.result)delete s.background;
         if(args.images&&s.llm.provider!=='meta')throw new RequestError(400,'Image input needs a Meta model. Switch the model or remove the image.');
         if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
         s.attempts++;await save();
+        if(background){
+          try{
+            const startedAt=Date.now(),started=await router.startBackground(s.llm.id,args);
+            if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
+            if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
+            s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt};await save();
+            json(202,{pending:true,attemptsRemaining:8-s.attempts});return;
+          }catch(error){if(error instanceof RequestError)throw error;const failure=new RequestError(502,'Background lesson could not be started. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;}
+        }
         const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
         const call=trace?.start({provider:llm.provider,model:llm.model,input:args.input,instructions:args.instructions});
         try{

@@ -17,6 +17,7 @@ export async function callMeta({
   tools,
   structuredOutput = false,
   images,
+  background = false,
   timeoutMs = 30_000,
   fetchImpl = globalThis.fetch,
   onTrace,
@@ -36,10 +37,11 @@ export async function callMeta({
   const trace=event=>{try{onTrace?.(event);}catch{/* Diagnostics must not affect calls. */}};
   // Multimodal requests use one user message with text plus image parts (Responses API shape).
   const content=images?[{type:'input_text',text:input},...images.map(image_url=>({type:'input_image',image_url}))]:null;
-  const body={model,input:content?[{type:'message',role:'user',content}]:input,store:false,max_output_tokens:maxOutputTokens,
+  const body={model,input:content?[{type:'message',role:'user',content}]:input,store:background,...(background?{background:true}:{}),max_output_tokens:maxOutputTokens,
     ...(instructions?{instructions}:{}),...(reasoningEffort?{reasoning:{effort:reasoningEffort}}:{}),
     ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}}}:tools?{tools,tool_choice:'auto',parallel_tool_calls:false}:{})};
   if(structuredOutput)body.instructions=(instructions??'')+'\nTransport for this request: return the '+tools[0].name+' argument object directly as JSON matching the response schema. This is a structured response, not a tool invocation.';
+  if(background && Buffer.byteLength(JSON.stringify(body))>1_048_576)throw new Error('Image is too large for a background request. Use a smaller image.');
   // Traces never carry image bytes; only the part type and size are recorded.
   trace({type:'request',body:content?{...body,input:[{type:'message',role:'user',content:content.map(part=>part.type==='input_image'?{type:'input_image',image_url:`[image omitted · ${part.image_url.length} chars]`}:part)}]}:body});
   // The SDK is configured for Meta explicitly; do not inherit unrelated OpenAI
@@ -82,6 +84,11 @@ export async function callMeta({
   }
   trace({type:'response',status:response.status,body:{id:data?.id,status:data?.status,model:data?.model,usage:data?.usage,
     output:(Array.isArray(data?.output)?data.output:[]).flatMap(item=>item?.type==='function_call'?[{type:'function_call',name:item.name,arguments:item.arguments}]:item?.type==='message'&&item.role==='assistant'?[{type:'message',role:'assistant',content:(Array.isArray(item.content)?item.content:[]).filter(c=>c?.type==='output_text').map(c=>({type:'output_text',text:c.text}))}]:[])}});
+  if(background && ['queued','in_progress'].includes(data?.status) && /^resp_[A-Za-z0-9_-]+$/.test(data?.id??''))return {pendingId:data.id};
+  return readMetaResponse(data,{tools,structuredOutput});
+}
+
+function readMetaResponse(data,{tools,structuredOutput=false}={}) {
   if (data?.status !== 'completed') throw new Error('Meta response was not completed; no success was recorded.');
   if (tools&&!structuredOutput) {
     const calls = (Array.isArray(data.output) ? data.output : []).filter(item => item?.type === 'function_call');
@@ -102,6 +109,20 @@ export async function callMeta({
     return {id:data.id,model:data.model,usage:data.usage,text:'',structured:{name:tools[0].name,value}};
   }
   return { id: data.id, model: data.model, text, usage: data.usage };
+}
+
+// A background response is polled only by its owning server session, never by a browser ID.
+export async function retrieveMetaBackground({apiKey,id,tools,structuredOutput=false,fetchImpl=globalThis.fetch}={}) {
+  if(typeof apiKey!=='string'||!apiKey.trim()||!/^resp_[A-Za-z0-9_-]+$/.test(id??''))throw new Error('Invalid background response.');
+  let response,data;
+  try {
+    response=await fetchImpl(`${META_ENDPOINT}/${id}`,{headers:{Authorization:`Bearer ${apiKey.trim()}`,Accept:'application/json'},signal:AbortSignal.timeout(15_000),redirect:'error'});
+    if(!response.ok)throw new Error('provider error');
+    data=await response.json();
+  } catch {throw new Error('Could not retrieve the background response.');}
+  if(['queued','in_progress'].includes(data?.status))return {pending:true};
+  if(['failed','cancelled','incomplete'].includes(data?.status))return {failed:true};
+  try{return readMetaResponse(data,{tools,structuredOutput});}catch{return {failed:true};}
 }
 
 export const META_IMAGE_ENDPOINT = 'https://api.meta.ai/v1/images/generations';

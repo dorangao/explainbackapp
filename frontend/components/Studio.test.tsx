@@ -101,6 +101,55 @@ describe("Studio gallery playback", () => {
 });
 
 describe("Studio authoring", () => {
+  it("polls a background Wonder creation and opens the finished draft", async () => {
+    const paths: string[] = [];
+    const wonder = {
+      ...status.models[0],
+      id: "meta:muse-wonder-1.0",
+      model: "muse-wonder-1.0",
+      label: "Wonder",
+    };
+    const post: Post = async (path, body) => {
+      paths.push(path);
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose") {
+        expect((body as { background?: boolean }).background).toBe(true);
+        return { pending: true, attemptsRemaining: 7 } as never;
+      }
+      if (path === "/api/studio/poll")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 7,
+        } as never;
+      return { records: [] } as never;
+    };
+    mount(
+      {
+        authenticated: true,
+        status: {
+          ...status,
+          models: [wonder],
+          defaultModel: wonder.id,
+          roles: { creator: wonder.id, tester: wonder.id },
+        },
+        view: "create",
+      },
+      post,
+    );
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Cooling" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(paths).toEqual([
+      "/api/studio/session",
+      "/api/studio/compose",
+      "/api/studio/poll",
+    ]);
+  });
   it("creates a draft through one explicit request, needs review before presenting, and edits revoke review", async () => {
     const posted: { path: string; body: unknown }[] = [];
     const post: Post = async (path, body) => {

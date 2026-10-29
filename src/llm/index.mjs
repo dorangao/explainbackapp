@@ -1,4 +1,4 @@
-import {callMeta,DEFAULT_META_MODEL,DEFAULT_META_MODELS,metaTimeoutMs} from '../meta.mjs';import {callOllama,ollamaUrl} from './ollama.mjs';import {createOllamaCoordinator} from './ollama-coordinator.mjs';
+import {callMeta,retrieveMetaBackground,DEFAULT_META_MODEL,DEFAULT_META_MODELS,metaTimeoutMs} from '../meta.mjs';import {callOllama,ollamaUrl} from './ollama.mjs';import {createOllamaCoordinator} from './ollama-coordinator.mjs';
 export function createProviderRouter({env=process.env,fetchImpl=globalThis.fetch,lockDir,metaCall=callMeta,ollamaCall=callOllama}={}){
  const split=value=>[...new Set(value.split(',').map(x=>x.trim()).filter(Boolean))];
  const providers=split(env.EXPLAINBACK_PROVIDERS||'meta,ollama');
@@ -20,6 +20,8 @@ export function createProviderRouter({env=process.env,fetchImpl=globalThis.fetch
  }
  const call=(id,args)=>get(id).provider==='ollama'?(coordinator?coordinator.exclusive(ops=>invoke(id,args,ops)):Promise.reject(new Error('Ollama is not configured.'))):invoke(id,args);
  return {list:()=>entries.map(t=>({...t})),get,defaultId,call,
+  async startBackground(id,args){const t=get(id);if(t.provider!=='meta'||!t.configured)throw new Error('Background creation needs a configured Meta model.');return metaCall({...args,model:t.model,apiKey:env.MODEL_API_KEY,timeoutMs:15_000,fetchImpl,background:true});},
+  async pollBackground(id,responseId){const t=get(id);if(t.provider!=='meta'||!t.configured)throw new Error('Background creation needs a configured Meta model.');return retrieveMetaBackground({apiKey:env.MODEL_API_KEY,id:responseId,tools:[{name:'compose_lesson'}],structuredOutput:true,fetchImpl});},
   async evaluateExclusive(ids,fn){
    ids.forEach(get);const local=ids.some(id=>get(id).provider==='ollama');
    if(local&&!coordinator)throw new Error('Ollama is not configured.');

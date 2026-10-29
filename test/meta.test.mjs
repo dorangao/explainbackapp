@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { callMeta } from '../src/meta.mjs';
+import { callMeta, retrieveMetaBackground } from '../src/meta.mjs';
 
 const completed = {
   id: 'resp_test', status: 'completed', model: 'muse-spark-1.3',
@@ -10,6 +10,22 @@ const completed = {
   ],
   usage: { input_tokens: 5, output_tokens: 10 },
 };
+
+test('background creation acknowledges immediately and retrieves a completed response',async()=>{
+ const requests=[];
+ const fetchImpl=async(url,options)=>{requests.push({url,method:options.method,body:options.body&&JSON.parse(options.body)});return Response.json(requests.length===1?{id:'resp_test',status:'queued',background:true}:completed);};
+ const start=await callMeta({apiKey:'test-secret',input:'synthetic',background:true,fetchImpl});
+ assert.equal(start.pendingId,'resp_test');assert.equal(requests[0].body.background,true);assert.equal(requests[0].body.store,true);
+ const result=await retrieveMetaBackground({apiKey:'test-secret',id:start.pendingId,fetchImpl});
+ assert.equal(result.text,'连接成功');assert.equal(requests[1].url,'https://api.meta.ai/v1/responses/resp_test');
+});
+test('background retrieval distinguishes pending and terminal failures without exposing upstream text',async()=>{
+ const pending=await retrieveMetaBackground({apiKey:'test-secret',id:'resp_test',fetchImpl:async()=>Response.json({status:'in_progress'})});
+ assert.deepEqual(pending,{pending:true});
+ const failed=await retrieveMetaBackground({apiKey:'test-secret',id:'resp_test',fetchImpl:async()=>Response.json({status:'failed',error:'private upstream detail'})});
+ assert.deepEqual(failed,{failed:true});
+ await assert.rejects(retrieveMetaBackground({apiKey:'test-secret',id:'../../bad',fetchImpl:()=>assert.fail('network called')}),/Invalid background/);
+});
 
 test('provider trace reports payload and safe output without headers or reasoning',async()=>{
  const events=[];

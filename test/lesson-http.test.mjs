@@ -3,6 +3,31 @@ import {createApp} from '../src/server.mjs';import {testerCredentials,testerCook
 import {coolingLesson,processLesson,tinyPng} from '../test-support/generated-lessons.mjs';
 const bi=text=>({en:text,zh:'示例'+text});
 const lesson=()=>({version:1,title:bi('Motion'),intro:bi('Test a claim'),chapters:[{experiment:'acceleration',framing:bi('Two cars'),explanation:bi('Compare areas')}]});
+test('background creation is session-owned, polls without another model charge and returns a validated draft',async t=>{
+ const target={id:'meta:muse-wonder-1.0',provider:'meta',model:'muse-wonder-1.0',label:'Wonder',configured:true,timeoutMs:50000};let starts=0,polls=0;
+ const router={defaultId:target.id,list:()=>[target],startBackground:async()=>{starts++;return {pendingId:'resp_test'};},pollBackground:async()=>++polls===1?{pending:true}:{structured:{name:'compose_lesson',value:{status:'ready',message:bi('Ready'),lesson:coolingLesson()}},model:target.model}};
+ const server=createApp({testerCredentials,router});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
+ const origin=`http://127.0.0.1:${server.address().port}`,cookie=await testerCookie(origin),other=await testerCookie(origin);
+ const post=(path,body,c=cookie)=>fetch(origin+path,{method:'POST',headers:{Origin:origin,Cookie:c,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'})).json();
+ const start=await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Cooling',creation:'generated',background:true});assert.equal(start.status,202);assert.equal((await start.json()).pending,true);
+ assert.equal((await post('/api/studio/poll',{sessionId:s.sessionId},other)).status,404);
+ assert.equal((await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Another',creation:'generated',background:true})).status,409);
+ assert.equal((await(await post('/api/studio/poll',{sessionId:s.sessionId})).json()).pending,true);
+ const ready=await(await post('/api/studio/poll',{sessionId:s.sessionId})).json();assert.equal(ready.lesson.version,2);assert.equal(ready.attemptsRemaining,7);assert.equal(starts,1);assert.equal(polls,2);
+ assert.equal((await(await post('/api/studio/poll',{sessionId:s.sessionId})).json()).lesson.version,2);
+});
+test('lesson feedback uses Spark even when the creator session uses Wonder',async t=>{
+ const targets=['muse-wonder-1.0','muse-spark-1.3'].map(model=>({id:'meta:'+model,provider:'meta',model,label:model,configured:true,timeoutMs:30000}));
+ const router={defaultId:targets[0].id,list:()=>targets,call:async()=>assert.fail('injected model call expected')};
+ const seen=[];const server=createApp({testerCredentials,router,modelCall:async(args,id)=>{seen.push(id);return {toolCall:{name:'guide_lesson',arguments:JSON.stringify({explanation:'Compare the curves.',nextAction:'replay'})}};}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
+ const origin=`http://127.0.0.1:${server.address().port}`,cookie=await testerCookie(origin);
+ const post=(path,body)=>fetch(origin+path,{method:'POST',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},body:JSON.stringify(body)});
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en',llm:targets[0].id})).json();
+ const response=await post('/api/studio/guide',{sessionId:s.sessionId,lesson:lesson(),chapter:0,variant:0,prediction:'agree',language:'en'});
+ assert.equal(response.status,200);assert.equal(seen[0],targets[1].id);assert.equal((await response.json()).model,targets[1].model);
+});
 async function setup(t,modelCall,traceEnabled=true){
  const server=createApp({testerCredentials,configured:true,traceEnabled,modelCall});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
  const origin=`http://127.0.0.1:${server.address().port}`,cookie=await testerCookie(origin);

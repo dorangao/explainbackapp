@@ -1,5 +1,27 @@
 import { test, expect } from "@playwright/test";
 
+test.describe("stale review assets", () => {
+  test.use({ serviceWorkers: "block" });
+  test("a creation remains reviewable when an old review chunk is unavailable", async ({
+    page,
+  }) => {
+    await page.route("**/assets/DraftReview-*.js", (route) => route.abort());
+    await page.goto("/#invite:BROWSER-TEST-CODE");
+    await page
+      .getByLabel("What would you like to explore?")
+      .fill("Cooling coffee");
+    await page
+      .getByRole("button", { name: "Create a lesson", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "Cooling coffee", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Present this lesson →" }),
+    ).toBeDisabled();
+  });
+});
+
 test("public gallery opens a lesson, preserves progress across language changes and returns to the gallery", async ({
   page,
 }) => {

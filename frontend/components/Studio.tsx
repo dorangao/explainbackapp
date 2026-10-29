@@ -35,16 +35,12 @@ import { useImageAttachment } from "../hooks/useImageAttachment";
 import { Gallery } from "./Gallery";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
+import { DraftReview } from "./DraftReview";
+import { RevisionSummary } from "./RevisionSummary";
 const ShowPlayer = lazy(() =>
   import("./ShowPlayer").then((module) => ({ default: module.ShowPlayer })),
 );
-// Authoring, review and diagnostics load only when someone creates or revises.
-const DraftReview = lazy(() =>
-  import("./DraftReview").then((m) => ({ default: m.DraftReview })),
-);
-const RevisionSummary = lazy(() =>
-  import("./RevisionSummary").then((m) => ({ default: m.RevisionSummary })),
-);
+// Keep review and revision available to long-lived tabs even after a deployment.
 const ProviderConsole = lazy(() =>
   import("./ProviderConsole").then((m) => ({ default: m.ProviderConsole })),
 );
@@ -89,6 +85,7 @@ export function Studio({
     [tryout, setTryout] = useState<TryoutReply | null>(null),
     [show, setShow] = useState<ShowReply | null>(null),
     [showing, setShowing] = useState(false),
+    [backgroundRunning, setBackgroundRunning] = useState(false),
     [source, setSource] = useState<string | null>(null),
     [sourceImage, setSourceImage] = useState<string | null>(null);
   const clearFeedback = useCallback(() => setFeedback(null), []);
@@ -244,18 +241,88 @@ export function Studio({
     const before = revisionText && draft ? structuredClone(draft) : null;
     setMessage("");
     setFeedback(null);
+    const background =
+      mode === "compose" &&
+      target.provider === "meta" &&
+      target.model.startsWith("muse-wonder");
+    let acknowledged = false;
+    if (background) setBackgroundRunning(true);
     const result = await run<ComposeReply | Feedback>(
-      target,
+      mode === "guide" ? (tester ?? target) : target,
       mode === "guide" ? "guide" : revisionText ? "revise" : "compose",
-      (id, options) =>
-        post<ComposeReply | Feedback>(
+      async (id, options) => {
+        let reply = await post<
+          | ComposeReply
+          | Feedback
+          | { pending: true; attemptsRemaining?: number }
+        >(
           `/api/studio/${mode}`,
-          { sessionId: id, ...body },
+          {
+            sessionId: id,
+            ...body,
+            ...(background ? { background: true } : {}),
+          },
           options,
-        ),
+        );
+        acknowledged = "pending" in reply && reply.pending;
+        const deadline = Date.now() + 10 * 60_000;
+        let retrievalFailures = 0;
+        while ("pending" in reply && reply.pending) {
+          if (Date.now() >= deadline)
+            throw new Error("Background lesson is still running.");
+          try {
+            reply = await post<
+              | ComposeReply
+              | Feedback
+              | { pending: true; attemptsRemaining?: number }
+            >(
+              "/api/studio/poll",
+              { sessionId: id },
+              { ...options, timeoutMs: 20_000 },
+            );
+            retrievalFailures = 0;
+          } catch (error) {
+            if (
+              options.signal.aborted ||
+              !(error instanceof ApiError) ||
+              error.status !== 502 ||
+              ++retrievalFailures >= 3
+            )
+              throw error;
+          }
+          if ("pending" in reply && reply.pending)
+            await new Promise<void>((resolve, reject) => {
+              const timer = window.setTimeout(() => {
+                options.signal.removeEventListener("abort", abort);
+                resolve();
+              }, 2000);
+              const abort = () => {
+                window.clearTimeout(timer);
+                reject(new DOMException("Aborted", "AbortError"));
+              };
+              if (options.signal.aborted) abort();
+              else
+                options.signal.addEventListener("abort", abort, { once: true });
+            });
+        }
+        return reply as ComposeReply | Feedback;
+      },
     );
+    if (background) setBackgroundRunning(false);
     if (!result.ok) {
-      if (!result.stale) setMessage(failureMessage(result.error));
+      if (!result.stale) {
+        if (acknowledged) invalidate();
+        setMessage(
+          failureMessage(result.error) +
+            (acknowledged
+              ? say(
+                  language,
+                  " The background result could not be recovered; a new retry may use another request.",
+                  " 后台结果无法恢复；重新尝试可能会使用一次新请求。",
+                )
+              : ""),
+        );
+      }
       return;
     }
     if (mode === "compose") {
@@ -701,7 +768,13 @@ export function Studio({
         {busy && (
           <p className="request-progress" role="status">
             <span className="working-dot" />
-            {t(language, "Studio.museIsWorkingYourExisting")}
+            {backgroundRunning
+              ? say(
+                  language,
+                  "Wonder is creating in the background. Keep this page open to receive the result.",
+                  "Wonder 正在后台创建。请保持此页面打开以接收结果。",
+                )
+              : t(language, "Studio.museIsWorkingYourExisting")}
           </p>
         )}
         {showing && show && draft && (
