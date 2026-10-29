@@ -208,6 +208,8 @@ export type ShowSlide = {
   chapter: number;
   heading: Bilingual;
   narration: Bilingual;
+  // The writer asked for an illustration of this slide (at most two per show).
+  illustrate?: boolean;
 };
 // A narrated slide script written by the creator model; the browser renders the slides
 // from the checked lesson and speaks the narration.
@@ -247,6 +249,7 @@ export type IllustrateReply = ReplyMetrics & {
 export type GalleryShow = {
   show: Show;
   cover: string | null;
+  illustrations?: Record<string, string>;
   model: string;
   coverModel: string | null;
   createdAt: string;

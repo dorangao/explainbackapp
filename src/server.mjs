@@ -355,12 +355,23 @@ export function createHandler({
           // A show gets one cover illustration from Muse Image when Meta is configured; a failed
           // or missing image never fails the show. Image bytes go to the client only.
           if(mode==='show'){
-            result.cover=null;result.coverModel=null;
+            result.cover=null;result.coverModel=null;result.illustrations={};
             const timeoutMs=imageBudgetMs(metrics.elapsedMs);
             if(imageCall&&llm.provider==='meta'&&timeoutMs>0){
               const imageTrace=trace?.start({provider:'meta',model:'muse-image-1.0',input:result.show.coverPrompt,instructions:'image generation'});
               try{const image=await imageCall({prompt:result.show.coverPrompt,timeoutMs,...(imageTrace?{onTrace:imageTrace.event}:{})});result.cover=await storeImage(image,ownerOf(tester));result.coverModel=image.model;imageTrace?.finish('accepted');}
               catch{imageTrace?.finish('failed or rejected');}
+              // Slides the writer flagged get an illustration too, one at a time, while the
+              // request budget allows; the rest are left for the player's Illustrate button.
+              const flagged=result.show.slides.map((s,i)=>s.illustrate?i:-1).filter(i=>i>0);
+              for(const index of flagged){
+                const left=imageBudgetMs(Math.round(performance.now()-startedAt));
+                if(left<=0){result.illustrationsSkipped=(result.illustrationsSkipped??0)+1;continue;}
+                const prompt=illustrationPrompt(result.show,index);
+                const slideTrace=trace?.start({provider:'meta',model:'muse-image-1.0',input:prompt,instructions:'image generation'});
+                try{const image=await imageCall({prompt,timeoutMs:left,...(slideTrace?{onTrace:slideTrace.event}:{})});result.illustrations[index]=await storeImage(image,ownerOf(tester));slideTrace?.finish('accepted');}
+                catch{slideTrace?.finish('failed or rejected');}
+              }
             }else if(imageCall&&llm.provider==='meta')result.coverSkipped='time';
           }
           if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}

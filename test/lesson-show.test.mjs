@@ -37,3 +37,10 @@ test('image generation posts the documented body and returns a data URL without 
  await assert.rejects(()=>generateMetaImage({apiKey:'k',prompt:'A mug',fetchImpl:async()=>({ok:true,status:200,json:async()=>({data:[]})})}),/no image/);
  await assert.rejects(()=>generateMetaImage({apiKey:'',prompt:'A mug',fetchImpl}),/MODEL_API_KEY/);
 });
+test('illustration flags are kept on at most two claim, transfer or takeaway slides and dropped elsewhere',()=>{
+ const lesson=coolingLesson();
+ const flagged=k=>({...slide(k),illustrate:true});
+ const show=readShow(reply([flagged('cover'),flagged('claim'),flagged('experiment'),flagged('evidence'),flagged('transfer'),flagged('takeaway')]),lesson);
+ assert.deepEqual(show.slides.map(s=>s.illustrate===true),[false,true,false,false,true,false],'two flags survive, in writer order, never on cover/experiment/evidence');
+ const plain=readShow(reply(good()),lesson);assert.ok(plain.slides.every(s=>!('illustrate' in s)));
+});

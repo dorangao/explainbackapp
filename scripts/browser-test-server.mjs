@@ -113,11 +113,12 @@ const server = createApp({
       };
     if (name === "make_show") {
       const bi = (en, zh) => ({ en, zh });
-      const slide = (kind, heading, narration) => ({
+      const slide = (kind, heading, narration, illustrate = false) => ({
         kind,
         chapter: 0,
         heading: bi(heading, heading + "（中）"),
         narration: bi(narration, narration + "（中）"),
+        illustrate,
       });
       return {
         structured: {
@@ -127,7 +128,7 @@ const server = createApp({
               slide("cover", "Hook", "Why does coffee cool the way it does?"),
               slide("claim", "Claim", "Is the cooling rate constant?"),
               slide("experiment", "Watch", "Watch the curve as the gap closes."),
-              slide("takeaway", "Takeaway", "The gap drives the rate."),
+              slide("takeaway", "Takeaway", "The gap drives the rate.", true),
             ],
             coverPrompt: "A cup of coffee by a window",
           },

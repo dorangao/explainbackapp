@@ -220,3 +220,26 @@ test('a saved lesson keeps the learner tryout and explain-back grades, and the p
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),grades:{0:{...grades()[0],verdict:'great'}}},judge)).status,400);
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),grades:{0:{...grades()[0],key:'has space'}}},judge)).status,400);
 });
+
+test('the show request draws the slides the writer flagged after the cover, within the budget, and a failed slide is simply absent',async t=>{
+ const {store}=fakeBlob();const prompts=[];
+ const flagged=()=>({...show(),slides:show().slides.map((s,i)=>i===1||i===3?{...s,illustrate:true}:s)});
+ const {post,get,codeCookie}=await setup(t,{imageStore:store,modelCall:async args=>{
+  const name=args.tools[0].name;
+  if(name==='compose_lesson')return {toolCall:{name,arguments:JSON.stringify({status:'ready',message:bi('Ready','好'),lesson:coolingLesson()})}};
+  return {structured:{name:'make_show',value:flagged()}};
+ },imageCall:async args=>{prompts.push(args.prompt);if(prompts.length===3)throw new Error('down');return {dataUrl:image(prompts.length),model:'muse-image-1.0',usage:null};}});
+ const judge=await codeCookie('JUDGE-INVITE-1');
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
+ const made=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Cooling coffee'},judge)).json();
+ const shown=await(await post('/api/studio/show',{sessionId:s.sessionId,lesson:made.lesson},judge)).json();
+ assert.match(shown.cover,/r001\.webp$/);assert.deepEqual(shown.show.slides.map(x=>x.illustrate===true),[false,true,false,true]);
+ assert.deepEqual(Object.keys(shown.illustrations),['1'],'the first flagged slide was drawn; the second failed and is absent');
+ assert.match(shown.illustrations['1'],/r002\.webp$/);assert.equal(prompts.length,3);
+ assert.match(prompts[1],/^A calm, flat, editorial illustration.*Scene: Claim\./);assert.match(prompts[2],/Scene: Takeaway\./);
+ assert.equal(shown.attemptsRemaining,6,'the show and its images are one request');
+ // The flagged script saves and reloads with its flags and the drawn slide.
+ const saved=await(await post('/api/lessons',{lesson:made.lesson,show:shown.show,cover:shown.cover,coverModel:shown.coverModel,illustrations:shown.illustrations},judge)).json();
+ const full=await(await get('/api/lessons/'+saved.id,judge)).json();
+ assert.equal(full.show.slides[1].illustrate,true);assert.match(full.illustrations['1'],/r002\.webp$/);
+});

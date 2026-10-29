@@ -22,7 +22,9 @@ test("the judge path runs the whole creation story in order and reports its cost
   await expect(page.locator('.judge-steps li[data-state="done"]')).toHaveCount(
     6,
   );
-  await expect(page.getByText("Used in this session: 4")).toBeVisible();
+  // The fixture's show writer flags one slide, so the show request draws the cover and
+  // that illustration together and the illustration step is already done.
+  await expect(page.getByText("Used in this session: 3")).toBeVisible();
   const studio = requests.filter(
     (p) => p.startsWith("/api/studio/") && p !== "/api/studio/session",
   );
@@ -30,7 +32,6 @@ test("the judge path runs the whole creation story in order and reports its cost
     "/api/studio/compose",
     "/api/studio/tryout",
     "/api/studio/show",
-    "/api/studio/illustrate",
   ]);
   // The saved, shared copy sits on the shelf; a second tour costs nothing.
   await expect(
