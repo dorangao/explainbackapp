@@ -68,6 +68,26 @@ const server = createApp({
           }),
         },
       };
+    if (name === "try_lesson")
+      return {
+        toolCall: {
+          name,
+          arguments: JSON.stringify({
+            chapters: [
+              {
+                prediction: "disagree",
+                reason: "The gap shrinks, so cooling slows.",
+                explanation: "Cooling follows the temperature gap.",
+                transferAnswer: "18",
+                confusions: ["The axis unit was easy to miss."],
+                suggestions: ["Label the time axis."],
+              },
+            ],
+            overall: "Short and clear.",
+            rating: 4,
+          }),
+        },
+      };
     if (name === "make_show") {
       const bi = (en, zh) => ({ en, zh });
       const slide = (kind, heading, narration) => ({

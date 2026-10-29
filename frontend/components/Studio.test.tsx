@@ -987,3 +987,158 @@ describe("Guided replay", () => {
     }
   });
 });
+
+describe("Judge path", () => {
+  it("runs draft, tryout, show, illustration, save and share in order, reusing what is already there", async () => {
+    const calls: string[] = [];
+    const slide = (kind: string) => ({
+      kind,
+      chapter: 0,
+      heading: { en: kind + " heading", zh: kind },
+      narration: { en: "Spoken " + kind + ".", zh: kind },
+    });
+    let shared = false;
+    const post: Post = async (path) => {
+      calls.push(path);
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "", zh: "" },
+          attemptsRemaining: 7,
+          model: "test",
+          elapsedMs: 900,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/tryout")
+        return {
+          chapters: [
+            {
+              prediction: "disagree",
+              reason: "r",
+              explanation: "e",
+              transfer: { answer: "18", correct: true, unit: "m" },
+              confusions: [],
+              suggestions: ["Label the axis."],
+            },
+          ],
+          overall: "ok",
+          rating: 4,
+          llm: status.models[0],
+          attemptsRemaining: 6,
+          model: "test",
+          elapsedMs: 800,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/show")
+        return {
+          show: {
+            version: 1,
+            slides: [
+              slide("cover"),
+              slide("claim"),
+              slide("experiment"),
+              slide("takeaway"),
+            ],
+            coverPrompt: "A mug",
+          },
+          cover: "data:image/webp;base64,QUJD",
+          coverModel: "muse-image-1.0",
+          llm: status.models[0],
+          attemptsRemaining: 5,
+          model: "test",
+          elapsedMs: 3000,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/illustrate")
+        return {
+          image: "data:image/webp;base64,QUJE",
+          model: "muse-image-1.0",
+          slide: 1,
+          prompt: "p",
+          llm: status.models[0],
+          attemptsRemaining: 4,
+          elapsedMs: 2000,
+          usage: null,
+        } as never;
+      if (path === "/api/lessons")
+        return {
+          id: "0123456789abcdef",
+          title: coolingLesson().title,
+          intro: coolingLesson().intro,
+          kind: "model",
+          hasShow: true,
+          model: "test",
+          cover: "data:image/webp;base64,QUJD",
+          sketch: null,
+          shared,
+          createdAt: 1,
+          updatedAt: 2,
+        } as never;
+      if (path === "/api/lessons/share") {
+        shared = true;
+        return {
+          id: "0123456789abcdef",
+          title: coolingLesson().title,
+          intro: coolingLesson().intro,
+          kind: "model",
+          hasShow: true,
+          model: "test",
+          cover: null,
+          sketch: null,
+          shared: true,
+          createdAt: 1,
+          updatedAt: 3,
+        } as never;
+      }
+      return { records: [], lessons: [], limit: 50 } as never;
+    };
+    mount(
+      {
+        authenticated: true,
+        status: { ...status, images: true },
+        view: "create",
+      },
+      post,
+    );
+    expect(
+      screen.getByRole("heading", { name: "The six-minute tour" }),
+    ).toBeTruthy();
+    expect(document.querySelector(".judge-foot")?.textContent).toMatch(
+      /remaining steps will make: 4 · Used in this session: 0/,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Run all remaining/ }));
+    await screen.findByText(/All steps done/, undefined, { timeout: 8000 });
+    const studio = calls.filter(
+      (c) => c.startsWith("/api/studio/") && c !== "/api/studio/session",
+    );
+    expect(studio).toEqual([
+      "/api/studio/compose",
+      "/api/studio/tryout",
+      "/api/studio/show",
+      "/api/studio/illustrate",
+    ]);
+    expect(calls.filter((c) => c === "/api/lessons")).toHaveLength(1);
+    expect(calls.filter((c) => c === "/api/lessons/share")).toHaveLength(1);
+    expect(
+      document.querySelectorAll('.judge-steps li[data-state="done"]'),
+    ).toHaveLength(6);
+    expect(document.querySelector(".judge-foot")?.textContent).toMatch(
+      /Used in this session: 4/,
+    );
+    expect(
+      await screen.findByRole("button", { name: "Tour complete" }),
+    ).toBeTruthy();
+  });
+  it("marks the illustration step unavailable without an image model and shows no run-all for a single step", () => {
+    mount({ authenticated: true, status, view: "create" });
+    const steps = document.querySelectorAll(".judge-steps li");
+    expect(steps[3].getAttribute("data-state")).toBe("unavailable");
+    expect(steps[3].textContent).toMatch(/Not on this server/);
+    expect(
+      screen.getByRole("button", { name: /Run next: Draft a lesson/ }),
+    ).toBeTruthy();
+  });
+});

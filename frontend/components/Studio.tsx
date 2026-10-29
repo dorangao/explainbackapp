@@ -46,7 +46,13 @@ import {
 import type { CacheState } from "./CacheNote";
 import { Gallery } from "./Gallery";
 import { LessonShelf, ShareControls } from "./Library";
-import { readMine, saveLesson as saveToShelf } from "../lib/library";
+import {
+  readMine,
+  saveLesson as saveToShelf,
+  shareLesson,
+} from "../lib/library";
+import { JudgePath } from "./JudgePath";
+import type { JudgeStep, JudgeStepId } from "./JudgePath";
 import type { SavedLesson, SavedSummary } from "../lib/library";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
@@ -128,7 +134,9 @@ export function Studio({
     [savedId, setSavedId] = useState<string | null>(null),
     [savedItem, setSavedItem] = useState<SavedSummary | null>(null),
     [saving, setSaving] = useState(false),
-    [shelfRefresh, setShelfRefresh] = useState(0);
+    [shelfRefresh, setShelfRefresh] = useState(0),
+    // The judge path is running one or more steps in sequence.
+    [judgeRunning, setJudgeRunning] = useState(false);
   const clearFeedback = useCallback(() => setFeedback(null), []);
   const provider = useProviderSession({
     post,
@@ -352,9 +360,15 @@ export function Studio({
       ? `\n${t(language, "Studio.reason")}: ${error.reason}`
       : "");
   // `text` is the revision request for compose, or the learner's own explanation for guide.
-  async function request(mode: "compose" | "guide", text?: string) {
+  // `starter` replaces the typed topic for a scripted compose (the judge path).
+  async function request(
+    mode: "compose" | "guide",
+    text?: string,
+    starter?: string,
+  ) {
     const revisionText = mode === "compose" ? text : undefined,
-      learnerText = mode === "guide" ? text?.trim() : undefined;
+      learnerText = mode === "guide" ? text?.trim() : undefined,
+      asked = (starter ?? topic).trim();
     if (
       busyRef.current ||
       !authenticated ||
@@ -362,15 +376,15 @@ export function Studio({
       remaining === 0 ||
       image.loading
     )
-      return;
+      return false;
     const attached = image.image;
-    if (mode === "compose" && !revisionText && !topic.trim() && !attached) {
+    if (mode === "compose" && !revisionText && !asked && !attached) {
       setMessage(t(language, "Studio.enterAQuestionOrAttach"));
-      return;
+      return false;
     }
     if (attached && !revisionText && target.provider !== "meta") {
       setMessage(t(language, "Studio.chooseAMetaModelFor"));
-      return;
+      return false;
     }
     let body: Record<string, unknown>;
     try {
@@ -378,7 +392,7 @@ export function Studio({
         mode === "compose"
           ? {
               topic:
-                topic.trim() ||
+                asked ||
                 (!revisionText && attached
                   ? ""
                   : (draft?.title[language] ?? "")),
@@ -400,7 +414,7 @@ export function Studio({
             };
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
-      return;
+      return false;
     }
     const before = revisionText && draft ? structuredClone(draft) : null;
     const requestKey =
@@ -499,7 +513,7 @@ export function Studio({
               : ""),
         );
       }
-      return;
+      return false;
     }
     if (mode === "compose") {
       const composed = result.reply as ComposeReply;
@@ -542,6 +556,7 @@ export function Studio({
         [chapterKey]: { reply, at: Date.now(), key: requestKey },
       }));
     }
+    return true;
   }
   // The test learner (tester role) tries the validated draft; its answers are checked by code.
   async function tryLesson() {
@@ -552,13 +567,13 @@ export function Studio({
       remaining === 0 ||
       !draft
     )
-      return;
+      return false;
     let lesson: Lesson;
     try {
       lesson = validateLesson(draft);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
-      return;
+      return false;
     }
     setMessage("");
     const result = await run<TryoutReply>(
@@ -573,10 +588,11 @@ export function Studio({
     );
     if (!result.ok) {
       if (!result.stale) setMessage(failureMessage(result.error));
-      return;
+      return false;
     }
     setTryout({ reply: result.reply, at: Date.now(), key: tryoutKey });
     setMessage(t(language, "Studio.theTestLearnerTriedThis"));
+    return true;
   }
   // The creator writes the narration; the server adds a Muse Image cover when it can.
   // The spoken explain-back: the recorded WAV goes to Muse Voice Transcribe and the
@@ -614,13 +630,13 @@ export function Studio({
       remaining === 0 ||
       !draft
     )
-      return;
+      return false;
     let lesson: Lesson;
     try {
       lesson = validateLesson(draft);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
-      return;
+      return false;
     }
     setMessage("");
     const result = await run<ShowReply>(target, "show", (id, options) =>
@@ -628,11 +644,12 @@ export function Studio({
     );
     if (!result.ok) {
       if (!result.stale) setMessage(failureMessage(result.error));
-      return;
+      return false;
     }
     setShow({ reply: result.reply, at: Date.now(), key: showKey });
     setShowing(true);
     setMessage(t(language, "Studio.theShowIsReady"));
+    return true;
   }
   // One SAM 3.1 request: find the thing the creator names in the source image.
   async function detect(concept: string) {
@@ -685,13 +702,13 @@ export function Studio({
       !draft ||
       !show
     )
-      return;
+      return false;
     let lesson: Lesson;
     try {
       lesson = validateLesson(draft);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
-      return;
+      return false;
     }
     const script = show.reply.show;
     setMessage("");
@@ -707,7 +724,7 @@ export function Studio({
     );
     if (!result.ok) {
       if (!result.stale) setMessage(failureMessage(result.error));
-      return;
+      return false;
     }
     const drawn = result.reply;
     setShow((prev) =>
@@ -732,6 +749,76 @@ export function Studio({
         : prev,
     );
     setMessage(t(language, "Studio.illustrationReady"));
+    return true;
+  }
+  // Shares the saved copy by link from the judge path; the shelf has the same switch.
+  async function shareSaved(): Promise<boolean> {
+    if (!savedId || !savedItem) return false;
+    try {
+      const next = await shareLesson(post, savedId, true);
+      if (!alive.current) return false;
+      setSavedItem(next);
+      setShelfRefresh((n) => n + 1);
+      setMessage(t(language, "Library.linkTurnedOn"));
+      return true;
+    } catch (e) {
+      if (alive.current)
+        setMessage(
+          e instanceof ApiError
+            ? e.message
+            : t(language, "Library.couldNotUpdate"),
+        );
+      return false;
+    }
+  }
+  // The six-step reviewer tour. Each step is the same action as its button elsewhere
+  // on the page, so caches, budgets and messages behave identically.
+  const judgeActions: Record<JudgeStepId, () => Promise<boolean>> = {
+    draft: () => {
+      const starter = studioWalkthrough(language).topic;
+      setTopic(starter);
+      return request("compose", undefined, starter);
+    },
+    tryout: () => tryLesson(),
+    show: () => makeShow(),
+    illustrate: async () => {
+      if (!show) return false;
+      const slide = show.reply.show.slides.findIndex(
+        (s, i) => i > 0 && s.kind !== "experiment",
+      );
+      return illustrate(slide > 0 ? slide : 1);
+    },
+    save: () => saveLesson(),
+    share: () => shareSaved(),
+  };
+  // The actions close over the current render; a sequence must call the latest copy
+  // after each step so the next one sees the previous result.
+  const judgeActionsRef = useRef(judgeActions);
+  judgeActionsRef.current = judgeActions;
+  async function runJudgeStep(id: JudgeStepId) {
+    if (judgeRunning) return;
+    setJudgeRunning(true);
+    try {
+      await judgeActionsRef.current[id]();
+    } finally {
+      if (alive.current) setJudgeRunning(false);
+    }
+  }
+  async function runJudgeAll() {
+    if (judgeRunning) return;
+    setJudgeRunning(true);
+    try {
+      for (let guard = 0; guard < 8; guard++) {
+        const step = judgeStepsRef.current.find((s) => s.state === "todo");
+        if (!step) break;
+        if (!(await judgeActionsRef.current[step.id]())) break;
+        if (!alive.current) return;
+        // Let React render the new state before the next step reads it.
+        await new Promise<void>((r) => setTimeout(r, 20));
+      }
+    } finally {
+      if (alive.current) setJudgeRunning(false);
+    }
   }
   async function importLesson(file: File | undefined) {
     if (!file || busyRef.current || !authenticated) return;
@@ -768,13 +855,13 @@ export function Studio({
   }
   // Keeps the lesson (and its show script) on the creator's shelf; no model request.
   async function saveLesson() {
-    if (!authenticated || saving || busyRef.current) return;
+    if (!authenticated || saving || busyRef.current) return false;
     let valid: Lesson;
     try {
       valid = validateLesson(draft);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesBeforeExporting"));
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -802,7 +889,7 @@ export function Studio({
         illustrations: current?.illustrations ?? null,
         sketch: source === "muse-sketch" ? sourceImage : null,
       });
-      if (!alive.current) return;
+      if (!alive.current) return false;
       setSavedId(summary.id);
       setSavedItem(summary);
       setShelfRefresh((n) => n + 1);
@@ -829,9 +916,11 @@ export function Studio({
             ? e.message
             : t(language, "Library.couldNotSave"),
         );
+      return false;
     } finally {
       if (alive.current) setSaving(false);
     }
+    return true;
   }
   function openSaved(record: SavedLesson) {
     const { lesson: body, show: script, ...summary } = record;
@@ -883,6 +972,42 @@ export function Studio({
     tryoutKey = fingerprint({ lesson: draft, language }),
     showKey = fingerprint({ lesson: draft }),
     reviseKey = fingerprint({ draft, revision: revisionPrompt.trim() });
+  const judgeSteps: JudgeStep[] = [
+    { id: "draft", state: draft ? "done" : "todo", request: true },
+    {
+      id: "tryout",
+      state: draft && tryout?.key === tryoutKey ? "done" : "todo",
+      request: !(tryout?.key === tryoutKey),
+    },
+    {
+      id: "show",
+      state: draft && show?.key === showKey ? "done" : "todo",
+      request: !(show?.key === showKey),
+    },
+    {
+      id: "illustrate",
+      state: !providerStatus?.images
+        ? "unavailable"
+        : draft &&
+            show?.key === showKey &&
+            Object.keys(show.reply.illustrations ?? {}).length > 0
+          ? "done"
+          : "todo",
+      request: true,
+    },
+    {
+      id: "save",
+      state: savedId && savedItem ? "done" : "todo",
+      request: false,
+    },
+    {
+      id: "share",
+      state: savedItem?.shared ? "done" : "todo",
+      request: false,
+    },
+  ];
+  const judgeStepsRef = useRef(judgeSteps);
+  judgeStepsRef.current = judgeSteps;
   const caches = {
     compose: cacheState(composeStamp, composeStamp?.key ?? ""),
     revise: cacheState(reviseStamp, reviseKey),
@@ -976,6 +1101,23 @@ export function Studio({
           </section>
         </>
       )}
+      {view === "create" &&
+        authenticated &&
+        target?.configured &&
+        !presenting && (
+          <JudgePath
+            language={language}
+            steps={judgeSteps}
+            running={judgeRunning || busy}
+            canRun={
+              remaining > 0 ||
+              judgeSteps.every((s) => !s.request || s.state !== "todo")
+            }
+            used={8 - remaining}
+            onRun={(id) => void runJudgeStep(id)}
+            onRunAll={() => void runJudgeAll()}
+          />
+        )}
       {!draft && view === "create" && (
         <section className="author-workspace">
           <div className="workspace-heading">
