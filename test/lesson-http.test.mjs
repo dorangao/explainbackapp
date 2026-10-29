@@ -190,3 +190,32 @@ test('a rejected draft reports the validator reason in the 502 and the trace, wi
  assert.equal(trace.records[0].outcome,'failed or rejected');assert.equal(trace.records[0].reason,'title needs both languages, each 1–80 characters.');
  assert.equal(trace.records[1].reason,undefined);assert.equal(trace.records[2].reason,undefined);assert.equal(trace.records[2].outcome,'failed or rejected');assert.ok(!JSON.stringify(trace).includes(testerCredentials.password));
 });
+test('studio turns chain onto the last stored response of the same model, fall back once when it is gone, and never chain across models',async t=>{
+ const seen=[];let n=0,expired=null;
+ const {post}=await setup(t,async(args,id)=>{
+  seen.push({id,prev:args.previousResponseId??null,store:args.store,key:args.promptCacheKey});
+  if(args.previousResponseId&&args.previousResponseId===expired)throw Object.assign(new Error('Meta API returned HTTP 404.'),{status:404});
+  const name=args.tools[0].name;n++;
+  const reply=name==='compose_lesson'?{toolCall:{name,arguments:JSON.stringify({status:'ready',message:bi('Ready'),lesson:lesson()})}}
+   :{toolCall:{name,arguments:JSON.stringify({chapters:[{prediction:'disagree',reason:'r',explanation:'e',transferAnswer:'18',confusions:[],suggestions:[]}],overall:'ok',rating:4})}};
+  return {...reply,id:'resp_'+n,usage:{input_tokens:100,output_tokens:10,input_tokens_details:{cached_tokens:n>1?90:0}}};
+ },false);
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'})).json();
+ const first=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration'})).json();
+ assert.deepEqual(first.usage,{input:100,output:10,cached:0});assert.equal(first.chained,false);
+ const revised=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration',revision:'Add a second output.',draft:first.lesson})).json();
+ assert.equal(revised.chained,true);assert.deepEqual(revised.usage,{input:100,output:10,cached:90});
+ // The test learner is a separate role: it never inherits the author's chain, even on the same model.
+ const tried=await(await post('/api/studio/tryout',{sessionId:s.sessionId,lesson:first.lesson,language:'en'})).json();
+ assert.equal(tried.chained,false);
+ assert.deepEqual(seen.map(x=>x.prev),[null,'resp_1',null]);
+ assert.ok(seen.every(x=>x.store===true&&/^explainback-(compose|tryout)$/.test(x.key)),'every Meta turn is stored and carries a per-mode cache key');
+ // A chain whose response has expired is dropped and the turn runs once unchained.
+ expired='resp_2';
+ const gone=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration',revision:'Again.',draft:first.lesson})).json();
+ assert.equal(gone.chained,false);assert.deepEqual(seen.slice(3).map(x=>x.prev),['resp_2',null]);
+ assert.equal(gone.attemptsRemaining,4,'the fallback is not a second request on the budget');
+ // The new response starts a fresh chain.
+ await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration',revision:'Once more.',draft:first.lesson});
+ assert.equal(seen.at(-1).prev,'resp_4');
+});

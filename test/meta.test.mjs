@@ -196,3 +196,18 @@ test('SAM output parses into pixel boxes and the segmentation request hides imag
  assert.ok(!JSON.stringify(events).includes('QUJD'));assert.equal(events.at(-1).body.matches,1);
  await assert.rejects(segmentMetaImage({apiKey:'k',image:'data:image/png;base64,QUJD',concept:'glasses',fetchImpl:async()=>new Response('{}',{status:404})}),/status 404/);
 });
+test('a chained turn sends previous_response_id, store and the cache key, and usage reports cached tokens',async()=>{
+ const {callMeta,usageSummary}=await import('../src/meta.mjs');
+ let sent;
+ const fetchImpl=async(url,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify({id:'resp_2',status:'completed',model:'muse-spark-1.3',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:'ok'}]}],usage:{input_tokens:1847,output_tokens:98,input_tokens_details:{cached_tokens:1792}}}),{status:200,headers:{'Content-Type':'application/json'}});};
+ const result=await callMeta({apiKey:'k',input:'Next turn.',previousResponseId:'resp_1',promptCacheKey:'explainback-guide',store:true,fetchImpl});
+ assert.equal(sent.previous_response_id,'resp_1');assert.equal(sent.prompt_cache_key,'explainback-guide');assert.equal(sent.store,true);
+ assert.equal(result.id,'resp_2');assert.deepEqual(usageSummary(result.usage),{input:1847,output:98,cached:1792});
+ assert.deepEqual(usageSummary(null),null);assert.deepEqual(usageSummary({input_tokens:5,output_tokens:6}),{input:5,output:6,cached:null});
+ // An unchained request stores nothing by default and sends neither field.
+ await callMeta({apiKey:'k',input:'Fresh.',fetchImpl});
+ assert.equal(sent.store,false);assert.equal('previous_response_id' in sent,false);assert.equal('prompt_cache_key' in sent,false);
+ await assert.rejects(callMeta({apiKey:'k',input:'x',previousResponseId:'not an id',fetchImpl}),/response id/);
+ // HTTP errors carry their status so a caller can fall back once.
+ await assert.rejects(callMeta({apiKey:'k',input:'x',fetchImpl:async()=>new Response('{}',{status:404,headers:{'Content-Type':'application/json'}})}),e=>e.status===404&&/HTTP 404/.test(e.message));
+});

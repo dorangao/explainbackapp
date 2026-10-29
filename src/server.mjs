@@ -3,7 +3,7 @@ import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
 import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
-import {generateMetaImage,transcribeMetaAudio,segmentMetaImage} from './meta.mjs';
+import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,usageSummary} from './meta.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {suctionScenario,suctionTitle} from '../public/suction.mjs';
 import {flightScenario,flightTitle} from '../public/flight.mjs';
@@ -208,7 +208,8 @@ export function createHandler({
         if(raw.pending){json(200,{pending:true,attemptsRemaining:8-s.attempts});return;}
         if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=8-s.attempts;throw failure;}
         let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
-        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};
+        if(typeof raw?.id==='string'&&/^resp_/.test(raw.id))s.chains={...(s.chains??{}),[`${s.llm.id}:author`]:raw.id};
+        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),llm:s.llm,attemptsRemaining:8-s.attempts};
         s.background={result:answer};await save();json(200,answer);return;
       }
       if(path==='/api/trace'){
@@ -260,7 +261,7 @@ export function createHandler({
         s.attempts++;await save();
         if(background){
           try{
-            const startedAt=Date.now(),started=await router.startBackground(s.llm.id,args);
+            const startedAt=Date.now(),started=await router.startBackground(s.llm.id,{...args,promptCacheKey:`explainback-${mode}`});
             if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
             if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
             s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt};await save();
@@ -270,10 +271,26 @@ export function createHandler({
         const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
         const call=trace?.start({provider:llm.provider,model:llm.model,input:args.input,instructions:args.instructions});
         try{
-          await trace?.flush();const options={...args,...(call?{onTrace:call.event}:{})};
-          const startedAt=performance.now(),raw=await(modelCall?modelCall(options,llm.id):router.call(llm.id,options));let result=null;
+          await trace?.flush();
+          // Multi-turn: a Meta turn chains onto this session's last stored response from the
+          // same model in the same role (author: compose → revise → show; learner: tryout →
+          // guide), so the model keeps its reasoning context while the request still carries
+          // the checked lesson as the ground truth. The learner role never inherits the
+          // author's conversation, even on the same model: a first-time learner must not know
+          // how the lesson was written. If the earlier response is gone, the turn runs once
+          // unchained.
+          const chainKey=`${llm.id}:${['tryout','guide'].includes(mode)?'learner':'author'}`;
+          const chain=llm.provider==='meta'?(s.chains?.[chainKey]??null):null;
+          const meta=llm.provider==='meta'?{store:true,promptCacheKey:`explainback-${mode}`}:{};
+          const options={...args,...meta,...(chain?{previousResponseId:chain}:{}),...(call?{onTrace:call.event}:{})};
+          const invoke=o=>modelCall?modelCall(o,llm.id):router.call(llm.id,o);
+          const startedAt=performance.now();
+          let raw,chained=Boolean(chain);try{raw=await invoke(options);}
+          catch(error){if(chain&&[400,404].includes(error?.status)){delete s.chains[chainKey];chained=false;const {previousResponseId,...unchained}=options;raw=await invoke(unchained);}else throw error;}
+          if(llm.provider==='meta'&&typeof raw?.id==='string'&&/^resp_/.test(raw.id)){s.chains={...(s.chains??{}),[chainKey]:raw.id};}
+          let result=null;
           try{result=mode==='tryout'?readLearnerTryout(raw,validateLesson(body.lesson),body.language):mode==='show'?{show:readShow(raw,validateLesson(body.lesson))}:readLessonAuthor(raw,mode,body.creation,mode==='guide'&&body.explanation!==undefined);}catch(error){throw tagRejection(error);}
-          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null};
+          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained};
           // A show gets one cover illustration from Muse Image when Meta is configured; a failed
           // or missing image never fails the show. Image bytes go to the client only.
           if(mode==='show'){

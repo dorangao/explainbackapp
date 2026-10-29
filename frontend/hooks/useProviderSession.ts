@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Post, Target, Language } from "../lib/types";
+import type { Post, Target, Language, Usage } from "../lib/types";
 import { ApiError } from "../lib/api";
 
 export type StudioSession = { sessionId: string; attemptsRemaining: number };
 export type RequestMetrics = {
   model: string;
   elapsedMs: number;
-  usage: { input: number | null; output: number | null } | null;
+  usage: Usage | null;
   mode:
     | "compose"
     | "revise"

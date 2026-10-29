@@ -24,7 +24,10 @@ export function RequestSummary({
   }[metrics.mode];
   const tokens =
     metrics.usage && (metrics.usage.input ?? metrics.usage.output) !== null
-      ? ` · ${metrics.usage.input ?? "—"} ${t(language, "RevisionSummary.tokensIn")} / ${metrics.usage.output ?? "—"} ${t(language, "RevisionSummary.out")}`
+      ? ` · ${metrics.usage.input ?? "—"} ${t(language, "RevisionSummary.tokensIn")} / ${metrics.usage.output ?? "—"} ${t(language, "RevisionSummary.out")}` +
+        (metrics.usage.cached
+          ? ` · ${metrics.usage.cached} ${t(language, "RevisionSummary.fromCache")}`
+          : "")
       : "";
   return (
     <p className="request-summary" role="status">

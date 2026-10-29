@@ -165,7 +165,12 @@ export interface Player {
   replay(): void;
   restart(): void;
 }
-export type Usage = { input: number | null; output: number | null };
+// Input tokens served from the provider's prompt cache are a subset of `input`.
+export type Usage = {
+  input: number | null;
+  output: number | null;
+  cached?: number | null;
+};
 export type ReplyMetrics = {
   model?: string;
   elapsedMs?: number;
