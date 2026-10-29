@@ -9,6 +9,14 @@ import {
   within,
 } from "@testing-library/react";
 import { Studio } from "./Studio";
+const shelf = vi.hoisted(() => ({ record: null as unknown }));
+vi.mock("../lib/api", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/api")>()),
+  getJson: async (path: string) =>
+    path === "/api/lessons"
+      ? { lessons: shelf.record ? [shelf.record] : [], limit: 50 }
+      : shelf.record,
+}));
 vi.mock("../lib/recorder", () => ({
   MicrophoneError: class extends Error {},
   startRecording: vi.fn(async () => ({
@@ -1140,5 +1148,82 @@ describe("Judge path", () => {
     expect(
       screen.getByRole("button", { name: /Run next: Draft a lesson/ }),
     ).toBeTruthy();
+  });
+});
+
+describe("Reopening a saved lesson", () => {
+  it("restores the learner tryout and an explain-back grade without any provider request", async () => {
+    const lesson = coolingLesson();
+    shelf.record = {
+      id: "0123456789abcdef",
+      title: lesson.title,
+      intro: lesson.intro,
+      kind: "model",
+      hasShow: false,
+      hasTryout: true,
+      graded: 1,
+      model: "test",
+      cover: null,
+      sketch: null,
+      shared: false,
+      createdAt: 1,
+      updatedAt: 2,
+      lesson,
+      show: null,
+      coverModel: null,
+      illustrations: {},
+      tryout: {
+        chapters: [
+          {
+            prediction: "disagree",
+            reason: "The gap shrinks.",
+            explanation: "Cooling follows the gap.",
+            transfer: {
+              given: "18",
+              correct: true,
+              type: "number",
+              unit: "°C",
+            },
+            confusions: [],
+            suggestions: ["Label the axis."],
+          },
+        ],
+        overall: "Short and clear.",
+        rating: 4,
+        model: "test",
+        language: "en",
+      },
+      grades: {
+        "0": {
+          explanation: "It cools faster when hotter.",
+          feedback: "Right: the rate follows the gap.",
+          verdict: "supported",
+          followUp: "What happens near room temperature?",
+          model: "test",
+          language: "en",
+          key: "abc-1",
+        },
+      },
+    };
+    const calls: string[] = [];
+    const post: Post = async (path) => {
+      calls.push(path);
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+    await screen.findByText(/Short and clear\./);
+    expect(document.querySelector(".tryout-report")?.textContent).toMatch(
+      /4\/5/,
+    );
+    expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+    // The restored grade is part of the remembered draft, so it survives a reload too.
+    await vi.waitFor(() => {
+      const stored = localStorage.getItem("explainback-studio-draft") ?? "";
+      expect(stored).toMatch(/It cools faster when hotter\./);
+      expect(stored).toMatch(/"verdict":"supported"/);
+      expect(stored).toMatch(/Short and clear\./);
+    });
+    shelf.record = null;
   });
 });

@@ -6,7 +6,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 
 - **Save to my lessons** sits next to Export in the review bar. It stores the checked lesson and, when the draft has a current narrated show, the show script (narration and cover prompt, never the cover image bytes). The model that drafted the lesson is recorded as a label.
 - Saving again from the same draft updates the same copy (**Save changes**); the remembered draft in this browser keeps the saved copy's id so a reload still updates rather than duplicates.
-- **Your lessons** on the Create page lists the shelf newest first with Open, Share and Delete (two-step). Opening loads the lesson into the review view with its show; it does not restore tryout reports or explain-back grades, which belong to a provider session.
+- **Your lessons** on the Create page lists the shelf newest first with Open, Share and Delete (two-step). Opening loads the lesson into the review view with its show, the test learner's report and any explain-back grades (added October 29, 2026), all without a model request. Grades keep the client cache key they were made with, so each shows as fresh or stale against the live lesson state exactly as before.
 - Each creator keeps up to 50 lessons. Ownership is the invite label (`code:<label>`) or `tester` for the password account, so the same invite sees its lessons from any browser; everyone using one invite shares one shelf.
 
 ## Sharing

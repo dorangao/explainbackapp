@@ -17,6 +17,8 @@ const summary = (over: Partial<SavedSummary> = {}): SavedSummary => ({
   cover: null,
   sketch: null,
   hasShow: true,
+  hasTryout: false,
+  graded: 0,
   model: "muse-wonder-1.0",
   shared: false,
   createdAt: 1,

@@ -202,3 +202,21 @@ test('detection needs the segmentation model',async t=>{
  const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
  assert.equal((await post('/api/studio/detect',{sessionId:s.sessionId,image:image(1),concept:'cup'},judge)).status,503);
 });
+const tryoutReport=()=>({chapters:[{prediction:'disagree',reason:'The gap shrinks.',explanation:'Cooling follows the gap.',transfer:{given:'18',correct:true,type:'number',unit:'°C'},confusions:['Axis unit'],suggestions:['Label the axis.']}],overall:'Clear.',rating:4,model:'muse-spark-1.3',language:'en'});
+const grades=()=>({0:{explanation:'It cools faster when hotter.',feedback:'Right: the rate follows the gap.',verdict:'supported',followUp:'What happens near room temperature?',model:'muse-spark-1.3',language:'en',key:'abc123'}});
+test('a saved lesson keeps the learner tryout and explain-back grades, and the public reader returns them',async t=>{
+ const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');
+ const saved=await(await post('/api/lessons',{lesson:coolingLesson(),tryout:tryoutReport(),grades:grades()},judge)).json();
+ assert.equal(saved.hasTryout,true);assert.equal(saved.graded,1);
+ const full=await(await get('/api/lessons/'+saved.id,judge)).json();
+ assert.equal(full.tryout.rating,4);assert.equal(full.tryout.chapters[0].transfer.unit,'°C');assert.equal(full.grades['0'].verdict,'supported');assert.equal(full.grades['0'].key,'abc123');
+ await post('/api/lessons/share',{id:saved.id,shared:true},judge);
+ const open=await(await get('/api/shared/'+saved.id)).json();assert.equal(open.tryout.overall,'Clear.');assert.equal(open.grades['0'].explanation,'It cools faster when hotter.');
+ // Updating without them clears them; malformed ones are refused.
+ const cleared=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson()},judge)).json();assert.equal(cleared.hasTryout,false);assert.equal(cleared.graded,0);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),tryout:{...tryoutReport(),rating:9}},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),tryout:{...tryoutReport(),chapters:[]}},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),grades:{3:grades()[0]}},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),grades:{0:{...grades()[0],verdict:'great'}}},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),grades:{0:{...grades()[0],key:'has space'}}},judge)).status,400);
+});

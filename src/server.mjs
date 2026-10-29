@@ -172,7 +172,7 @@ export function createHandler({
       return reply(res,200,lessonSummary(record));
     }
     const previous=body.id!==undefined?await own():null;
-    let record;try{record=buildSavedLesson(body,{owner,previous});}catch{throw new RequestError(400,'Save a valid bilingual lesson, with an optional show script.');}
+    let record;try{record=buildSavedLesson(body,{owner,previous});}catch{throw new RequestError(400,'Save a valid bilingual lesson, with optional show script, tryout report and grades.');}
     // Images: kept when already stored under this creator, uploaded from data URLs when
     // Blob storage exists, dropped otherwise. Uploads happen before the cap check, so a
     // refused save removes what it uploaded.
