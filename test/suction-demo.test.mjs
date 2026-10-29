@@ -15,7 +15,8 @@ test('a wrong proposed claim or clarification stops without fabricated confirmat
 test('stop during a Next pause prevents any subsequent provider calls',async()=>{
  const controller=new AbortController(),f=fixture({signal:controller.signal,checkpoint:async stage=>{if(stage==='tilt')controller.abort();}});await assert.rejects(runSuctionDemo(f.options),e=>e.name==='AbortError');assert.equal(f.calls.filter(c=>c.path==='/api/turn').length,2);
 });
-test('trace gate prevents demo requests; failed playback prevents design calls',async()=>{
- const f=fixture({traceEnabled:false});await assert.rejects(runSuctionDemo(f.options));assert.equal(f.calls.length,0);
+test('tracing is optional; missing login or failed playback prevents design calls',async()=>{
+ const f=fixture({traceEnabled:false});assert.equal((await runSuctionDemo(f.options)).phase,'complete');assert.equal(f.calls.filter(c=>c.path==='/api/turn').length,5);
+ const g=fixture({testerAuthenticated:false});await assert.rejects(runSuctionDemo(g.options));assert.equal(g.calls.length,0);
  const p=fixture({play:async()=>false});await assert.rejects(runSuctionDemo(p.options),/interrupted/);assert.equal(p.calls.filter(c=>c.path==='/api/turn').length,2);
 });

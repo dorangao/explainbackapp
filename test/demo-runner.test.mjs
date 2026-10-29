@@ -15,8 +15,12 @@ test('one-click workflow makes exactly four provider submissions and plays befor
  for(const c of f.calls.filter(c=>c.path==='/api/turn'))assert.equal(c.body.demoPreset,true);
  assert.deepEqual(f.calls.at(-1).body.answer,{peakTorque:26318.95,touchdownOmegaA:5.24});
 });
-test('demo does not assert tester authentication or enable tracing by itself',async()=>{
- for(const flags of [{testerAuthenticated:false},{traceEnabled:false}]){const f=fixture(flags);await assert.rejects(runPresetDemo(f.options));assert.equal(f.calls.length,0);}
+test('demo does not assert tester authentication by itself',async()=>{
+ const f=fixture({testerAuthenticated:false});await assert.rejects(runPresetDemo(f.options));assert.equal(f.calls.length,0);
+});
+test('demo runs with server tracing disabled; the console is optional',async()=>{
+ const f=fixture({traceEnabled:false});const s=await runPresetDemo(f.options);
+ assert.equal(s.phase,'complete');assert.equal(f.calls.filter(c=>c.path==='/api/turn').length,4);
 });
 test('provider clarification stops the script without retry or fabricated confirmation',async()=>{
  const f=fixture();const original=f.options.request;f.options.request=async(path,body)=>path==='/api/turn'?(f.calls.push({path,body}),{sessionId:'s1',phase:'claim'}):original(path,body);

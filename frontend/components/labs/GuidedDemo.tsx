@@ -63,13 +63,15 @@ export function GuidedDemo({
         ? " 点击开始，以新语言重新演示。"
         : " Select Start to run in the new language."
       : "");
-  const note = !status.traceEnabled
-    ? zh
-      ? "演示需启用 EXPLAINBACK_TRACE=1 并重启，以显示真实调用。"
-      : "Enable EXPLAINBACK_TRACE=1 and restart to show live calls in the guided demo."
-    : zh
+  const note =
+    (zh
       ? `辅助例解 · 每步暂停 · 最多 ${maxCalls} 次模型调用。切换语言会停止脚本并保留当前画面；重新开始可切换模型回复语言。`
-      : `Worked example · pauses at each step · up to ${maxCalls} model calls. Changing language stops the script and preserves the scene; restart for provider replies in the new language.`;
+      : `Worked example · pauses at each step · up to ${maxCalls} model calls. Changing language stops the script and preserves the scene; restart for provider replies in the new language.`) +
+    (status.traceEnabled
+      ? ""
+      : zh
+        ? " 真实调用的请求记录未开启（服务端 EXPLAINBACK_TRACE=1），演示照常进行。"
+        : " The request console is off on this server (EXPLAINBACK_TRACE=1); the demo still makes live model calls.");
   const finished = s.autoState === "complete" && !active;
   const nextText = finished
     ? zh
@@ -153,7 +155,7 @@ export function GuidedDemo({
           <button
             type="button"
             id="auto-demo-run"
-            disabled={!s.ready || !status.traceEnabled || s.busy || active}
+            disabled={!s.ready || s.busy || active}
             onClick={() => void c.runDemo()}
           >
             {zh ? "开始演示" : "Start demo"}
