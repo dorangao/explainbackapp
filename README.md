@@ -4,7 +4,7 @@ ExplainBack turns a question or sketch into a bilingual, reviewable interactive 
 
 ExplainBack 把问题或草图变成可审阅的中英双语互动课程。学习者先预测，再操作实验、解释结果，并尝试新的情境。
 
-This is a **submission candidate** based on the ExplainBack source snapshot identified in [PROVENANCE.md](PROVENANCE.md). Its source has not yet been independently established as event-only, and publication of this repository is separate from submitting the project. [explainback.app](https://explainback.app/) is deployed from this repository; verify the deployed commit and live behavior separately from local changes.
+ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays in local notes is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md).
 
 ## Experience
 
@@ -50,4 +50,4 @@ The cloud entry point is `api/index.js`. It requires shared Redis configuration 
 
 ## Source and assets
 
-Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The six gallery show covers were generated with Muse Image and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. Review asset rights and provenance before publication. The repository includes synthetic test fixtures and excludes the source project's historical baseline archives, local environment files and generated evaluation output. See [PROVENANCE.md](PROVENANCE.md) for the timeline evidence and unresolved eligibility questions.
+Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The six gallery show covers were generated with Muse Image and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. The repository includes synthetic test fixtures and excludes local environment files and generated evaluation output. The author keeps the detailed provenance record locally and will provide it on request.
