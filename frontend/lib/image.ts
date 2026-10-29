@@ -38,3 +38,18 @@ export async function prepareImage(
   }
   throw new Error("size");
 }
+// A same-origin or stored image as a data URL, for requests that carry image bytes.
+// Data URLs pass through; anything else is fetched in the browser first.
+export async function toDataUrl(src: string): Promise<string> {
+  if (src.startsWith("data:")) return src;
+  const response = await fetch(src);
+  if (!response.ok) throw new Error("fetch");
+  const blob = await response.blob();
+  if (blob.size > 1_000_000) throw new Error("size");
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("read"));
+    reader.readAsDataURL(blob);
+  });
+}

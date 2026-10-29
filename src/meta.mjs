@@ -220,3 +220,53 @@ export async function transcribeMetaAudio({
   trace({ type: 'response', body: { transcript: text, audioDurationMs } });
   return { text, model, audioDurationMs };
 }
+
+// SAM 3.1 (Segment Anything) on the Meta Model API: given one short noun phrase and an
+// image, it returns a box and a mask for every match. ExplainBack uses the boxes to show
+// a learner what the model found in their sketch or photo; masks are not decoded. The
+// request is the ordinary Responses call, non-streaming; bytes never enter traces.
+export const DEFAULT_META_SEGMENT_MODEL = 'sam-3.1';
+const BOX = /<\|box;x1=(\d+);y1=(\d+);x2=(\d+);y2=(\d+);w=(\d+);h=(\d+)(?:;c=([0-9.]+))?\|>/g;
+// Parses SAM's token output into pixel boxes; an empty or absent text means no match.
+export function parseSegmentation(text) {
+  const boxes = []; let width = 0, height = 0;
+  for (const m of String(text ?? '').matchAll(BOX)) {
+    const [x1, y1, x2, y2, w, h] = m.slice(1, 7).map(Number);
+    if (!(w > 0 && h > 0) || x1 > x2 || y1 > y2) continue;
+    width = w; height = h;
+    boxes.push({ x1, y1, x2, y2, ...(m[7] !== undefined ? { confidence: Math.max(0, Math.min(1, Number(m[7]))) } : {}) });
+  }
+  return { boxes, width, height };
+}
+export const validConcept = value => typeof value === 'string' && /^[\p{L}\p{N}][\p{L}\p{N} '-]{0,59}$/u.test(value.trim());
+export async function segmentMetaImage({
+  apiKey,
+  image,
+  concept,
+  model = DEFAULT_META_SEGMENT_MODEL,
+  timeoutMs = 30_000,
+  fetchImpl = globalThis.fetch,
+  onTrace,
+} = {}) {
+  if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
+  if (typeof image !== 'string' || !/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(image) || image.length > 2_000_000) throw new Error('image must be a base64 data URL.');
+  if (!validConcept(concept)) throw new Error('concept must be a short noun phrase.');
+  const signal = AbortSignal.timeout(timeoutMs);
+  const trace = event => { try { onTrace?.(event); } catch { /* Diagnostics must not affect calls. */ } };
+  const body = { model, input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: concept.trim() }, { type: 'input_image', image_url: image }] }], metadata: { include_confidence: 'true', mask_encoding: 'one_bit' } };
+  trace({ type: 'request', body: { ...body, input: [{ type: 'message', role: 'user', content: [body.input[0].content[0], { type: 'input_image', image_url: `[image omitted · ${image.length} chars]` }] }] } });
+  let response;
+  try {
+    response = await fetchImpl(META_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal, redirect: 'error' });
+  } catch {
+    trace({ type: 'error', message: signal.aborted ? 'timeout' : 'transport failure' });
+    throw new Error(signal.aborted ? 'Meta segmentation request timed out.' : 'Could not reach Meta Model API. Check your network connection.');
+  }
+  if (!response.ok) { trace({ type: 'error', message: `status ${response.status}` }); throw new Error(`Meta segmentation request failed with status ${response.status}.`); }
+  let data; try { data = await response.json(); } catch { throw new Error('Meta returned invalid segmentation JSON.'); }
+  const text = typeof data?.output_text === 'string' ? data.output_text
+    : (data?.output ?? []).flatMap(item => item?.content ?? []).filter(part => part?.type === 'output_text' && typeof part.text === 'string').map(part => part.text).join('\n');
+  const result = parseSegmentation(text);
+  trace({ type: 'response', body: { matches: result.boxes.length, width: result.width, height: result.height, usage: data.usage ?? null } });
+  return { ...result, model: data.model ?? model, usage: data.usage ? { input_tokens: data.usage.input_tokens ?? null, output_tokens: data.usage.output_tokens ?? null } : null };
+}

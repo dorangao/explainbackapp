@@ -22,3 +22,10 @@ test('persisted traces redact before writing and preserve sequence across instan
  assert.doesNotMatch(JSON.stringify(written),/fixture-secret|private/);
  const b=createTrace('',{initial:written.at(-1)});b.start({input:'next'});assert.equal(b.read().at(-1).sequence,2);
 });
+
+test('the cloud handler counts sign-in failures by the platform client header',async()=>{
+ const {vercelClientAddress}=await import('../src/cloud.mjs');
+ assert.equal(vercelClientAddress({headers:{'x-real-ip':'203.0.113.7','x-forwarded-for':'10.0.0.1'},socket:{remoteAddress:'127.0.0.1'}}),'203.0.113.7');
+ assert.equal(vercelClientAddress({headers:{'x-forwarded-for':'198.51.100.9, 10.0.0.1'},socket:{remoteAddress:'127.0.0.1'}}),'198.51.100.9');
+ assert.equal(vercelClientAddress({headers:{},socket:{remoteAddress:'127.0.0.1'}}),'127.0.0.1');
+});

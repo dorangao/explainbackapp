@@ -3,7 +3,8 @@ import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
 import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
-import {generateMetaImage,transcribeMetaAudio} from './meta.mjs';
+import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,validConcept} from './meta.mjs';
+import {IMAGE_DATA_URL,MAX_IMAGE_CHARS} from './lesson-author.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {suctionScenario,suctionTitle} from '../public/suction.mjs';
 import {flightScenario,flightTitle} from '../public/flight.mjs';
@@ -49,9 +50,14 @@ export function createHandler({
   // Vercel Blob for image bytes (covers, illustrations, sketches); null keeps images in the
   // browser only. Tests inject a fake.
   imageStore = createBlobStore(),
+  // SAM 3.1 finds the object a creator names in their sketch or photo; null hides it.
+  segmentCall = process.env.MODEL_API_KEY?.trim()?(args=>segmentMetaImage({apiKey:process.env.MODEL_API_KEY,...args})):null,
   traceEnabled = process.env.EXPLAINBACK_TRACE === '1',
   testerCredentials = {},accessCodes=parseAccessCodes(process.env.EXPLAINBACK_ACCESS_CODES),openAccess=process.env.EXPLAINBACK_OPEN_ACCESS==='1',
   state=createMemoryState(),auth=createTesterAuth({...testerCredentials,accessCodes:accessCodes.codes??accessCodes,onRevoke:owner=>state.revokeOwner(owner)}),getOrigin=localOrigin,
+  // The visitor address that failed sign-ins are counted against. Locally it is the
+  // socket peer; the cloud handler reads the platform's own header instead.
+  clientAddress=req=>req.socket?.remoteAddress??'',
 } = {}) {
   const codes=accessCodes.codes??accessCodes;
   // Local development only: EXPLAINBACK_OPEN_ACCESS=1 treats every request as one shared
@@ -99,7 +105,7 @@ export function createHandler({
     if (req.headers.origin !== res.locals.origin) return next(new RequestError(403, 'This action must come from this app.'));
     next();
   };
-  const bodyLimit = path => path === '/api/studio/compose' ? 1_400_000 : path === '/api/lessons' ? 3_000_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate'].includes(path) ? 48_000 : 16_384;
+  const bodyLimit = path => ['/api/studio/compose','/api/studio/detect'].includes(path) ? 1_400_000 : path === '/api/lessons' ? 3_000_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate'].includes(path) ? 48_000 : 16_384;
   const parseBody = (req, res, next) => {
     if (!req.headers['content-type']?.startsWith('application/json')) return next(new RequestError(415, 'Use JSON for this request.'));
     if (req.headers['content-encoding'] && req.headers['content-encoding'].toLowerCase() !== 'identity') return next(new RequestError(415, 'Compressed request encoding is not supported.'));
@@ -130,7 +136,7 @@ export function createHandler({
   app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester)}));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
-    try { const result=await access.login(req.body,req.headers.cookie); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
+    try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
   // Shared lessons open without signing in, like the gallery. Ids are unguessable.
@@ -178,9 +184,9 @@ export function createHandler({
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
-    reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
+    reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/compose','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/compose','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -264,8 +270,33 @@ export function createHandler({
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
-        const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':null;
+        const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/detect'?'detect':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
+        // SAM 3.1 locates the one thing the creator names in their sketch or photo and
+        // returns pixel boxes; it is one request on the budget and never sees the lesson.
+        if(mode==='detect'){
+          if(!segmentCall)throw new RequestError(503,'The segmentation model is not configured.');
+          const concept=typeof body.concept==='string'?body.concept.trim():'';
+          if(!validConcept(concept)||typeof body.image!=='string'||body.image.length>MAX_IMAGE_CHARS||!IMAGE_DATA_URL.test(body.image))throw new RequestError(400,'Name one thing in a few words and attach an image.');
+          if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
+          s.attempts++;await save();
+          const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
+          const call=trace?.start({provider:'meta',model:'sam-3.1',input:concept,instructions:'segmentation'});
+          try{
+            await trace?.flush();
+            const startedAt=performance.now();
+            const found=await segmentCall({image:body.image,concept,timeoutMs:30_000,...(call?{onTrace:call.event}:{})});
+            if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
+            if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
+            call?.finish(found.boxes.length?'accepted':'empty');try{await trace?.flush();}catch{}
+            await save(trace?.read());
+            json(200,{concept,boxes:found.boxes.slice(0,32),width:found.width,height:found.height,model:found.model,elapsedMs:Math.round(performance.now()-startedAt),usage:found.usage?{input:found.usage.input_tokens??null,output:found.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts});return;
+          }catch(error){
+            call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
+            if(error instanceof RequestError)throw error;
+            const failure=new RequestError(502,'The image could not be analysed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
+          }finally{try{await trace?.flush();}catch{}}
+        }
         // One illustration from Muse Image for a slide of the current show (or a redrawn
         // cover). The prompt is built here from the checked script; it counts as one request.
         if(mode==='illustrate'){

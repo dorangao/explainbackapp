@@ -10,11 +10,14 @@ export function cloudOrigins(env){
  if(!origins.size)throw new Error('Configure an allowed app origin.');
  return req=>{const origin='https://'+req.headers.host;return origins.has(origin)?origin:null;};
 }
+// Vercel sets x-real-ip to the connecting client; the function itself sees a proxy
+// socket, so that header is the visitor address for sign-in rate limiting.
+export const vercelClientAddress=req=>{const real=req.headers['x-real-ip'];if(typeof real==='string'&&real.trim())return real.trim();const forwarded=req.headers['x-forwarded-for'];return typeof forwarded==='string'?forwarded.split(',')[0].trim():(req.socket?.remoteAddress??'');};
 export function createCloudHandler({env=process.env,command}={}){
  const accessCodes=parseAccessCodes(env.EXPLAINBACK_ACCESS_CODES);
  const services=createRedisServices({accessCodes:accessCodes.codes,command:command??createRedisClient({url:env.UPSTASH_REDIS_REST_URL??env.KV_REST_API_URL,token:env.UPSTASH_REDIS_REST_TOKEN??env.KV_REST_API_TOKEN}),namespace:`explainback:${env.VERCEL_ENV??'preview'}:v1`,username:env.EXPLAINBACK_TESTER_USERNAME,password:env.EXPLAINBACK_TESTER_PASSWORD});
  // Cloud builds deliberately cannot route to a LAN Ollama endpoint.
  const router=createProviderRouter({env:{...env,EXPLAINBACK_PROVIDERS:'meta',EXPLAINBACK_META_MODELS:'muse-spark-1.3,muse-wonder-1.0',EXPLAINBACK_DEFAULT_MODEL:'meta:muse-spark-1.3'}});
- return createHandler({...services,router,accessCodes,openAccess:false,getOrigin:cloudOrigins(env),traceEnabled:env.EXPLAINBACK_TRACE==='1',testerCredentials:{username:env.EXPLAINBACK_TESTER_USERNAME,password:env.EXPLAINBACK_TESTER_PASSWORD}});
+ return createHandler({...services,router,accessCodes,openAccess:false,getOrigin:cloudOrigins(env),traceEnabled:env.EXPLAINBACK_TRACE==='1',clientAddress:vercelClientAddress,testerCredentials:{username:env.EXPLAINBACK_TESTER_USERNAME,password:env.EXPLAINBACK_TESTER_PASSWORD}});
 }
 export function unavailable(res){res.writeHead(503,{...safeHeaders,'Content-Type':'application/json'});res.end(JSON.stringify({error:'Cloud tester access is not configured. Check the server environment.'}));}

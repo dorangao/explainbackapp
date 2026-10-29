@@ -182,3 +182,23 @@ test('illustrations need the image model',async t=>{
  const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
  assert.equal((await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:coolingLesson(),show:show(),slide:1},judge)).status,503);
 });
+test('SAM 3.1 finds the named object in an attached image and returns pixel boxes',async t=>{
+ const calls=[];
+ const {post,get,codeCookie}=await setup(t,{modelCall:async args=>({toolCall:{name:args.tools[0].name,arguments:JSON.stringify({status:'ready',message:bi('Ready','好'),lesson:coolingLesson()})}}),
+  segmentCall:async args=>{calls.push(args.concept);if(args.concept==='unicorn')return {boxes:[],width:0,height:0,model:'sam-3.1',usage:null};return {boxes:[{x1:10,y1:20,x2:110,y2:220,confidence:0.9}],width:640,height:480,model:'sam-3.1',usage:null};}});
+ const judge=await codeCookie('JUDGE-INVITE-1');
+ assert.equal((await(await get('/api/status',judge)).json()).detect,true);
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
+ assert.equal((await post('/api/studio/detect',{sessionId:s.sessionId,image:image(1),concept:'segment the cup?'},judge)).status,400);
+ assert.equal((await post('/api/studio/detect',{sessionId:s.sessionId,image:'https://example.com/a.png',concept:'cup'},judge)).status,400);
+ const found=await(await post('/api/studio/detect',{sessionId:s.sessionId,image:image(1),concept:' coffee cup '},judge)).json();
+ assert.deepEqual(found.boxes,[{x1:10,y1:20,x2:110,y2:220,confidence:0.9}]);assert.equal(found.width,640);assert.equal(found.concept,'coffee cup');assert.equal(found.attemptsRemaining,7);
+ const none=await(await post('/api/studio/detect',{sessionId:s.sessionId,image:image(1),concept:'unicorn'},judge)).json();
+ assert.deepEqual(none.boxes,[]);assert.equal(none.attemptsRemaining,6);assert.deepEqual(calls,['coffee cup','unicorn']);
+});
+test('detection needs the segmentation model',async t=>{
+ const {post,get,codeCookie}=await setup(t,{segmentCall:null,modelCall:async()=>{throw new Error('unused');}});
+ const judge=await codeCookie('JUDGE-INVITE-1');assert.equal((await(await get('/api/status',judge)).json()).detect,false);
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
+ assert.equal((await post('/api/studio/detect',{sessionId:s.sessionId,image:image(1),concept:'cup'},judge)).status,503);
+});

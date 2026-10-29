@@ -19,6 +19,7 @@ export function RequestSummary({
     tryout: t(language, "RevisionSummary.triedThisLessonAs"),
     show: t(language, "RevisionSummary.wroteTheShowFor"),
     illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
+    detect: t(language, "RevisionSummary.lookedForAnObjectIn"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
   }[metrics.mode];
   const tokens =

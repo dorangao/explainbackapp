@@ -29,3 +29,17 @@ test('tester sessions are bounded without revoking unrelated active logins',()=>
  assert.throws(()=>auth.login(credentials),e=>e.status===429);
  const rotated=auth.login(credentials,cookie(sessions[0]));assert.ok(auth.active(rotated.id));assert.ok(auth.active(sessions[1].id));
 });
+
+test('failed attempts are counted per visitor, so one visitor cannot lock out another or a valid invite',()=>{
+ let now=1;const codes=[{code:'JUDGE-CODE-2026',label:'judges',quota:40,expiresAt:now+86400000,hash:'x'}];
+ const auth=createTesterAuth({...credentials,accessCodes:codes,now:()=>now});
+ for(let i=0;i<5;i++)assert.throws(()=>auth.login({...credentials,password:'bad'},'',{client:'203.0.113.7'}),e=>e.status===401);
+ assert.throws(()=>auth.login(credentials,'',{client:'203.0.113.7'}),e=>e.code==='TESTER_RATE');
+ assert.throws(()=>auth.login({code:'JUDGE-CODE-2026'},'',{client:'203.0.113.7'}),e=>e.code==='TESTER_RATE','the blocked visitor is blocked for codes too');
+ assert.ok(auth.login(credentials,'',{client:'198.51.100.9'}).id,'another visitor still signs in');
+ assert.ok(auth.login({code:'judge-code-2026'},'',{client:'198.51.100.10'}).id,'a valid invite still works for others');
+ // Guessing from many addresses hits the shared backstop; the window recovers.
+ for(let i=0;i<95;i++)assert.throws(()=>auth.login({code:'GUESS-'+String(i).padStart(6,'0')},'',{client:'192.0.2.'+(i%200)}),e=>e.code==='ACCESS_CODE');
+ assert.throws(()=>auth.login({code:'JUDGE-CODE-2026'},'',{client:'192.0.2.250'}),e=>e.code==='TESTER_RATE');
+ now+=60001;assert.ok(auth.login({code:'JUDGE-CODE-2026'},'',{client:'192.0.2.250'}).id,'the window recovers');
+});

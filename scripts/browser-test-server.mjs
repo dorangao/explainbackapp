@@ -41,6 +41,17 @@ const server = createApp({
       `data:${contentType};base64,${bytes.toString("base64")}`,
     remove: async () => 0,
   },
+  // A fixture SAM 3.1: one box for anything named, none for "nothing".
+  segmentCall: async ({ concept }) => ({
+    boxes:
+      concept === "nothing"
+        ? []
+        : [{ x1: 40, y1: 30, x2: 200, y2: 160, confidence: 0.9 }],
+    width: 320,
+    height: 240,
+    model: "sam-3.1",
+    usage: null,
+  }),
   modelCall: async (args) => {
     const name = args.tools?.[0]?.name;
     const input = JSON.parse(args.input);

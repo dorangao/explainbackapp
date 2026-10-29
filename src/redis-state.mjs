@@ -1,6 +1,7 @@
 import {createHash,randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
 import {SESSION_TTL,LOCK_TTL,snapshot} from './state.mjs';
 import {findAccessCode,audienceOf,audienceValid} from './access-codes.mjs';
+import {CLIENT_FAILURE_LIMIT,GLOBAL_FAILURE_LIMIT,FAILURE_WINDOW_MS,MAX_SESSIONS,clientKey} from './tester-auth.mjs';
 
 const AUTH_TTL=8*60*60_000,COOKIE='explainback_tester';
 const digest=value=>createHash('sha256').update(value).digest();
@@ -45,7 +46,9 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   },
   async active(id){return Boolean(await get(authKey(id)));},
   async revoke(cookie){const id=tokenId(cookie);if(!id)return;const buckets=['tester',...accessCodes.map(c=>c.label)];await run("redis.call('DEL',KEYS[1]);for i=2,#KEYS do redis.call('ZREM',KEYS[i],ARGV[1]) end;return 1",[authKey(id),...buckets.map(b=>key('logins',b))],[id]);},
-  async login(body,cookie){
+  // Failed attempts count per visitor with a shared backstop (see tester-auth.mjs);
+  // the limits are checked before the credentials, inside the same script as the write.
+  async login(body,cookie,{client=''}={}){
    let valid,audience=null;
    if(body?.code!==undefined){
     const entry=typeof body.code==='string'&&body.code.length<=64?findAccessCode(accessCodes,body.code,now()):null;
@@ -59,13 +62,18 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    const token=randomBytes(32).toString('hex'),id=digest(token).toString('hex'),previous=tokenId(cookie);
    const expiresAt=Math.min(now()+AUTH_TTL,audience?.expiresAt??Infinity),ttl=expiresAt-now(),bucket=audience?.label??'tester';
    const result=await run(`
-    if tonumber(redis.call('GET',KEYS[1]) or '0')>=5 then return 'rate' end
-    if ARGV[1]~='yes' then local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('PEXPIRE',KEYS[1],60000) end;return 'invalid' end
+    if tonumber(redis.call('GET',KEYS[1]) or '0')>=tonumber(ARGV[8]) then return 'rate' end
+    if tonumber(redis.call('GET',KEYS[5]) or '0')>=tonumber(ARGV[9]) then return 'rate' end
+    if ARGV[1]~='yes' then
+     local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('PEXPIRE',KEYS[1],tonumber(ARGV[12])) end
+     local m=redis.call('INCR',KEYS[5]);if m==1 then redis.call('PEXPIRE',KEYS[5],tonumber(ARGV[12])) end
+     return 'invalid' end
     redis.call('ZREMRANGEBYSCORE',KEYS[2],'-inf',ARGV[2])
-    if redis.call('ZCARD',KEYS[2])>=20 and redis.call('EXISTS',KEYS[3])==0 then return 'capacity' end
+    if redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[11]) and redis.call('EXISTS',KEYS[3])==0 then return 'capacity' end
     redis.call('DEL',KEYS[1],KEYS[3]);redis.call('ZREM',KEYS[2],ARGV[4])
     redis.call('SET',KEYS[4],ARGV[7],'PX',ARGV[5]);redis.call('ZADD',KEYS[2],ARGV[3],ARGV[6]);redis.call('PEXPIRE',KEYS[2],ARGV[5]);return 'ok'
-   `,[key('login-failures'),key('logins',bucket),authKey(previous??'none'),authKey(id)],[valid?'yes':'no',now(),expiresAt,previous??'none',ttl,id,audience?JSON.stringify({audience}):'1']);
+   `,[key('login-failures',clientKey(client)),key('logins',bucket),authKey(previous??'none'),authKey(id),key('login-failures','all')],
+    [valid?'yes':'no',now(),expiresAt,previous??'none',ttl,id,audience?JSON.stringify({audience}):'1',CLIENT_FAILURE_LIMIT,GLOBAL_FAILURE_LIMIT,'1',audience?MAX_SESSIONS.code:MAX_SESSIONS.tester,FAILURE_WINDOW_MS]);
    if(result==='rate')fail(429,'TESTER_RATE','Too many login attempts. Try again in one minute.');
    if(result==='invalid'){if(body?.code!==undefined)fail(401,'ACCESS_CODE','This access code is not valid or has expired.');fail(401,'TESTER_CREDENTIALS','Username or password is incorrect.');}
    if(result==='capacity')fail(429,'TESTER_CAPACITY','Tester session limit reached. Sign out another session or wait for expiry.');
