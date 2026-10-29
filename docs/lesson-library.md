@@ -38,5 +38,22 @@ Storage: `src/lessons.mjs` builds and validates records; `src/state.mjs` (local 
 ## Limits and honesty
 
 - Saved and shared lessons are creator content. They have not been through the library author's content review; the provenance note and the catalog section say so.
-- Covers are not stored, so a shared show plays without its illustration.
+- Without Blob storage, covers and illustrations are not stored, so a shared show plays without them; see *Images and Blob storage* below.
 - Local development keeps the shelf in process memory; restarting the server clears it. Hosted environments keep it in Redis.
+
+## Images and Blob storage (added October 29, 2026 Pacific)
+
+Image bytes live in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) when `BLOB_READ_WRITE_TOKEN` is set; Redis keeps only URLs. Without the token the app behaves as before: images reach the browser as data URLs for the session and are dropped when a lesson is saved, and the save notice says so.
+
+- **What is stored.** The show cover drawn by Muse Image, slide illustrations drawn on request, and the sketch a lesson was created from. Blobs are public by URL; every path is `images/<owner hash>/<random>.<format>`, so a URL is unguessable and a save request may only reference images under its own owner prefix. A data URL in a save request is decoded and checked by its real container signature (WebP, PNG or JPEG, at most 1.5 MB) before upload.
+- **When.** A cover or illustration is uploaded as soon as it is drawn, so the browser holds a short URL rather than bytes and the remembered draft stays small. A sketch is uploaded when the lesson is saved. Replacing an image deletes the previous blob; deleting a lesson deletes all of its blobs; a save refused by the cap removes what it uploaded.
+- **Illustrations.** In the show player a signed-in creator can ask for **Illustrate this slide** (one per slide, redrawable) or **Redraw cover**, with an optional note such as "warm morning light". The server builds the prompt from the checked script (the slide's English heading and narration, the show's cover prompt as the setting, the same editorial style as covers); the browser never sends a free prompt. Each drawing is one request on the session budget. The controls are hidden for shared and gallery shows.
+- **Where images show.** The show player (cover slide and illustrated slides, with a credit line), the creator's shelf (cover thumbnail), the catalog's shared cards (cover art; "Created from a sketch" when a sketch was saved, and the From a sketch filter includes it), and the player's provenance note for shared lessons created from a sketch.
+- **Orphans.** Images drawn in a session that is never saved stay in the store. `node --env-file=.env.local scripts/prune-blobs.mjs --live` lists blobs under `images/` older than seven days, collects every URL that a saved lesson still references (by scanning the Redis lesson keys) and deletes the rest; without `--live` it only reports.
+- **Content Security Policy.** `img-src` allows `https://*.public.blob.vercel-storage.com` in `src/server.mjs` and `vercel.json`.
+
+| Route | Who | Purpose |
+|---|---|---|
+| `POST /api/studio/illustrate` | signed in, studio session | `{sessionId, lesson, show, slide?, direction?}` draws one slide illustration (or the cover when `slide` is omitted) and returns `{image, model, slide, prompt}`; 503 without the image model, 400 for an unknown slide or a note with markup. |
+| `POST /api/lessons` | owner | Now also takes `cover`, `coverModel`, `illustrations` (`{slideIndex: url}`) and `sketch`, each a data URL to upload or a URL already stored under this creator. |
+| `GET /api/status` | signed in | Adds `images` (image model available) and `imageStorage` (Blob configured). |

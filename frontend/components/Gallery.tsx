@@ -253,9 +253,20 @@ function SharedCard({
         tabIndex={-1}
         aria-hidden="true"
       >
-        <LessonArt
-          id={item.kind === "process" ? "shared-process" : "shared-model"}
-        />
+        {item.cover ? (
+          <img
+            className="lesson-art lesson-art-image"
+            src={item.cover}
+            alt=""
+            width={360}
+            height={158}
+            loading="lazy"
+          />
+        ) : (
+          <LessonArt
+            id={item.kind === "process" ? "shared-process" : "shared-model"}
+          />
+        )}
       </a>
       <div className="lesson-card-body">
         <span className="lesson-kind">
@@ -265,6 +276,11 @@ function SharedCard({
           {kindLabel(language, item.kind)}
         </span>
         <h3>{title}</h3>
+        {item.sketch && (
+          <span className="lesson-origin">
+            {t(language, "Gallery.createdFromASketch")}
+          </span>
+        )}
         <p>{item.intro[language]}</p>
         <a
           className="lesson-link"
@@ -328,7 +344,11 @@ export function Gallery({ language }: { language: Language }) {
       shared.filter(
         (item) =>
           (filter === "all" ||
-            (filter === "show" ? item.hasShow : item.kind === filter)) &&
+            (filter === "show"
+              ? item.hasShow
+              : filter === "sketch"
+                ? Boolean(item.sketch)
+                : item.kind === filter)) &&
           matches(query, [
             item.title.en,
             item.title.zh,

@@ -2,7 +2,7 @@ import express from 'express';
 import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
-import {showRequest,readShow} from './lesson-show.mjs';
+import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
 import {generateMetaImage,transcribeMetaAudio} from './meta.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {suctionScenario,suctionTitle} from '../public/suction.mjs';
@@ -10,7 +10,8 @@ import {flightScenario,flightTitle} from '../public/flight.mjs';
 import {createTesterAuth,expiredTesterCookie} from './tester-auth.mjs';
 import {parseAccessCodes,budgetFor,publicAudience} from './access-codes.mjs';
 import {createTrace} from './trace.mjs';
-import {buildSavedLesson,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
+import {buildSavedLesson,attachImages,validateShowScript,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
+import {createBlobStore,decodeImageDataUrl,recordImageUrls} from './blob.mjs';
 import {createMemoryState} from './state.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
@@ -30,7 +31,7 @@ export const safeHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
   'Cross-Origin-Resource-Policy': 'same-origin',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://*.public.blob.vercel-storage.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
 };
 class RequestError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
@@ -45,6 +46,9 @@ export function createHandler({
   imageCall = process.env.MODEL_API_KEY?.trim()?(args=>generateMetaImage({apiKey:process.env.MODEL_API_KEY,...args})):null,
   // Speech to text for the spoken explain-back; null hides the microphone. Tests inject a fake.
   transcribeCall = process.env.MODEL_API_KEY?.trim()?(args=>transcribeMetaAudio({apiKey:process.env.MODEL_API_KEY,...args})):null,
+  // Vercel Blob for image bytes (covers, illustrations, sketches); null keeps images in the
+  // browser only. Tests inject a fake.
+  imageStore = createBlobStore(),
   traceEnabled = process.env.EXPLAINBACK_TRACE === '1',
   testerCredentials = {},accessCodes=parseAccessCodes(process.env.EXPLAINBACK_ACCESS_CODES),openAccess=process.env.EXPLAINBACK_OPEN_ACCESS==='1',
   state=createMemoryState(),auth=createTesterAuth({...testerCredentials,accessCodes:accessCodes.codes??accessCodes,onRevoke:owner=>state.revokeOwner(owner)}),getOrigin=localOrigin,
@@ -69,6 +73,9 @@ export function createHandler({
   // what is left after the script call, and is skipped when that is too little to succeed.
   const REQUEST_BUDGET_MS=55_000,MIN_IMAGE_MS=8_000;
   const imageBudgetMs=elapsedMs=>{const left=REQUEST_BUDGET_MS-elapsedMs;return left>=MIN_IMAGE_MS?Math.min(60_000,Math.round(left)):0;};
+  // A drawn image goes to Blob storage under its creator when configured, so the browser
+  // gets a short URL that a saved lesson can keep; otherwise the data URL as before.
+  const storeImage=async(image,owner)=>{if(!imageStore)return image.dataUrl;try{return await imageStore.putImage({owner,...decodeImageDataUrl(image.dataUrl)});}catch{return image.dataUrl;}};
   // Roles: the stronger Wonder model drafts and revises; Spark plays the first-time learner
   // who tries a draft and reports back. Each falls back to the default target when absent.
   const roleTarget=prefix=>targets.find(t=>t.configured&&t.provider==='meta'&&t.model.startsWith(prefix))??defaultTarget;
@@ -92,7 +99,7 @@ export function createHandler({
     if (req.headers.origin !== res.locals.origin) return next(new RequestError(403, 'This action must come from this app.'));
     next();
   };
-  const bodyLimit = path => path === '/api/studio/compose' ? 1_400_000 : path === '/api/lessons' ? 120_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show'].includes(path) ? 48_000 : 16_384;
+  const bodyLimit = path => path === '/api/studio/compose' ? 1_400_000 : path === '/api/lessons' ? 3_000_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate'].includes(path) ? 48_000 : 16_384;
   const parseBody = (req, res, next) => {
     if (!req.headers['content-type']?.startsWith('application/json')) return next(new RequestError(415, 'Use JSON for this request.'));
     if (req.headers['content-encoding'] && req.headers['content-encoding'].toLowerCase() !== 'identity') return next(new RequestError(415, 'Compressed request encoding is not supported.'));
@@ -151,7 +158,7 @@ export function createHandler({
     const owner=ownerOf(res.locals.tester),body=req.body;
     if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     const own=async()=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||record.owner!==owner)throw new RequestError(404,'Saved lesson not found.');return record;};
-    if(req.path==='/api/lessons/delete'){await own();await state.deleteLesson(owner,body.id);return reply(res,200,{deleted:true,id:body.id});}
+    if(req.path==='/api/lessons/delete'){const record=await own();await state.deleteLesson(owner,body.id);await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
     if(req.path==='/api/lessons/share'){
       if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
       const record={...await own(),shared:body.shared,updatedAt:Date.now()};
@@ -160,15 +167,20 @@ export function createHandler({
     }
     const previous=body.id!==undefined?await own():null;
     let record;try{record=buildSavedLesson(body,{owner,previous});}catch{throw new RequestError(400,'Save a valid bilingual lesson, with an optional show script.');}
-    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER))throw new RequestError(409,`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
+    // Images: kept when already stored under this creator, uploaded from data URLs when
+    // Blob storage exists, dropped otherwise. Uploads happen before the cap check, so a
+    // refused save removes what it uploaded.
+    let stale;try{stale=await attachImages(record,body,{store:imageStore,owner,previous});}catch{throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
+    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER)){await imageStore?.remove(recordImageUrls(record).filter(url=>!recordImageUrls(previous).includes(url)));throw new RequestError(409,`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);}
+    await imageStore?.remove(stale);
     reply(res,200,lessonSummary(record));
   }));
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
-    reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
+    reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/compose','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/compose','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -252,8 +264,35 @@ export function createHandler({
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
-        const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':null;
+        const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
+        // One illustration from Muse Image for a slide of the current show (or a redrawn
+        // cover). The prompt is built here from the checked script; it counts as one request.
+        if(mode==='illustrate'){
+          if(!imageCall)throw new RequestError(503,'The image model is not configured.');
+          let prompt,slide=null;
+          try{const lesson=validateLesson(body.lesson),script=validateShowScript(body.show,lesson);if(!script)throw new Error();slide=body.slide===undefined?null:body.slide;prompt=illustrationPrompt(script,slide,body.direction??'');}
+          catch{throw new RequestError(400,'Send the checked lesson, its show script and a slide to illustrate.');}
+          if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
+          s.attempts++;await save();
+          const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
+          const call=trace?.start({provider:'meta',model:'muse-image-1.0',input:prompt,instructions:'image generation'});
+          try{
+            await trace?.flush();
+            const startedAt=performance.now();
+            const image=await imageCall({prompt,timeoutMs:imageBudgetMs(0),...(call?{onTrace:call.event}:{})});
+            if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
+            if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
+            const url=await storeImage(image,ownerOf(tester));
+            call?.finish('accepted');try{await trace?.flush();}catch{}
+            await save(trace?.read());
+            json(200,{image:url,model:image.model,slide,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:image.usage?{input:image.usage.input_tokens??null,output:image.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts});return;
+          }catch(error){
+            call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
+            if(error instanceof RequestError)throw error;
+            const failure=new RequestError(502,'The illustration could not be drawn. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
+          }finally{try{await trace?.flush();}catch{}}
+        }
         // Quick learner feedback and the test learner use Spark regardless of the creator model.
         const llm=['tryout','guide'].includes(mode)?selected(roles.tester):s.llm;
         if(!llm.configured)throw new RequestError(503,'The selected model is not configured.');
@@ -289,7 +328,7 @@ export function createHandler({
             const timeoutMs=imageBudgetMs(metrics.elapsedMs);
             if(imageCall&&llm.provider==='meta'&&timeoutMs>0){
               const imageTrace=trace?.start({provider:'meta',model:'muse-image-1.0',input:result.show.coverPrompt,instructions:'image generation'});
-              try{const image=await imageCall({prompt:result.show.coverPrompt,timeoutMs,...(imageTrace?{onTrace:imageTrace.event}:{})});result.cover=image.dataUrl;result.coverModel=image.model;imageTrace?.finish('accepted');}
+              try{const image=await imageCall({prompt:result.show.coverPrompt,timeoutMs,...(imageTrace?{onTrace:imageTrace.event}:{})});result.cover=await storeImage(image,ownerOf(tester));result.coverModel=image.model;imageTrace?.finish('accepted');}
               catch{imageTrace?.finish('failed or rejected');}
             }else if(imageCall&&llm.provider==='meta')result.coverSkipped='time';
           }

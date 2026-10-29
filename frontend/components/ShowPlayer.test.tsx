@@ -116,6 +116,57 @@ describe("ShowPlayer", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(onClose).toHaveBeenCalled();
   });
+  it("shows slide illustrations and asks the illustrator for a slide or a new cover with the creator's note", () => {
+    const onIllustrate = vi.fn();
+    render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        illustrations={{ "1": "https://x.public.blob.vercel-storage.com/a" }}
+        language="en"
+        scriptModel="muse-wonder-1.0"
+        coverModel={null}
+        onClose={() => {}}
+        onIllustrate={onIllustrate}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Note for the illustrator"), {
+      target: { value: "warm light" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Draw a cover" }));
+    expect(onIllustrate).toHaveBeenLastCalledWith(null, "warm light");
+    fireEvent.click(screen.getByRole("button", { name: /Next slide/ }));
+    expect(
+      document.querySelector(".show-illustration img")?.getAttribute("src"),
+    ).toBe("https://x.public.blob.vercel-storage.com/a");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Redraw illustration" }),
+    );
+    expect(onIllustrate).toHaveBeenLastCalledWith(1, "warm light");
+    fireEvent.click(screen.getByRole("button", { name: /Next slide/ }));
+    expect(document.querySelector(".show-illustration")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Illustrate this slide" }),
+    ).toBeTruthy();
+    expect(document.querySelector(".show-credits")?.textContent).toMatch(
+      /slide illustrations drawn by Meta muse-image-1.0/,
+    );
+  });
+  it("hides the illustrator for shared and gallery shows", () => {
+    render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        language="en"
+        scriptModel={null}
+        coverModel={null}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.queryByLabelText("Note for the illustrator")).toBeNull();
+  });
   it("speaks the narration in the chosen language while playing and advances when it ends", () => {
     render(
       <ShowPlayer

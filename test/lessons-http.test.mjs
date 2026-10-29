@@ -3,11 +3,12 @@ import {createApp} from '../src/server.mjs';import {testerCredentials} from '../
 import {coolingLesson,processLesson} from '../test-support/generated-lessons.mjs';
 import {buildSavedLesson,validateShowScript,lessonKind} from '../src/lessons.mjs';
 import {createRedisServices} from '../src/redis-state.mjs';
+import {fakeBlob} from './blob.test.mjs';
 const bi=(en,zh)=>({en,zh});
 const show=()=>({version:1,slides:[{kind:'cover',chapter:0,heading:bi('Hook','开场'),narration:bi('Why does coffee cool?','咖啡为什么会凉？')},{kind:'claim',chapter:0,heading:bi('Claim','观点'),narration:bi('Is it linear?','是线性的吗？')},{kind:'experiment',chapter:0,heading:bi('Watch','观察'),narration:bi('Sweep the settings.','调整设置。')},{kind:'takeaway',chapter:0,heading:bi('Takeaway','要点'),narration:bi('The gap drives the rate.','温差决定速率。')}],coverPrompt:'A cup of coffee by a window'});
 const codes={codes:[{code:'JUDGE-INVITE-1',label:'judges',quota:40,expiresAt:Date.now()+86400000,hash:'x'},{code:'OTHER-INVITE-2',label:'other',quota:40,expiresAt:Date.now()+86400000,hash:'y'}],warnings:[]};
-async function setup(t){
- const server=createApp({testerCredentials,configured:true,accessCodes:codes});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
+async function setup(t,extra={}){
+ const server=createApp({testerCredentials,configured:true,accessCodes:codes,imageStore:null,...extra});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
  const origin=`http://127.0.0.1:${server.address().port}`;
  const codeCookie=async code=>{const r=await fetch(origin+'/api/login',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json'},body:JSON.stringify({code})});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];};
  const post=(path,body,cookie)=>fetch(origin+path,{method:'POST',headers:{Origin:origin,...(cookie?{Cookie:cookie}:{}),'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -111,4 +112,73 @@ test('redis adapter keeps per-owner and shared indexes consistent',async()=>{
  assert.equal(await state.deleteLesson('code:judges',a.id),true);
  assert.deepEqual((await state.listLessons('code:judges')).map(r=>r.id),[b.id]);
  assert.equal(await state.getLesson(a.id),null);
+});
+
+const webpBytes=()=>{const b=Buffer.alloc(40);b.write('RIFF',0,'latin1');b.write('WEBP',8,'latin1');return b;};
+const image=(seed=1)=>{const b=webpBytes();b[20]=seed;return `data:image/webp;base64,${b.toString('base64')}`;};
+test('with Blob storage a saved lesson keeps its cover, illustrations and sketch as URLs; replaced and deleted images are removed',async t=>{
+ const {store,puts,deleted}=fakeBlob();
+ const {post,get,codeCookie}=await setup(t,{imageStore:store});
+ const judge=await codeCookie('JUDGE-INVITE-1'),other=await codeCookie('OTHER-INVITE-2');
+ const saved=await(await post('/api/lessons',{lesson:coolingLesson(),show:show(),model:'muse-wonder-1.0',cover:image(1),coverModel:'muse-image-1.0',illustrations:{1:image(2)},sketch:image(3)},judge)).json();
+ assert.match(saved.cover,/^https:\/\/store\.public\.blob\.vercel-storage\.com\/images\/[a-f0-9]{24}\/r001\.webp$/);
+ assert.match(saved.sketch,/r002\.webp$/);assert.equal(puts.length,3);assert.equal(puts[0].options.contentType,'image/webp');
+ const full=await(await get('/api/lessons/'+saved.id,judge)).json();
+ assert.equal(full.coverModel,'muse-image-1.0');assert.match(full.illustrations['1'],/r003\.webp$/);assert.equal(full.cover,saved.cover);
+ // The record never holds bytes; the list and the public reader carry the URLs.
+ assert.ok(!JSON.stringify(full).includes(image(1).slice(30,60)));
+ await post('/api/lessons/share',{id:saved.id,shared:true},judge);
+ const open=await(await get('/api/shared/'+saved.id)).json();assert.equal(open.cover,saved.cover);assert.equal(open.illustrations['1'],full.illustrations['1']);
+ assert.equal((await(await get('/api/shared')).json()).lessons[0].cover,saved.cover);
+ // Re-saving with the same URLs uploads nothing; a new cover replaces the old blob.
+ const same=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:saved.cover,coverModel:'muse-image-1.0',illustrations:full.illustrations,sketch:saved.sketch},judge)).json();
+ assert.equal(same.cover,saved.cover);assert.equal(puts.length,3);assert.deepEqual(deleted,[]);
+ const redrawn=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:image(4),coverModel:'muse-image-1.0',sketch:saved.sketch},judge)).json();
+ assert.match(redrawn.cover,/r004\.webp$/);assert.deepEqual(deleted.sort(),[saved.cover,full.illustrations['1']].sort());
+ // A URL under another creator's prefix, or off our host, is refused.
+ const theirs=await(await post('/api/lessons',{lesson:coolingLesson(),sketch:image(5)},other)).json();
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),sketch:theirs.sketch},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),sketch:'https://example.com/x.webp'},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),illustrations:{7:image(6)}},judge)).status,400);
+ assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:'data:image/webp;base64,QUJD'},judge)).status,400);
+ // A cover without a show is dropped; deleting removes every stored image.
+ const noShow=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),cover:redrawn.cover,sketch:saved.sketch},judge)).json();
+ assert.equal(noShow.cover,null);assert.ok(deleted.includes(redrawn.cover));
+ deleted.length=0;await post('/api/lessons/delete',{id:saved.id},judge);assert.deepEqual(deleted,[saved.sketch]);
+});
+test('without Blob storage images are dropped on save and the status says so',async t=>{
+ const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');
+ const saved=await(await post('/api/lessons',{lesson:coolingLesson(),show:show(),cover:image(1),coverModel:'muse-image-1.0',illustrations:{1:image(2)},sketch:image(3)},judge)).json();
+ assert.equal(saved.cover,null);assert.equal(saved.sketch,null);
+ const full=await(await get('/api/lessons/'+saved.id,judge)).json();assert.deepEqual(full.illustrations,{});assert.equal(full.coverModel,null);
+ const status=await(await get('/api/status',judge)).json();assert.equal(status.imageStorage,false);assert.equal(status.images,false);
+});
+test('a slide illustration is drawn from the checked script, stored under the creator and counted as a request',async t=>{
+ const {store,puts}=fakeBlob();const prompts=[];
+ const {post,codeCookie}=await setup(t,{imageStore:store,modelCall:async args=>{
+  const name=args.tools[0].name;
+  if(name==='compose_lesson')return {toolCall:{name,arguments:JSON.stringify({status:'ready',message:bi('Ready','好'),lesson:coolingLesson()})}};
+  return {structured:{name:'make_show',value:show()}};
+ },imageCall:async args=>{prompts.push(args.prompt);return {dataUrl:image(prompts.length),model:'muse-image-1.0',usage:null};}});
+ const judge=await codeCookie('JUDGE-INVITE-1');
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
+ const made=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Cooling coffee'},judge)).json();
+ const shown=await(await post('/api/studio/show',{sessionId:s.sessionId,lesson:made.lesson},judge)).json();
+ assert.match(shown.cover,/r001\.webp$/);assert.equal(prompts[0],'A cup of coffee by a window');
+ assert.equal((await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:made.lesson,show:shown.show,slide:9},judge)).status,400);
+ assert.equal((await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:made.lesson,show:shown.show,slide:1,direction:'<script>'},judge)).status,400);
+ const drawn=await(await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:made.lesson,show:shown.show,slide:1,direction:'warm morning light'},judge)).json();
+ assert.match(drawn.image,/r002\.webp$/);assert.equal(drawn.slide,1);assert.equal(drawn.model,'muse-image-1.0');assert.equal(drawn.attemptsRemaining,5);
+ assert.match(prompts[1],/^A calm, flat, editorial illustration.*Scene: Claim\. Is it linear\? Setting: A cup of coffee by a window Creator note: warm morning light$/);
+ const cover=await(await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:made.lesson,show:shown.show},judge)).json();
+ assert.equal(cover.slide,null);assert.equal(prompts[2],'A cup of coffee by a window');assert.equal(puts.length,3);
+ // The stored URLs are accepted on save without a second upload.
+ const saved=await(await post('/api/lessons',{lesson:made.lesson,show:shown.show,cover:cover.image,coverModel:cover.model,illustrations:{1:drawn.image}},judge)).json();
+ assert.equal(saved.cover,cover.image);assert.equal(puts.length,3);
+});
+test('illustrations need the image model',async t=>{
+ const {post,codeCookie}=await setup(t,{imageCall:null,modelCall:async args=>({toolCall:{name:args.tools[0].name,arguments:JSON.stringify({status:'ready',message:bi('Ready','好'),lesson:coolingLesson()})}})});
+ const judge=await codeCookie('JUDGE-INVITE-1');
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'},judge)).json();
+ assert.equal((await post('/api/studio/illustrate',{sessionId:s.sessionId,lesson:coolingLesson(),show:show(),slide:1},judge)).status,503);
 });

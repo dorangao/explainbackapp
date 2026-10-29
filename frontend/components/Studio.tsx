@@ -19,6 +19,7 @@ import type {
   Status,
   TryoutReply,
   ShowReply,
+  IllustrateReply,
 } from "../lib/types";
 import { say } from "../lib/types";
 import { ApiError } from "../lib/api";
@@ -306,12 +307,17 @@ export function Studio({
     setPresenting(true);
     setSource(item.source);
     setSourceImage(item.image ?? null);
+    if (external?.sketch) {
+      setSource("muse-sketch");
+      setSourceImage(external.sketch);
+    }
     if (external?.show)
       setShow({
         reply: {
           show: external.show,
-          cover: null,
-          coverModel: null,
+          cover: external.cover,
+          coverModel: external.coverModel,
+          illustrations: external.illustrations,
           model: external.model ?? undefined,
         } as ShowReply,
         at: external.updatedAt,
@@ -512,7 +518,13 @@ export function Studio({
               ? `\n${composed.message[language]}`
               : ""),
         );
-        if (!revisionText) image.clear();
+        if (!revisionText) {
+          if (attached) {
+            setSource("muse-sketch");
+            setSourceImage(attached.dataUrl);
+          }
+          image.clear();
+        }
       } else setMessage(composed.message[language]);
     } else {
       const reply = result.reply as Feedback;
@@ -614,6 +626,65 @@ export function Studio({
     setShowing(true);
     setMessage(t(language, "Studio.theShowIsReady"));
   }
+  // One Muse Image request for a slide of the current show, or a redrawn cover. The
+  // server builds the prompt from the checked script; the creator may add a short note.
+  async function illustrate(slide: number | null, direction = "") {
+    if (
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      remaining === 0 ||
+      !draft ||
+      !show
+    )
+      return;
+    let lesson: Lesson;
+    try {
+      lesson = validateLesson(draft);
+    } catch {
+      setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
+      return;
+    }
+    const script = show.reply.show;
+    setMessage("");
+    const result = await run<IllustrateReply>(
+      target,
+      "illustrate",
+      (id, options) =>
+        post<IllustrateReply>(
+          "/api/studio/illustrate",
+          { sessionId: id, lesson, show: script, slide, direction },
+          options,
+        ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return;
+    }
+    const drawn = result.reply;
+    setShow((prev) =>
+      prev && prev.reply.show === script
+        ? {
+            ...prev,
+            reply:
+              drawn.slide === null
+                ? {
+                    ...prev.reply,
+                    cover: drawn.image,
+                    coverModel: drawn.model ?? "muse-image-1.0",
+                  }
+                : {
+                    ...prev.reply,
+                    illustrations: {
+                      ...prev.reply.illustrations,
+                      [String(drawn.slide)]: drawn.image,
+                    },
+                  },
+          }
+        : prev,
+    );
+    setMessage(t(language, "Studio.illustrationReady"));
+  }
   async function importLesson(file: File | undefined) {
     if (!file || busyRef.current || !authenticated) return;
     const token = epoch.current;
@@ -659,19 +730,49 @@ export function Studio({
     }
     setSaving(true);
     try {
+      const current =
+        show?.key === fingerprint({ lesson: valid }) ? show.reply : null;
+      const hadImages = Boolean(
+        current?.cover ||
+        Object.keys(current?.illustrations ?? {}).length ||
+        sourceImage,
+      );
       const summary = await saveToShelf(post, {
         ...(savedId ? { id: savedId } : {}),
         lesson: valid,
-        show:
-          show?.key === fingerprint({ lesson: valid }) ? show.reply.show : null,
-        model: metrics?.model ?? show?.reply.model ?? target?.model ?? null,
+        show: current?.show ?? null,
+        // The drafting model, never the image or voice model of a later request.
+        model:
+          (metrics && !["illustrate", "transcribe"].includes(metrics.mode)
+            ? metrics.model
+            : null) ??
+          show?.reply.model ??
+          target?.model ??
+          null,
+        cover: current?.cover ?? null,
+        coverModel: current?.coverModel ?? null,
+        illustrations: current?.illustrations ?? null,
+        sketch: source === "muse-sketch" ? sourceImage : null,
       });
       if (!alive.current) return;
       setSavedId(summary.id);
       setSavedItem(summary);
       setShelfRefresh((n) => n + 1);
+      // Images in the browser now point at their stored copies, so a later save
+      // uploads nothing again and the draft in this browser stays small.
+      if (current && summary.cover && summary.cover !== current.cover)
+        setShow((prev) =>
+          prev
+            ? { ...prev, reply: { ...prev.reply, cover: summary.cover } }
+            : prev,
+        );
+      if (summary.sketch && summary.sketch !== sourceImage)
+        setSourceImage(summary.sketch);
       setMessage(
-        t(language, savedId ? "Library.savedUpdated" : "Library.savedNotice"),
+        t(language, savedId ? "Library.savedUpdated" : "Library.savedNotice") +
+          (hadImages && !providerStatus?.imageStorage
+            ? " " + t(language, "Library.imagesNotKept")
+            : ""),
       );
     } catch (e) {
       if (alive.current)
@@ -695,13 +796,16 @@ export function Studio({
     setReviseStamp(null);
     setSavedId(summary.id);
     setSavedItem(summary);
+    setSource(summary.sketch ? "muse-sketch" : null);
+    setSourceImage(summary.sketch);
     setShow(
       script
         ? {
             reply: {
               show: script,
-              cover: null,
-              coverModel: null,
+              cover: summary.cover,
+              coverModel: summary.coverModel,
+              illustrations: summary.illustrations,
               model: summary.model ?? undefined,
             } as ShowReply,
             at: summary.updatedAt,
@@ -1066,12 +1170,23 @@ export function Studio({
               lesson={validateLesson(draft)}
               show={show.reply.show}
               cover={show.reply.cover}
+              illustrations={show.reply.illustrations ?? null}
               language={language}
               scriptModel={show.reply.model ?? target?.model ?? null}
               coverModel={show.reply.coverModel}
               onClose={() => setShowing(false)}
               pace={pace}
               onPace={setPace}
+              onIllustrate={
+                authenticated &&
+                providerStatus?.images &&
+                target?.configured &&
+                !external
+                  ? (slide, direction) => void illustrate(slide, direction)
+                  : undefined
+              }
+              illustrating={busy}
+              canIllustrate={!busy && remaining > 0}
             />
           </Suspense>
         )}

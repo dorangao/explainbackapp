@@ -29,6 +29,10 @@ export type Status = {
   roles?: { creator: string; tester: string };
   // Muse Voice Transcribe is available for the spoken explain-back.
   voice?: boolean;
+  // Muse Image can draw covers and slide illustrations; Blob storage keeps them with
+  // saved lessons.
+  images?: boolean;
+  imageStorage?: boolean;
   traceEnabled: boolean;
   access: Access | null;
   problems: { id: string; title: Bilingual }[];
@@ -210,6 +214,15 @@ export type ShowReply = ReplyMetrics & {
   show: Show;
   cover: string | null;
   coverModel: string | null;
+  // Slide illustrations drawn on request, by slide index.
+  illustrations?: Record<string, string>;
+  llm: Target;
+  attemptsRemaining: number;
+};
+export type IllustrateReply = ReplyMetrics & {
+  image: string;
+  slide: number | null;
+  prompt: string;
   llm: Target;
   attemptsRemaining: number;
 };

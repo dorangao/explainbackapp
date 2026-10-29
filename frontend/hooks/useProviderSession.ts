@@ -7,7 +7,14 @@ export type RequestMetrics = {
   model: string;
   elapsedMs: number;
   usage: { input: number | null; output: number | null } | null;
-  mode: "compose" | "revise" | "guide" | "tryout" | "show" | "transcribe";
+  mode:
+    | "compose"
+    | "revise"
+    | "guide"
+    | "tryout"
+    | "show"
+    | "illustrate"
+    | "transcribe";
   at: number;
 };
 
