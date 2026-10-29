@@ -219,3 +219,10 @@ test('studio turns chain onto the last stored response of the same model, fall b
  await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration',revision:'Once more.',draft:first.lesson});
  assert.equal(seen.at(-1).prev,'resp_4');
 });
+test('studio replies carry the model’s reasoning summary when the provider gave one, and ask for it on every Meta turn',async t=>{
+ const asked=[];
+ const {post}=await setup(t,async args=>{asked.push(args.reasoningSummary);return {toolCall:{name:args.tools[0].name,arguments:JSON.stringify({status:'ready',message:bi('Ready'),lesson:lesson()})},reasoning:'Picked one chapter because the topic has one claim.'};},false);
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'})).json();
+ const made=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration'})).json();
+ assert.equal(made.reasoning,'Picked one chapter because the topic has one claim.');assert.deepEqual(asked,['auto']);
+});

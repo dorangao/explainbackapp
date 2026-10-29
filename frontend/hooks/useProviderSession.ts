@@ -7,6 +7,8 @@ export type RequestMetrics = {
   model: string;
   elapsedMs: number;
   usage: Usage | null;
+  // The model's own one-line account of its reasoning, when it gave one. Unverified.
+  reasoning?: string | null;
   mode:
     | "compose"
     | "revise"
@@ -125,6 +127,7 @@ export function useProviderSession({
           usage?: RequestMetrics["usage"];
           model?: string;
           elapsedMs?: number;
+          reasoning?: string | null;
         }
       >,
     ): Promise<
@@ -165,6 +168,7 @@ export function useProviderSession({
           model: reply.model ?? target.model,
           elapsedMs: reply.elapsedMs ?? Math.round(performance.now() - started),
           usage: reply.usage ?? null,
+          reasoning: reply.reasoning ?? null,
           mode,
           at: Date.now(),
         });

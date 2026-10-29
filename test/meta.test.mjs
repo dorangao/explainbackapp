@@ -211,3 +211,15 @@ test('a chained turn sends previous_response_id, store and the cache key, and us
  // HTTP errors carry their status so a caller can fall back once.
  await assert.rejects(callMeta({apiKey:'k',input:'x',fetchImpl:async()=>new Response('{}',{status:404,headers:{'Content-Type':'application/json'}})}),e=>e.status===404&&/HTTP 404/.test(e.message));
 });
+test('a reasoning summary is requested and read from the reasoning output item, never the raw chain of thought',async()=>{
+ const {callMeta,reasoningSummaryText}=await import('../src/meta.mjs');
+ let sent;
+ const data={id:'resp_9',status:'completed',model:'muse-spark-1.3',output:[{type:'reasoning',summary:[{type:'summary_text',text:'Compared the cooling rates at two gaps.'},{type:'summary_text',text:'Chose a one-chapter model.'}]},{type:'message',role:'assistant',content:[{type:'output_text',text:'ok'}]}],usage:{input_tokens:5,output_tokens:6}};
+ const r=await callMeta({apiKey:'k',input:'x',reasoningEffort:'low',reasoningSummary:'auto',fetchImpl:async(u,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});}});
+ assert.deepEqual(sent.reasoning,{effort:'low',summary:'auto'});
+ assert.equal(r.reasoning,'Compared the cooling rates at two gaps. Chose a one-chapter model.');
+ assert.equal(reasoningSummaryText({output:[{type:'reasoning',summary:[]}]}),null);
+ assert.equal(reasoningSummaryText({output:[{type:'reasoning',summary:[{type:'summary_text',text:'x'.repeat(700)}]}]}).length,600);
+ await callMeta({apiKey:'k',input:'x',fetchImpl:async(u,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify(data),{status:200,headers:{'Content-Type':'application/json'}});}});
+ assert.equal('reasoning' in sent,false,'no reasoning block unless effort or summary was asked for');
+});

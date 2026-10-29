@@ -209,7 +209,7 @@ export function createHandler({
         if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=8-s.attempts;throw failure;}
         let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
         if(typeof raw?.id==='string'&&/^resp_/.test(raw.id))s.chains={...(s.chains??{}),[`${s.llm.id}:author`]:raw.id};
-        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),llm:s.llm,attemptsRemaining:8-s.attempts};
+        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),reasoning:raw.reasoning??null,llm:s.llm,attemptsRemaining:8-s.attempts};
         s.background={result:answer};await save();json(200,answer);return;
       }
       if(path==='/api/trace'){
@@ -261,7 +261,7 @@ export function createHandler({
         s.attempts++;await save();
         if(background){
           try{
-            const startedAt=Date.now(),started=await router.startBackground(s.llm.id,{...args,promptCacheKey:`explainback-${mode}`});
+            const startedAt=Date.now(),started=await router.startBackground(s.llm.id,{...args,promptCacheKey:`explainback-${mode}`,reasoningSummary:'auto'});
             if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
             if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
             s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt};await save();
@@ -281,7 +281,7 @@ export function createHandler({
           // unchained.
           const chainKey=`${llm.id}:${['tryout','guide'].includes(mode)?'learner':'author'}`;
           const chain=llm.provider==='meta'?(s.chains?.[chainKey]??null):null;
-          const meta=llm.provider==='meta'?{store:true,promptCacheKey:`explainback-${mode}`}:{};
+          const meta=llm.provider==='meta'?{store:true,promptCacheKey:`explainback-${mode}`,reasoningSummary:'auto'}:{};
           const options={...args,...meta,...(chain?{previousResponseId:chain}:{}),...(call?{onTrace:call.event}:{})};
           const invoke=o=>modelCall?modelCall(o,llm.id):router.call(llm.id,o);
           const startedAt=performance.now();
@@ -290,7 +290,7 @@ export function createHandler({
           if(llm.provider==='meta'&&typeof raw?.id==='string'&&/^resp_/.test(raw.id)){s.chains={...(s.chains??{}),[chainKey]:raw.id};}
           let result=null;
           try{result=mode==='tryout'?readLearnerTryout(raw,validateLesson(body.lesson),body.language):mode==='show'?{show:readShow(raw,validateLesson(body.lesson))}:readLessonAuthor(raw,mode,body.creation,mode==='guide'&&body.explanation!==undefined);}catch(error){throw tagRejection(error);}
-          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained};
+          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained,reasoning:raw.reasoning??null};
           // A show gets one cover illustration from Muse Image when Meta is configured; a failed
           // or missing image never fails the show. Image bytes go to the client only.
           if(mode==='show'){

@@ -839,12 +839,17 @@ export function Studio({
     },
     tryout: () => tryLesson(),
     show: () => makeShow(),
+    // Prefer the slide the writer flagged but the show had no time to draw; otherwise the
+    // first slide that can carry a picture and has none yet.
     illustrate: async () => {
       if (!show) return false;
-      const slide = show.reply.show.slides.findIndex(
-        (s, i) => i > 0 && s.kind !== "experiment",
-      );
-      return illustrate(slide > 0 ? slide : 1);
+      const slides = show.reply.show.slides,
+        drawn = show.reply.illustrations ?? {};
+      const open = (want: (s: (typeof slides)[number]) => boolean) =>
+        slides.findIndex((s, i) => i > 0 && !drawn[String(i)] && want(s));
+      const flagged = open((s) => s.illustrate === true),
+        plain = open((s) => s.kind !== "experiment" && s.kind !== "evidence");
+      return illustrate(flagged > 0 ? flagged : plain > 0 ? plain : 1);
     },
     save: () => saveLesson(),
     share: () => shareSaved(),

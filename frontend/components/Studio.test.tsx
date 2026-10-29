@@ -1006,8 +1006,10 @@ describe("Judge path", () => {
       narration: { en: "Spoken " + kind + ".", zh: kind },
     });
     let shared = false;
-    const post: Post = async (path) => {
+    const bodies: Record<string, unknown>[] = [];
+    const post: Post = async (path, body) => {
       calls.push(path);
+      bodies.push({ path, ...(body as Record<string, unknown>) });
       if (path === "/api/studio/session")
         return { sessionId: "s1", attemptsRemaining: 8 } as never;
       if (path === "/api/studio/compose")
@@ -1048,12 +1050,13 @@ describe("Judge path", () => {
               slide("cover"),
               slide("claim"),
               slide("experiment"),
-              slide("takeaway"),
+              { ...slide("takeaway"), illustrate: true },
             ],
             coverPrompt: "A mug",
           },
           cover: "data:image/webp;base64,QUJD",
           coverModel: "muse-image-1.0",
+          illustrationsSkipped: 1,
           llm: status.models[0],
           attemptsRemaining: 5,
           model: "test",
@@ -1128,6 +1131,10 @@ describe("Judge path", () => {
       "/api/studio/show",
       "/api/studio/illustrate",
     ]);
+    // The illustration step draws the slide the writer flagged but the show had no time for.
+    expect(bodies.find((b) => b.path === "/api/studio/illustrate")?.slide).toBe(
+      3,
+    );
     expect(calls.filter((c) => c === "/api/lessons")).toHaveLength(1);
     expect(calls.filter((c) => c === "/api/lessons/share")).toHaveLength(1);
     expect(

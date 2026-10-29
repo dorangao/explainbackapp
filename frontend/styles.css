@@ -2728,3 +2728,13 @@ li[data-state="done"] .judge-mark {
     justify-self: start;
   }
 }
+/* The model's own account of its reasoning under a request summary. */
+.request-summary .model-account {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-style: italic;
+}
+.request-summary .model-account span {
+  font-style: normal;
+  font-weight: 600;
+}
