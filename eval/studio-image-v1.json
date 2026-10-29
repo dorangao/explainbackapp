@@ -1,0 +1,49 @@
+{
+  "version": "studio-image-v1",
+  "frozenAt": "2026-10-28T05:30:00+00:00",
+  "purpose": "Synthetic image-input smoke evaluation: one hand-drawn-style pendulum sketch, one request per language. Loose automated checks (contract, model renderer, unit-labelled output); content review and the rubric judge are separate.",
+  "cases": [
+    {
+      "id": "sketch-pendulum-en",
+      "pair": "sketch-pendulum",
+      "language": "en",
+      "category": "model",
+      "topic": "This is my sketch. Turn it into an adjustable lesson that tests one claim about what the drawing shows.",
+      "image": "images/pendulum-sketch.png",
+      "imageType": "image/png",
+      "imageSha256": "192142e86a15ea4124bb26e087ea7479c9ad7221a7d8e31fe53bbfe0f17de742",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "outputUnit": [
+          "s",
+          "seconds",
+          "秒"
+        ],
+        "review": "Does the message say the sketch shows a pendulum with a marked length L and bob m? Is the model about period versus length (or a defensible alternative from the sketch) with ideal small-angle assumptions stated? Does the claim test mass or length dependence rather than restate the formula?",
+        "maxChapters": 2
+      }
+    },
+    {
+      "id": "sketch-pendulum-zh",
+      "pair": "sketch-pendulum",
+      "language": "zh",
+      "category": "model",
+      "topic": "这是我的草图。把它变成一个可调参数的课程，检验一个关于图中内容的观点。",
+      "image": "images/pendulum-sketch.png",
+      "imageType": "image/png",
+      "imageSha256": "192142e86a15ea4124bb26e087ea7479c9ad7221a7d8e31fe53bbfe0f17de742",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "outputUnit": [
+          "s",
+          "seconds",
+          "秒"
+        ],
+        "review": "同上：消息是否说明草图是带有长度 L 和摆锤 m 的单摆？模型是否围绕周期与摆长（或草图支持的其他合理模型）并写明理想小角度假设？观点是否检验质量或摆长的影响，而不是复述公式？",
+        "maxChapters": 2
+      }
+    }
+  ]
+}

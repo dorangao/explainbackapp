@@ -1,0 +1,169 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { callMeta } from '../src/meta.mjs';
+
+const completed = {
+  id: 'resp_test', status: 'completed', model: 'muse-spark-1.3',
+  output: [
+    { type: 'reasoning', summary: [{ text: 'Do not expose this.' }] },
+    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '连接成功' }] },
+  ],
+  usage: { input_tokens: 5, output_tokens: 10 },
+};
+
+test('provider trace reports payload and safe output without headers or reasoning',async()=>{
+ const events=[];
+ await callMeta({apiKey:'test-secret',input:'synthetic',onTrace:e=>events.push(e),fetchImpl:async()=>Response.json(completed)});
+ assert.equal(events[0].type,'request');assert.equal(events[0].body.input,'synthetic');
+ assert.equal(events[1].status,200);assert.equal(events[1].body.output[0].content[0].text,'连接成功');
+ assert.doesNotMatch(JSON.stringify(events),/test-secret|Do not expose|Authorization/);
+});
+test('provider trace captures safe HTTP and timeout failures without raw upstream content',async()=>{
+ const events=[];
+ await assert.rejects(callMeta({apiKey:'test-secret',input:'synthetic',onTrace:e=>events.push(e),fetchImpl:async()=>new Response('private test-secret',{status:429})}));
+ assert.equal(events.at(-1).status,429);assert.doesNotMatch(JSON.stringify(events),/private|test-secret/);
+});
+
+test('sends a non-stored Meta request and extracts only assistant output', async () => {
+  let request;
+  const result = await callMeta({
+    apiKey: 'test-secret', input: 'Synthetic connection check',
+    fetchImpl: async (url, options) => {
+      request = { url, options };
+      return Response.json(completed);
+    },
+  });
+  assert.equal(request.url, 'https://api.meta.ai/v1/responses');
+  assert.equal(request.options.headers.Authorization, 'Bearer test-secret');
+  assert.deepEqual(JSON.parse(request.options.body), {
+    model: 'muse-spark-1.3', input: 'Synthetic connection check', store: false, max_output_tokens: 2048,
+  });
+  assert.equal(result.text, '连接成功');
+  assert.equal(result.model, 'muse-spark-1.3');
+  assert.deepEqual(result.usage, completed.usage);
+  assert.equal(JSON.stringify(result).includes('Do not expose'), false);
+});
+
+test('missing credentials fail before any network request', async () => {
+  await assert.rejects(callMeta({ input: 'hello', fetchImpl: () => assert.fail('network called') }), /MODEL_API_KEY is missing/);
+});
+
+test('developer instructions stay separate from learner input', async () => {
+  await callMeta({ apiKey: 'test-secret', input: 'learner text', instructions: 'trusted coaching rules', reasoningEffort: 'low', maxOutputTokens: 4096,
+    fetchImpl: async (_url, options) => {
+      const payload = JSON.parse(options.body);
+      assert.equal(payload.instructions, 'trusted coaching rules');
+      assert.equal(payload.input, 'learner text');
+      assert.equal(payload.store, false);
+      assert.deepEqual(payload.reasoning, { effort: 'low' });
+      assert.equal(payload.max_output_tokens, 4096);
+      assert.equal(options.redirect, 'error');
+      return Response.json(completed);
+    },
+  });
+});
+
+test('rejects blank input before any network request', async () => {
+  await assert.rejects(callMeta({ apiKey: 'key', input: ' ', fetchImpl: () => assert.fail('network called') }), /input must be non-empty/);
+});
+
+test('HTTP errors do not echo upstream bodies or credentials', async () => {
+  await assert.rejects(callMeta({ apiKey: 'test-secret', input: 'hello',
+    fetchImpl: async () => new Response('test-secret private response', { status: 401 }),
+  }), error => {
+    assert.match(error.message, /401.*key/);
+    assert.doesNotMatch(error.message, /test-secret|private response/);
+    return true;
+  });
+});
+
+test('does not mistake incomplete output for a successful connection', async () => {
+  await assert.rejects(callMeta({ apiKey: 'key', input: 'hello',
+    fetchImpl: async () => Response.json({ ...completed, status: 'incomplete' }),
+  }), /not completed/);
+});
+
+test('rejects a response with no assistant text', async () => {
+  await assert.rejects(callMeta({ apiKey: 'key', input: 'hello',
+    fetchImpl: async () => Response.json({ ...completed, output: [] }),
+  }), /no assistant text/);
+});
+
+test('timeouts fail with a safe error', async () => {
+  await assert.rejects(callMeta({ apiKey: 'test-secret', input: 'hello', timeoutMs: 5,
+    fetchImpl: (_url, { signal }) => new Promise((_resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      // Keep this fake request alive like a real network socket.
+      const timer = setTimeout(() => reject(new Error('test failed to abort')), 1000);
+      signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+    }),
+  }), /timed out/);
+});
+
+test('native tool calls return an executable decision without exposing reasoning', async () => {
+  const tool = { type: 'function', name: 'ask_clarification', parameters: { type: 'object' } };
+  const result = await callMeta({ apiKey: 'test-secret', input: 'synthetic', tools: [tool],
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      assert.deepEqual(body.tools, [tool]);
+      assert.equal(body.tool_choice, 'auto');
+      assert.equal(body.parallel_tool_calls, false);
+      return Response.json({ ...completed, output: [{ type: 'function_call', name: 'ask_clarification', call_id: 'call_test', arguments: '{"question":"Which end?"}' }] });
+    },
+  });
+  assert.deepEqual(result.toolCall, { name: 'ask_clarification', arguments: '{"question":"Which end?"}' });
+  assert.equal(result.text, '');
+});
+
+test('rejects unrequested or multiple native calls rather than executing any', async () => {
+  const call = { type: 'function_call', name: 'ask_clarification', arguments: '{}' };
+  for (const output of [[call, call], [{ ...call, name: 'run_code' }], []]) {
+    await assert.rejects(callMeta({ apiKey: 'key', input: 'synthetic', tools: [{ name: 'ask_clarification' }],
+      fetchImpl: async () => Response.json({ ...completed, output }),
+    }), /one allowed learning action/);
+  }
+});
+
+test('responses transport makes one request and strips unrelated SDK environment headers', async () => {
+  const oldOrg = process.env.OPENAI_ORG_ID, oldProject = process.env.OPENAI_PROJECT_ID, oldCustom = process.env.OPENAI_CUSTOM_HEADERS;
+  process.env.OPENAI_ORG_ID = 'foreign-org';
+  process.env.OPENAI_PROJECT_ID = 'foreign-project';
+  process.env.OPENAI_CUSTOM_HEADERS = 'X-Foreign-Secret: must-not-leak';
+  let calls = 0;
+  try {
+    await assert.rejects(callMeta({apiKey:'test-secret',input:'synthetic',fetchImpl:async (_url, options)=>{
+      calls++;
+      const headers = new Headers(options.headers);
+      assert.equal(headers.get('x-foreign-secret'), null);
+      assert.equal(headers.get('openai-organization'), null);
+      assert.equal(headers.get('openai-project'), null);
+      assert.equal(headers.get('authorization'),'Bearer test-secret');
+      assert.equal(options.redirect,'error');
+      return new Response('private test-secret', {status:429});
+    }}), /429/);
+    assert.equal(calls, 1);
+  } finally {
+    for(const [key,value] of Object.entries({OPENAI_ORG_ID:oldOrg,OPENAI_PROJECT_ID:oldProject,OPENAI_CUSTOM_HEADERS:oldCustom})) {
+      if(value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
+
+test('server and transport failures never retry or expose upstream details', async () => {
+  for (const fetchResult of [() => new Response('private upstream payload', {status:503}), () => {throw new Error('secret transport detail');}]) {
+    let calls = 0;
+    await assert.rejects(callMeta({apiKey:'test-secret',input:'synthetic',fetchImpl:async()=>{calls++;return fetchResult();}}), error => {
+      assert.doesNotMatch(error.message, /private|secret|payload|detail/i);
+      return true;
+    });
+    assert.equal(calls, 1);
+  }
+});
+
+test('an invalid JSON response fails without exposing its contents', async () => {
+  await assert.rejects(callMeta({apiKey:'test-secret', input:'synthetic', fetchImpl:async()=>new Response('private malformed',{headers:{'content-type':'application/json'}})}), error=>{
+    assert.match(error.message,/invalid JSON/);
+    assert.doesNotMatch(error.message,/private|malformed|test-secret/);
+    return true;
+  });
+});

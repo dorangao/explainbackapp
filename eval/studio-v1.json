@@ -1,0 +1,397 @@
+{
+  "version": "studio-v1",
+  "frozenAt": "2026-10-27T23:56:39.398960+00:00",
+  "purpose": "Synthetic developer smoke evaluation; six bilingual pairs; one explicit request per case. Manual review is separate from automated checks.",
+  "cases": [
+    {
+      "id": "cooling-en",
+      "pair": "cooling",
+      "language": "en",
+      "category": "model",
+      "topic": "Create one adjustable Newton cooling model: initial temperature initial in C (60..100, step 1, default 80), ambient in C (10..30, step 1, default 20), rate in 1/min (0.01..0.2, step 0.01, default 0.1). Time axis x is 0..30 min. Output temp in C. Explain constant surroundings, uniform temperature and no evaporation. Test whether cooling is linear. Include a fresh numeric transfer case.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "output": "temp",
+        "inputIds": [
+          "initial",
+          "ambient",
+          "rate"
+        ],
+        "axis": [
+          0,
+          30
+        ],
+        "probes": [
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 0,
+            "value": 80.0
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 10,
+            "value": 42.07276647028654
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 30,
+            "value": 22.987224102071835
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.2
+            },
+            "at": 10,
+            "value": 28.120116994196763
+          }
+        ],
+        "review": [
+          "Explain ideal Newton cooling assumptions, not measured coffee behavior.",
+          "Both languages distinguish temperature from cooling rate.",
+          "Claim is a prediction to test; post-test explanation agrees with exponential cooling."
+        ]
+      }
+    },
+    {
+      "id": "cooling-zh",
+      "pair": "cooling",
+      "language": "zh",
+      "category": "model",
+      "topic": "创建一个可调参数的牛顿冷却模型：初始温度 initial，单位 C（60..100，步长1，默认80）；环境温度 ambient，单位 C（10..30，步长1，默认20）；冷却系数 rate，单位1/min（0.01..0.2，步长0.01，默认0.1）。时间轴 x 为0..30 min，输出 temp，单位 C。说明环境恒定、温度均匀、不计蒸发，检验冷却是否线性，并提供新的数值迁移题。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "output": "temp",
+        "inputIds": [
+          "initial",
+          "ambient",
+          "rate"
+        ],
+        "axis": [
+          0,
+          30
+        ],
+        "probes": [
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 0,
+            "value": 80.0
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 10,
+            "value": 42.07276647028654
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.1
+            },
+            "at": 30,
+            "value": 22.987224102071835
+          },
+          {
+            "controls": {
+              "initial": 80,
+              "ambient": 20,
+              "rate": 0.2
+            },
+            "at": 10,
+            "value": 28.120116994196763
+          }
+        ],
+        "review": [
+          "Explain ideal Newton cooling assumptions, not measured coffee behavior.",
+          "Both languages distinguish temperature from cooling rate.",
+          "Claim is a prediction to test; post-test explanation agrees with exponential cooling."
+        ]
+      }
+    },
+    {
+      "id": "pendulum-en",
+      "pair": "pendulum",
+      "language": "en",
+      "category": "model",
+      "topic": "Create one ideal small-angle pendulum period model. Length axis x runs 0.25..4 m. Inputs: gravity in m/s^2 (9..10, step 0.1, default 9.8), mass in kg (0.5..2, step 0.1, default 1). Output period in s. Test whether a heavier bob changes period at equal length. Explain small amplitude, massless string, point bob and no damping. Include a fresh numeric transfer case.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "output": "period",
+        "inputIds": [
+          "gravity",
+          "mass"
+        ],
+        "axis": [
+          0.25,
+          4
+        ],
+        "probes": [
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 1,
+            "value": 2.007089923154493
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 0.25,
+            "value": 1.0035449615772465
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 4,
+            "value": 4.014179846308986
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 2
+            },
+            "at": 1,
+            "value": 2.007089923154493
+          },
+          {
+            "controls": {
+              "gravity": 10,
+              "mass": 1
+            },
+            "at": 1,
+            "value": 1.9869176531592203
+          }
+        ],
+        "review": [
+          "Period is independent of mass only within the stated model.",
+          "Length is the independent axis and seconds are the output units.",
+          "Small-angle and idealizing assumptions appear in both languages."
+        ]
+      }
+    },
+    {
+      "id": "pendulum-zh",
+      "pair": "pendulum",
+      "language": "zh",
+      "category": "model",
+      "topic": "创建一个理想小角度单摆周期模型。长度轴 x 为0.25..4 m。输入 gravity，单位 m/s^2（9..10，步长0.1，默认9.8）；mass，单位 kg（0.5..2，步长0.1，默认1）。输出 period，单位 s。检验等长时更重的摆球是否改变周期。说明小振幅、无质量细线、质点摆球、不计阻尼，并提供新的数值迁移题。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "output": "period",
+        "inputIds": [
+          "gravity",
+          "mass"
+        ],
+        "axis": [
+          0.25,
+          4
+        ],
+        "probes": [
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 1,
+            "value": 2.007089923154493
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 0.25,
+            "value": 1.0035449615772465
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 1
+            },
+            "at": 4,
+            "value": 4.014179846308986
+          },
+          {
+            "controls": {
+              "gravity": 9.8,
+              "mass": 2
+            },
+            "at": 1,
+            "value": 2.007089923154493
+          },
+          {
+            "controls": {
+              "gravity": 10,
+              "mass": 1
+            },
+            "at": 1,
+            "value": 1.9869176531592203
+          }
+        ],
+        "review": [
+          "Period is independent of mass only within the stated model.",
+          "Length is the independent axis and seconds are the output units.",
+          "Small-angle and idealizing assumptions appear in both languages."
+        ]
+      }
+    },
+    {
+      "id": "web-cache-en",
+      "pair": "web-cache",
+      "language": "en",
+      "category": "process",
+      "topic": "Create one interactive process lesson on loading a web page. Show that a fresh local cached response can avoid networking; an expired response can be conditionally revalidated and a 304 response reuses the body. DNS lookup and connection occur only if needed. Stage order is logical, not measured duration. Include a new application question about caching, with three answer choices.",
+      "expected": {
+        "status": "ready",
+        "kind": "process",
+        "review": [
+          "Fresh cache can bypass network; stale cache may revalidate.",
+          "304 means reuse an unchanged body, not download a complete new body.",
+          "Stages are conditional/logical rather than a compulsory network sequence.",
+          "Transfer has one defensible answer; no duplicated or equivalent choices."
+        ]
+      }
+    },
+    {
+      "id": "web-cache-zh",
+      "pair": "web-cache",
+      "language": "zh",
+      "category": "process",
+      "topic": "创建一个网页加载的交互过程课程。说明新鲜的本地缓存响应可避免联网；过期响应可条件校验，304响应可复用原正文。仅在需要时进行DNS查询和连接。步骤是逻辑顺序，不是实测耗时。提供一个新的缓存应用题，包含三个选项。",
+      "expected": {
+        "status": "ready",
+        "kind": "process",
+        "review": [
+          "Fresh cache can bypass network; stale cache may revalidate.",
+          "304 means reuse an unchanged body, not download a complete new body.",
+          "Stages are conditional/logical rather than a compulsory network sequence.",
+          "Transfer has one defensible answer; no duplicated or equivalent choices."
+        ]
+      }
+    },
+    {
+      "id": "water-cycle-en",
+      "pair": "water-cycle",
+      "language": "en",
+      "category": "process",
+      "topic": "Create one interactive process lesson on the water cycle for a curious adult. Include evaporation, condensation, precipitation and collection; explain it is a repeating network with multiple paths, not a fixed timed sequence. Do not invent quantitative formulas. Add a new application question with three choices about droplets forming on the outside of a cold glass.",
+      "expected": {
+        "status": "ready",
+        "kind": "process",
+        "review": [
+          "Evaporation, condensation, precipitation and collection are accurately distinguished.",
+          "No fixed duration or mandatory single global path is implied.",
+          "Cold-glass droplets are condensation of surrounding water vapor, not water passing through the glass.",
+          "Both languages and the answer key agree."
+        ]
+      }
+    },
+    {
+      "id": "water-cycle-zh",
+      "pair": "water-cycle",
+      "language": "zh",
+      "category": "process",
+      "topic": "为好奇的成年人创建一个水循环交互过程课程，包括蒸发、凝结、降水和汇集。说明这是有多条路径的循环网络，不是固定计时的顺序。不要编造定量公式。用冷杯外侧形成水滴的情境设计一个新的三选一应用题。",
+      "expected": {
+        "status": "ready",
+        "kind": "process",
+        "review": [
+          "Evaporation, condensation, precipitation and collection are accurately distinguished.",
+          "No fixed duration or mandatory single global path is implied.",
+          "Cold-glass droplets are condensation of surrounding water vapor, not water passing through the glass.",
+          "Both languages and the answer key agree."
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-en",
+      "pair": "ambiguous",
+      "language": "en",
+      "category": "ambiguity",
+      "topic": "Make an interactive lesson explaining why it goes faster. I have not said what \"it\" is, what \"faster\" measures, or the conditions. Ask me to clarify before choosing a topic or inventing a model.",
+      "expected": {
+        "status": "unsupported",
+        "review": [
+          "No lesson is invented for an unspecified subject.",
+          "The bilingual message asks for the object, quantity or conditions needed to proceed.",
+          "This contract uses unsupported plus a clarification message; it has no separate clarification status."
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-zh",
+      "pair": "ambiguous",
+      "language": "zh",
+      "category": "ambiguity",
+      "topic": "做一个交互课程，解释为什么它变快了。我还没有说明“它”是什么、“快”衡量什么，也没有给条件。请先向我澄清，再选择主题，不要编造模型。",
+      "expected": {
+        "status": "unsupported",
+        "review": [
+          "No lesson is invented for an unspecified subject.",
+          "The bilingual message asks for the object, quantity or conditions needed to proceed.",
+          "This contract uses unsupported plus a clarification message; it has no separate clarification status."
+        ]
+      }
+    },
+    {
+      "id": "unsupported-cfd-en",
+      "pair": "unsupported-cfd",
+      "language": "en",
+      "category": "unsupported",
+      "topic": "Run a calibrated full 3D turbulent CFD simulation of my real flying car and give measured pressure fields and a certified safe thruster landing plan. I have supplied no geometry, measurements or hardware limits. I require the real solved flow field, not a formula illustration or a process diagram. If this renderer cannot do that, say so and do not create a substitute lesson.",
+      "expected": {
+        "status": "unsupported",
+        "review": [
+          "No invented CFD, measured field, calibration or safety certification.",
+          "No substitute model/process lesson against the explicit request.",
+          "Explain limits and missing inputs in both languages."
+        ]
+      }
+    },
+    {
+      "id": "unsupported-cfd-zh",
+      "pair": "unsupported-cfd",
+      "language": "zh",
+      "category": "unsupported",
+      "topic": "对我的真实飞行汽车运行经过标定的完整三维湍流CFD仿真，给出实测压力场和经认证的安全推力着陆方案。我没有提供几何形状、测量或硬件限制。我要求真实求解流场，不接受公式示意或过程图。如果当前渲染器不能完成，请明确说明，不要创建替代课程。",
+      "expected": {
+        "status": "unsupported",
+        "review": [
+          "No invented CFD, measured field, calibration or safety certification.",
+          "No substitute model/process lesson against the explicit request.",
+          "Explain limits and missing inputs in both languages."
+        ]
+      }
+    }
+  ]
+}

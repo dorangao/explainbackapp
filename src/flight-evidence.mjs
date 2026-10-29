@@ -1,0 +1,19 @@
+import {flightFormula,flightSummary,flightAssumptions} from '../public/flight.mjs';
+const pair=(en,zh)=>({en,zh});
+export function executeFlightExperiment({sessionId,claimId,formulaId,experimentId,evidenceId}){
+ if(![sessionId,claimId,evidenceId].every(v=>typeof v==='string'&&v.length>0&&v.length<=160)||!['flight-torque','flight-contact','flight-state'].includes(experimentId))throw new Error('Unsupported flight evidence.');
+ const s=flightFormula(formulaId),r=flightSummary(s),f=n=>Number(n.toFixed(4));
+ let conclusion;
+ if(experimentId==='flight-torque')conclusion=pair(`B needs peak |torque| ${f(r.peakTorque)} N·m; each ideal couple force peaks at ${f(r.peakCoupleForce)} N. A needs no airborne torque because it already spins, and retains ${f(r.touchdownOmegaA)} rad/s at touchdown. B ends at 0 rad/s after positive then negative torque. Zero net angular impulse does not mean zero torque throughout.`,
+  `B 需要峰值 |力矩| ${f(r.peakTorque)} N·m；理想力偶的每个力峰值为 ${f(r.peakCoupleForce)} N。A 已有初始旋转，因此空中不需力矩，但接地时仍有 ${f(r.touchdownOmegaA)} rad/s。B 经正、负力矩后以 0 rad/s 结束。净角冲量为零不代表力矩始终为零。`);
+ if(experimentId==='flight-contact')conclusion=pair(`At downward speed ${f(r.impactSpeed)} m/s, average upward contact force is ${f(r.averageContactForce)} N; peak is ${f(r.peakContactForce)} N. Net impulse=${f(r.netLandingImpulse)} N·s; contact impulse=${f(r.contactImpulse)} N·s includes the gravity contribution over D. Stopping travel=${f(r.stoppingTravel)} m. Average force alone does not specify peak force.`,
+  `向下速度为 ${f(r.impactSpeed)} m/s 时，平均向上接触力为 ${f(r.averageContactForce)} N，峰值为 ${f(r.peakContactForce)} N。净冲量=${f(r.netLandingImpulse)} N·s；接触冲量=${f(r.contactImpulse)} N·s，还包含 D 内抵消重力所需的部分。制停距离=${f(r.stoppingTravel)} m。仅凭平均力不能确定峰值力。`);
+ if(experimentId==='flight-state')conclusion=pair(`Both finish a 2π-radian turn upright. A still spins at ${f(r.touchdownOmegaA)} rad/s with ${f(r.residualEnergyA)} J rotational energy; B has zero spin. Both approach touchdown downward at ${f(r.impactSpeed)} m/s. The separate contact model requires average ${f(r.averageContactForce)} N and peak ${f(r.peakContactForce)} N. These facts cannot establish a safe landing; A's subsequent roll is unresolved.`,
+  `两者均转过 2π 弧度，姿态回正。A 仍以 ${f(r.touchdownOmegaA)} rad/s 旋转，剩余转动能 ${f(r.residualEnergyA)} J；B 角速度为零。两者都以 ${f(r.impactSpeed)} m/s 向下接近接地点。独立接触模型需要平均 ${f(r.averageContactForce)} N、峰值 ${f(r.peakContactForce)} N。这不能证明安全着陆；A 后续横滚未解决。`);
+ return {version:1,id:evidenceId,sessionId,claimId,formulaId,formulaVersion:1,experimentId,method:'ideal-roll-and-vertical-contact-v1',
+  inputs:{...s,rotationAxis:'longitudinal-roll',gravity:9.80665,units:{mass:'kg',time:'s',radius:'m',separation:'m',angle:'rad',angularSpeed:'rad/s',torque:'N·m',contactForce:'N',impulse:'N·s'}},result:r,
+  proof:pair('I=mk². With u=t/T, θ_A=2πu and θ_B=2πu−sin(2πu); differentiate to get ω_B=(2π/T)(1−cos(2πu)), α_B=(4π²/T²)sin(2πu), τ=Iα and F_each=|τ|/d for a perpendicular pure couple. Integrating τ gives IΔω=0 for B. Ballistic return to equal height gives U=gT/2. During contact ∫(N−mg)dt=mU, so N_avg=mg+mU/D. Constant net deceleration has N_peak=N_avg; cosine net deceleration has N_peak=mg+2mU/D. Integration gives stopping travel UD/2 for both. These are analytic ideal-model results.',
+   'I=mk²。令 u=t/T，θ_A=2πu，θ_B=2πu−sin(2πu)。求导得到 ω_B=(2π/T)(1−cos(2πu))、α_B=(4π²/T²)sin(2πu)，τ=Iα；垂直力偶的每个力 F=|τ|/d。积分 τ 得 B 的 IΔω=0。抛体回到同高度，向下速度大小 U=gT/2。接触期间 ∫(N−mg)dt=mU，因此平均接触力 N_avg=mg+mU/D。恒定净减速度下 N_peak=N_avg；余弦净减速度下 N_peak=mg+2mU/D。积分得两者制停距离均为 UD/2。这些是理想模型的解析结果。'),
+  conclusion,limitations:pair(`${flightAssumptions.en} Contact endpoints are one-sided ideal values with force jumps; no measured peak or passenger load is inferred. This does not verify learner understanding.`,
+   `${flightAssumptions.zh} 接触端点为理想单侧值，存在力的突变；不推断实测峰值或乘员载荷，也不证明学习者理解正确。`)};
+}

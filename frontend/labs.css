@@ -1,0 +1,46 @@
+/* Experiment bench (physics and quantum labs). The lab markup keeps the ids
+   and classes that public/style.css already styles; this file carries only
+   the React shell rules that used to live under .legacy-* in styles.css. */
+.lab-workspace .workspace-heading {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+}
+.lab-workspace .workspace-heading h1 {
+  font-size: 2.4rem;
+}
+.lab-root {
+  min-width: 0;
+}
+.lab-root select {
+  font-size: 0.85rem;
+}
+.lab-root .quantum-hero {
+  padding-top: 0;
+}
+.lab-root .connection {
+  max-width: 100%;
+}
+.lab-root .auto-demo-main {
+  min-width: 0;
+}
+.lab-root .guide-heading {
+  flex-wrap: wrap;
+}
+.lab-root .lab-console {
+  font-size: 0.8rem;
+  border-radius: 7px;
+}
+.lab-root .lab-console pre {
+  font-size: 0.73rem;
+}
+@media (max-width: 540px) {
+  .lab-workspace .workspace-heading h1 {
+    font-size: 2rem;
+  }
+  .lab-root .setup {
+    gap: 15px;
+  }
+  .lab-root .topic-label {
+    min-width: 0;
+  }
+}

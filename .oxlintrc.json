@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": [
+    "react",
+    "typescript",
+    "unicorn",
+    "import"
+  ],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "error",
+    "react/jsx-key": "error",
+    "no-unused-vars": "warn",
+    "typescript/no-explicit-any": "warn",
+    "react/react-in-jsx-scope": "off",
+    "react/set-state-in-effect": "warn"
+  },
+  "ignorePatterns": [
+    "dist/**",
+    "output/**",
+    "node_modules/**",
+    "public/**",
+    "docs/**"
+  ],
+  "settings": {
+    "react": {
+      "version": "19"
+    }
+  },
+  "overrides": [
+    {
+      "files": [
+        "frontend/components/labs/**"
+      ],
+      "rules": {
+        "react/refs": "warn",
+        "react/immutability": "warn"
+      }
+    }
+  ]
+}
