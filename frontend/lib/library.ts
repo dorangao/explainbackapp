@@ -1,6 +1,14 @@
 // A creator's saved lessons and the public shared ones. Saving, listing and opening make
 // no model request; only the sign-in session is sent, as with every /api call.
-import type { Bilingual, Lesson, Post, Show } from "./types";
+import type {
+  Bilingual,
+  Language,
+  Lesson,
+  Post,
+  Show,
+  TryoutChapter,
+  Verdict,
+} from "./types";
 import { getJson } from "./api";
 export type LessonKind = "model" | "process" | "catalog";
 export type SavedSummary = {
@@ -9,6 +17,9 @@ export type SavedSummary = {
   intro: Bilingual;
   kind: LessonKind;
   hasShow: boolean;
+  // The test learner's report and the number of chapters with an explain-back grade.
+  hasTryout: boolean;
+  graded: number;
   model: string | null;
   // Image URLs kept in Blob storage; null when none was saved.
   cover: string | null;
@@ -17,11 +28,32 @@ export type SavedSummary = {
   createdAt: number;
   updatedAt: number;
 };
+// The test learner's report as saved: checked answers included, session fields dropped.
+export type SavedTryout = {
+  chapters: TryoutChapter[];
+  overall: string;
+  rating: number;
+  model: string | null;
+  language: Language;
+};
+// One chapter's explain-back: the learner's words, Spark's verdict and feedback, and
+// the client cache key so the restored grade is fresh or stale exactly as before.
+export type SavedGrade = {
+  explanation: string;
+  feedback: string;
+  verdict: Verdict;
+  followUp: string | null;
+  model: string | null;
+  language: Language;
+  key: string;
+};
 export type SavedLesson = SavedSummary & {
   lesson: Lesson;
   show: Show | null;
   coverModel: string | null;
   illustrations: Record<string, string>;
+  tryout: SavedTryout | null;
+  grades: Record<string, SavedGrade>;
 };
 export const sharedIdFromHash = (hash: string): string | null =>
   /^#shared:([a-f0-9]{16})$/.exec(hash ?? "")?.[1] ?? null;
@@ -46,6 +78,8 @@ export const saveLesson = (
     coverModel?: string | null;
     illustrations?: Record<string, string> | null;
     sketch?: string | null;
+    tryout?: SavedTryout | null;
+    grades?: Record<string, SavedGrade> | null;
   },
 ) => post<SavedSummary>("/api/lessons", body);
 export const shareLesson = (post: Post, id: string, shared: boolean) =>

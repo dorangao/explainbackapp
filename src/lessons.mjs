@@ -24,6 +24,40 @@ export function validateShowScript(value,lesson){
  if(slides[0].kind!=='cover'||slides.at(-1).kind!=='takeaway')throw new Error('Invalid show order.');
  return {version:1,slides,coverPrompt:value.coverPrompt.trim()};
 }
+// The test learner's report, as the tryout reader produced it, so reopening a saved
+// lesson shows how Spark did without a new request. Checked answers are recomputed by
+// the client from the lesson, so only the model's text and the given answers are kept.
+const list=(v,max,each)=>Array.isArray(v)&&v.length<=max&&v.every(s=>typeof s==='string'&&s.length<=each);
+const optional=(v,max)=>v===null||v===undefined?null:typeof v==='string'&&v.length<=max?v.trim():undefined;
+export function validateTryout(value,lesson){
+ if(value===null||value===undefined)return null;
+ if(!value||typeof value!=='object'||!Array.isArray(value.chapters)||value.chapters.length!==lesson.chapters.length||!text(value.overall,400)||!Number.isInteger(value.rating)||value.rating<1||value.rating>5||!['en','zh'].includes(value.language))throw new Error('Invalid tryout.');
+ const model=optional(value.model,80);if(model===undefined)throw new Error('Invalid tryout.');
+ const chapters=value.chapters.map(c=>{
+  if(!c||typeof c!=='object'||!['agree','disagree','unsure'].includes(c.prediction)||!text(c.reason,300)||!text(c.explanation,600)||!list(c.confusions,3,200)||!list(c.suggestions,3,200))throw new Error('Invalid tryout chapter.');
+  const tr=c.transfer;
+  if(!tr||typeof tr!=='object'||typeof tr.given!=='string'||tr.given.length>80||typeof tr.correct!=='boolean'||!['number','choice'].includes(tr.type))throw new Error('Invalid tryout transfer.');
+  const unit=optional(tr.unit,20),choice=optional(tr.choice,200);if(unit===undefined||choice===undefined)throw new Error('Invalid tryout transfer.');
+  return {prediction:c.prediction,reason:c.reason.trim(),explanation:c.explanation.trim(),transfer:{given:tr.given.trim(),correct:tr.correct,type:tr.type,...(unit?{unit}:{}),...(choice!==null?{choice}:{})},confusions:c.confusions,suggestions:c.suggestions};
+ });
+ return {chapters,overall:value.overall.trim(),rating:value.rating,model,language:value.language};
+}
+// Explain-back grades: the learner's own explanation per chapter with Spark's verdict
+// and feedback. `key` is the client's cache fingerprint, kept so a reopened grade is
+// marked fresh or stale against the live lesson state exactly as before.
+export function validateGrades(value,lesson){
+ if(value===null||value===undefined)return {};
+ if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Invalid grades.');
+ const entries=Object.entries(value);if(entries.length>lesson.chapters.length)throw new Error('Too many grades.');
+ const out={};
+ for(const [index,g] of entries){
+  if(!/^[0-9]$/.test(index)||Number(index)>=lesson.chapters.length||!g||typeof g!=='object')throw new Error('Invalid grade.');
+  if(!text(g.explanation,700)||!text(g.feedback,700)||!['supported','partly','unsupported'].includes(g.verdict)||!['en','zh'].includes(g.language)||typeof g.key!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(g.key))throw new Error('Invalid grade.');
+  const followUp=optional(g.followUp,300),model=optional(g.model,80);if(followUp===undefined||model===undefined)throw new Error('Invalid grade.');
+  out[index]={explanation:g.explanation.trim(),feedback:g.feedback.trim(),verdict:g.verdict,followUp,model,language:g.language,key:g.key};
+ }
+ return out;
+}
 export const lessonKind=lesson=>lesson.version===1?'catalog':lesson.chapters.some(c=>c.demo?.kind==='process')&&!lesson.chapters.some(c=>c.demo?.kind==='model')?'process':'model';
 // Builds the stored record from a save request. `previous` keeps the id, owner and dates
 // of an existing record that the same owner updates.
@@ -33,7 +67,8 @@ export function buildSavedLesson(body,{owner,now=Date.now(),previous=null}={}){
  const model=typeof body.model==='string'&&body.model.length<=80?body.model.trim():null;
  const createdAt=previous?.createdAt??now;
  const coverModel=typeof body.coverModel==='string'&&body.coverModel.length<=80?body.coverModel.trim():null;
- return {id:previous?.id??newLessonId(),owner,title:lesson.title,intro:lesson.intro,kind:lessonKind(lesson),lesson,show,model,coverModel:show?coverModel:null,cover:null,illustrations:{},sketch:null,shared:previous?.shared===true,createdAt,updatedAt:now};
+ const tryout=validateTryout(body.tryout,lesson),grades=validateGrades(body.grades,lesson);
+ return {id:previous?.id??newLessonId(),owner,title:lesson.title,intro:lesson.intro,kind:lessonKind(lesson),lesson,show,model,coverModel:show?coverModel:null,cover:null,illustrations:{},sketch:null,tryout,grades,shared:previous?.shared===true,createdAt,updatedAt:now};
 }
 // Resolves the images a save request references. A value is kept when it is already a
 // blob URL under this owner, uploaded when it is an image data URL and a store exists,
@@ -63,5 +98,5 @@ export async function attachImages(record,body,{store=null,owner,previous=null}=
  return recordImageUrls(previous).filter(url=>!kept.has(url));
 }
 // What lists and public readers see. The owner id never leaves the server.
-export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),model:r.model,cover:r.cover??null,sketch:r.sketch??null,shared:r.shared===true,createdAt:r.createdAt,updatedAt:r.updatedAt});
-export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,coverModel:r.coverModel??null,illustrations:r.illustrations??{}});
+export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,cover:r.cover??null,sketch:r.sketch??null,shared:r.shared===true,createdAt:r.createdAt,updatedAt:r.updatedAt});
+export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,coverModel:r.coverModel??null,illustrations:r.illustrations??{},tryout:r.tryout??null,grades:r.grades??{}});

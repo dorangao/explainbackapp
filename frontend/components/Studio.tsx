@@ -53,7 +53,12 @@ import {
 } from "../lib/library";
 import { JudgePath } from "./JudgePath";
 import type { JudgeStep, JudgeStepId } from "./JudgePath";
-import type { SavedLesson, SavedSummary } from "../lib/library";
+import type {
+  SavedGrade,
+  SavedLesson,
+  SavedSummary,
+  SavedTryout,
+} from "../lib/library";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
@@ -327,6 +332,7 @@ export function Studio({
       setSource("muse-sketch");
       setSourceImage(external.sketch);
     }
+    if (external) restoreRef.current(lesson, external, external.updatedAt);
     if (external?.show)
       setShow({
         reply: {
@@ -364,11 +370,11 @@ export function Studio({
   async function request(
     mode: "compose" | "guide",
     text?: string,
-    starter?: string,
+    starterTopic?: string,
   ) {
     const revisionText = mode === "compose" ? text : undefined,
       learnerText = mode === "guide" ? text?.trim() : undefined,
-      asked = (starter ?? topic).trim();
+      asked = (starterTopic ?? topic).trim();
     if (
       busyRef.current ||
       !authenticated ||
@@ -751,6 +757,51 @@ export function Studio({
     setMessage(t(language, "Studio.illustrationReady"));
     return true;
   }
+  // The shared-lesson effect above runs once per lesson and calls the latest copy.
+  const restoreRef = useRef(restoreResults);
+  restoreRef.current = restoreResults;
+  // Puts a saved tryout report and explain-back grades back into the caches. Keys are
+  // the ones the caches use, so each result shows as fresh or stale against the live
+  // lesson state exactly as before; no model request is made.
+  function restoreResults(
+    lesson: Lesson,
+    record: { tryout: SavedTryout | null; grades: Record<string, SavedGrade> },
+    at: number,
+  ) {
+    setTryout(
+      record.tryout && target
+        ? {
+            reply: {
+              ...record.tryout,
+              model: record.tryout.model ?? undefined,
+              llm: target,
+              attemptsRemaining: 0,
+            } as TryoutReply,
+            at,
+            key: fingerprint({ lesson, language: record.tryout.language }),
+          }
+        : null,
+    );
+    const guides: Record<string, Cached<Feedback>> = {};
+    const texts: Record<string, string> = {};
+    for (const [k, g] of Object.entries(record.grades ?? {})) {
+      texts[k] = g.explanation;
+      guides[k] = {
+        reply: {
+          explanation: g.feedback,
+          nextAction: "replay",
+          attemptsRemaining: 0,
+          verdict: g.verdict,
+          followUp: g.followUp ?? undefined,
+          model: g.model ?? undefined,
+        },
+        at,
+        key: g.key,
+      };
+    }
+    setGuide(guides);
+    setExplanations(texts);
+  }
   // Shares the saved copy by link from the judge path; the shelf has the same switch.
   async function shareSaved(): Promise<boolean> {
     if (!savedId || !savedItem) return false;
@@ -775,9 +826,9 @@ export function Studio({
   // on the page, so caches, budgets and messages behave identically.
   const judgeActions: Record<JudgeStepId, () => Promise<boolean>> = {
     draft: () => {
-      const starter = studioWalkthrough(language).topic;
-      setTopic(starter);
-      return request("compose", undefined, starter);
+      const seed = studioWalkthrough(language).topic;
+      setTopic(seed);
+      return request("compose", undefined, seed);
     },
     tryout: () => tryLesson(),
     show: () => makeShow(),
@@ -888,6 +939,33 @@ export function Studio({
         coverModel: current?.coverModel ?? null,
         illustrations: current?.illustrations ?? null,
         sketch: source === "muse-sketch" ? sourceImage : null,
+        tryout:
+          tryout && tryout.key === tryoutKey
+            ? {
+                chapters: tryout.reply.chapters,
+                overall: tryout.reply.overall,
+                rating: tryout.reply.rating,
+                model: tryout.reply.model ?? null,
+                language,
+              }
+            : null,
+        grades: Object.fromEntries(
+          Object.entries(guide)
+            .filter(([, g]) => g.reply.verdict)
+            .map(([k, g]) => [
+              k,
+              {
+                explanation: explanations[k] ?? "",
+                feedback: g.reply.explanation,
+                verdict: g.reply.verdict as SavedGrade["verdict"],
+                followUp: g.reply.followUp ?? null,
+                model: g.reply.model ?? null,
+                language,
+                key: g.key,
+              },
+            ])
+            .filter(([, g]) => (g as SavedGrade).explanation.trim()),
+        ),
       });
       if (!alive.current) return false;
       setSavedId(summary.id);
@@ -926,9 +1004,7 @@ export function Studio({
     const { lesson: body, show: script, ...summary } = record;
     const lesson = loadLesson(body);
     setRevision(null);
-    setTryout(null);
-    setGuide({});
-    setExplanations({});
+    restoreResults(lesson, record, summary.updatedAt);
     setComposeStamp(null);
     setReviseStamp(null);
     setSavedId(summary.id);

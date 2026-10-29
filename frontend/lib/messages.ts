@@ -910,6 +910,8 @@ export const messages = {
   },
   "Library.deleted": { en: "Lesson deleted.", zh: "课程已删除。" },
   "Library.withShow": { en: "with show", zh: "含讲解秀" },
+  "Library.tried": { en: "learner tryout", zh: "含试学报告" },
+  "Library.graded": { en: "graded", zh: "项已评" },
   "Library.imagesNotKept": {
     en: "Images are not kept on this server; the lesson and its show script were saved.",
     zh: "此服务器不保存图片；课程及其讲解秀脚本已保存。",

@@ -235,6 +235,16 @@ export function LessonShelf({
                       {t(language, "Library.withShow")}
                     </span>
                   )}
+                  {item.hasTryout && (
+                    <span className="shelf-flag">
+                      {t(language, "Library.tried")}
+                    </span>
+                  )}
+                  {item.graded > 0 && (
+                    <span className="shelf-flag">
+                      {item.graded} {t(language, "Library.graded")}
+                    </span>
+                  )}
                   {item.id === currentId && (
                     <span className="shelf-flag current">
                       {t(language, "Library.open")}
