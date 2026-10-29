@@ -44,7 +44,7 @@ flowchart LR
 | Optional local model | Ollama, guarded for sequential local use; not available through the cloud router | `src/llm/ollama*.mjs`, `src/cloud.mjs` |
 | Verification | Node test runner, Vitest, React Testing Library, Playwright, TypeScript, Oxlint and Prettier | `package.json`, `test/`, `frontend/`, `e2e/` |
 
-For exact installed versions, use `package-lock.json`. Keep credentials out of documentation and the shared progress ledger.
+For exact installed versions, use `package-lock.json`. Keep credentials out of documentation; see `docs/repo-guidelines.md` for what stays out of this public repository.
 
 ## Meta models and where each one works
 
