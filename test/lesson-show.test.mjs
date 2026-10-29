@@ -44,3 +44,14 @@ test('illustration flags are kept on at most two claim, transfer or takeaway sli
  assert.deepEqual(show.slides.map(s=>s.illustrate===true),[false,true,false,false,true,false],'two flags survive, in writer order, never on cover/experiment/evidence');
  const plain=readShow(reply(good()),lesson);assert.ok(plain.slides.every(s=>!('illustrate' in s)));
 });
+test('a multi-chapter lesson may have three slides per chapter plus cover and takeaway, up to twelve',async()=>{
+ const {maxShowSlides}=await import('../src/lesson-show.mjs');
+ const one={chapters:[{}]},three={chapters:[{},{},{}]},five={chapters:[{},{},{},{},{}]};
+ assert.equal(maxShowSlides(one),9);assert.equal(maxShowSlides(three),11);assert.equal(maxShowSlides(five),12);
+ const lesson=coolingLesson();lesson.chapters=[lesson.chapters[0],structuredClone(lesson.chapters[0]),structuredClone(lesson.chapters[0])];
+ const per=i=>[{...slide('claim',i)},{...slide('experiment',i)},{...slide('evidence',i)}];
+ const eleven=[slide('cover'),...per(0),...per(1),...per(2),slide('takeaway')];
+ assert.equal(readShow(reply(eleven),lesson).slides.length,11);
+ assert.throws(()=>readShow(reply([...eleven,slide('transfer')]),lesson),/Invalid show/);
+ assert.throws(()=>readShow(reply(eleven),coolingLesson()),/Invalid slide|Invalid show/,'a one-chapter lesson keeps the nine-slide cap');
+});

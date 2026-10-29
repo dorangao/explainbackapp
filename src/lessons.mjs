@@ -1,6 +1,7 @@
 import {randomBytes} from 'node:crypto';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {decodeImageDataUrl,recordImageUrls} from './blob.mjs';
+import {maxShowSlides} from './lesson-show.mjs';
 // Saved lessons: a signed-in creator (a reviewer invite or the tester account) keeps the
 // lessons it made, and may share one by link. A shared lesson is readable without
 // signing in; everything else stays with its owner. Records hold the checked lesson and,
@@ -16,7 +17,7 @@ export const validLessonId=id=>typeof id==='string'&&ID.test(id);
 // The show script must be one the show reader could have produced for this lesson.
 export function validateShowScript(value,lesson){
  if(value===null||value===undefined)return null;
- if(!value||typeof value!=='object'||value.version!==1||!Array.isArray(value.slides)||value.slides.length<4||value.slides.length>9||!text(value.coverPrompt,400))throw new Error('Invalid show script.');
+ if(!value||typeof value!=='object'||value.version!==1||!Array.isArray(value.slides)||value.slides.length<4||value.slides.length>maxShowSlides(lesson)||!text(value.coverPrompt,400))throw new Error('Invalid show script.');
  const slides=value.slides.map(s=>{
   if(!s||typeof s!=='object'||!slideKinds.includes(s.kind)||!Number.isInteger(s.chapter)||s.chapter<0||s.chapter>=lesson.chapters.length||!bilingual(s.heading,80)||!bilingual(s.narration,400))throw new Error('Invalid show slide.');
   if(s.illustrate!==undefined&&typeof s.illustrate!=='boolean')throw new Error('Invalid show slide.');
