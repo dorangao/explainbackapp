@@ -660,6 +660,61 @@ describe("Lesson show", () => {
 });
 
 describe("Rejection reason", () => {
+  it("preserves a background claim rejection and does not poll it again", async () => {
+    const wonder = {
+      ...status.models[0],
+      id: "meta:muse-wonder-1.0",
+      model: "muse-wonder-1.0",
+      label: "Wonder",
+    };
+    let polls = 0;
+    const post: Post = async (path) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return { pending: true, attemptsRemaining: 7 } as never;
+      if (path === "/api/studio/poll") {
+        polls++;
+        throw new ApiError(
+          "Rejected",
+          502,
+          "BACKGROUND_FAILED",
+          7,
+          "Prediction claim must be a statement, not a question, in both languages.",
+        );
+      }
+      return { records: [] } as never;
+    };
+    mount(
+      {
+        authenticated: true,
+        status: {
+          ...status,
+          models: [wonder],
+          defaultModel: wonder.id,
+          roles: { creator: wonder.id, tester: wonder.id },
+        },
+        view: "create",
+      },
+      post,
+    );
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Cooling" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(
+      (await screen.findByText(/Prediction claim must be a statement/))
+        .textContent,
+    ).toMatch(/Reason:/);
+    expect(polls).toBe(1);
+    expect(
+      (
+        screen.getByLabelText(
+          /What would you like to explore/,
+        ) as HTMLTextAreaElement
+      ).value,
+    ).toBe("Cooling");
+  });
   it("shows the server's reason under the generic failure line", async () => {
     const post: Post = async (path) => {
       if (path === "/api/studio/session")

@@ -4,8 +4,8 @@ import {coolingLesson,processLesson,tinyPng} from '../test-support/generated-les
 const bi=text=>({en:text,zh:'示例'+text});
 const lesson=()=>({version:1,title:bi('Motion'),intro:bi('Test a claim'),chapters:[{experiment:'acceleration',framing:bi('Two cars'),explanation:bi('Compare areas')}]});
 test('background creation is session-owned, polls without another model charge and returns a validated draft',async t=>{
- const target={id:'meta:muse-wonder-1.0',provider:'meta',model:'muse-wonder-1.0',label:'Wonder',configured:true,timeoutMs:50000};let starts=0,polls=0;
- const router={defaultId:target.id,list:()=>[target],startBackground:async()=>{starts++;return {pendingId:'resp_test'};},pollBackground:async()=>++polls===1?{pending:true}:{structured:{name:'compose_lesson',value:{status:'ready',message:bi('Ready'),lesson:coolingLesson()}},model:target.model}};
+ const target={id:'meta:muse-wonder-1.0',provider:'meta',model:'muse-wonder-1.0',label:'Wonder',configured:true,timeoutMs:50000};let starts=0,polls=0,badClaim=false;
+ const router={defaultId:target.id,list:()=>[target],startBackground:async()=>{starts++;return {pendingId:'resp_test'};},pollBackground:async()=>{if(++polls===1)return {pending:true};const draft=coolingLesson();if(badClaim)draft.chapters[0].demo.claim.zh='如何预测温度变化？';return {structured:{name:'compose_lesson',value:{status:'ready',message:bi('Ready'),lesson:draft}},model:target.model};}};
  const server=createApp({testerCredentials,router});await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
  const origin=`http://127.0.0.1:${server.address().port}`,cookie=await testerCookie(origin),other=await testerCookie(origin);
  const post=(path,body,c=cookie)=>fetch(origin+path,{method:'POST',headers:{Origin:origin,Cookie:c,'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -16,6 +16,9 @@ test('background creation is session-owned, polls without another model charge a
  assert.equal((await(await post('/api/studio/poll',{sessionId:s.sessionId})).json()).pending,true);
  const ready=await(await post('/api/studio/poll',{sessionId:s.sessionId})).json();assert.equal(ready.lesson.version,2);assert.equal(ready.attemptsRemaining,7);assert.equal(starts,1);assert.equal(polls,2);
  assert.equal((await(await post('/api/studio/poll',{sessionId:s.sessionId})).json()).lesson.version,2);
+ badClaim=true;
+ assert.equal((await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Cooling',creation:'generated',draft:ready.lesson,revision:'Simplify it',background:true})).status,202);
+ const rejected=await post('/api/studio/poll',{sessionId:s.sessionId});assert.equal(rejected.status,502);const error=await rejected.json();assert.equal(error.code,'BACKGROUND_FAILED');assert.match(error.reason,/prediction claim.*statement/i);assert.equal(error.attemptsRemaining,6);
 });
 test('lesson feedback uses Spark even when the creator session uses Wonder',async t=>{
  const targets=['muse-wonder-1.0','muse-spark-1.3'].map(model=>({id:'meta:'+model,provider:'meta',model,label:model,configured:true,timeoutMs:30000}));

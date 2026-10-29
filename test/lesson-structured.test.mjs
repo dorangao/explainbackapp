@@ -5,6 +5,16 @@ import {lessonAuthorRequest,readLessonAuthor} from '../src/lesson-author.mjs';
 import {processLesson,tinyPng} from '../test-support/generated-lessons.mjs';
 const ready={status:'ready',message:{en:'Ready',zh:'已就绪'},lesson:processLesson()};
 const response=text=>({status:'completed',model:'muse-spark-1.3',output:[{type:'message',role:'assistant',content:[{type:'output_text',text}]}]});
+test('generated prediction claims must be statements in both languages',()=>{
+ for(const [language,question] of [['en','How does temperature change?'],['en','Does temperature fall linearly'],['zh','如何预测咖啡温度随时间的变化？'],['zh','咖啡温度会随时间线性下降吗'],['zh','咖啡温度是否线性下降']]){
+  const draft=processLesson();draft.chapters[0].demo.claim[language]=question;
+  assert.throws(()=>readLessonAuthor({structured:{name:'compose_lesson',value:{...ready,lesson:draft}}},'compose','generated'),/prediction claim.*statement/i);
+  assert.throws(()=>readLessonAuthor({structured:{name:'compose_lesson',value:{...ready,lesson:draft}}},'compose','catalog'),/prediction claim.*statement/i);
+ }
+ const instructions=lessonAuthorRequest({topic:'Cooling',creation:'generated'},'compose').instructions;
+ assert.match(instructions,/agree or disagree/i);assert.match(instructions,/not a question/i);
+ assert.deepEqual(readLessonAuthor({structured:{name:'compose_lesson',value:ready}},'compose','generated'),ready);
+});
 test('Meta lesson creation uses constrained JSON and preserves the validated lesson contract',async()=>{
  const options=lessonAuthorRequest({topic:'How a browser loads a page',creation:'generated'},'compose');
  assert.equal(options.structuredOutput,true);

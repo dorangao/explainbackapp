@@ -185,8 +185,8 @@ export function createHandler({
         let raw;try{raw=await router.pollBackground(s.llm.id,s.background.id);}catch{throw new RequestError(502,'Could not retrieve the background lesson. Try again.');}
         if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
         if(raw.pending){json(200,{pending:true,attemptsRemaining:8-s.attempts});return;}
-        if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;}
-        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
+        if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=8-s.attempts;throw failure;}
+        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
         const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};
         s.background={result:answer};await save();json(200,answer);return;
       }
@@ -352,7 +352,7 @@ export function createHandler({
     if(res.headersSent)return next(error);
     const status=error instanceof RequestError?error.status:error.type==='entity.too.large'?413:error.type==='encoding.unsupported'?415:error.type==='entity.parse.failed'?400:500;
     const message=error instanceof RequestError?error.message:status===413?'Request is too large.':status===415?'Unsupported request encoding.':status===400?'Invalid JSON request.':'Request failed. Please try again.';
-    reply(res,status,{error:message,...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})});
+    reply(res,status,{error:message,...(error instanceof RequestError&&error.code==='BACKGROUND_FAILED'?{code:error.code}:{}),...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})});
   });
   return app;
 

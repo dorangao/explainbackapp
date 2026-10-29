@@ -4,7 +4,7 @@ ExplainBack turns a question or sketch into a bilingual, reviewable interactive 
 
 ExplainBack 把问题或草图变成可审阅的中英双语互动课程。学习者先预测，再操作实验、解释结果，并尝试新的情境。
 
-This is a **submission candidate** based on the ExplainBack source snapshot identified in [PROVENANCE.md](PROVENANCE.md). Its source has not yet been independently established as event-only, and publication of this repository is separate from submitting the project. The existing live product at [explainback.app](https://explainback.app/) is a separate deployment and is not evidence that this candidate has been deployed or verified.
+This is a **submission candidate** based on the ExplainBack source snapshot identified in [PROVENANCE.md](PROVENANCE.md). Its source has not yet been independently established as event-only, and publication of this repository is separate from submitting the project. [explainback.app](https://explainback.app/) is deployed from this repository; verify the deployed commit and live behavior separately from local changes.
 
 ## Experience
 
@@ -39,11 +39,11 @@ npx playwright install chromium  # once, for browser tests
 npm run test:browser
 ```
 
-The browser tests use a synthetic local provider fixture. Some HTTP and browser tests need localhost socket access. On October 28 Pacific, Node 22 validation passed 259 Node tests, 30 component tests and 18 browser tests; typecheck, lint (warnings), formatting and the production build also passed. A clean offline install and build succeeded. One small live Meta text request succeeded through the SDK; the complete live lesson flow and hosted deployment remain to be checked.
+The browser tests use a synthetic local provider fixture. Some HTTP and browser tests need localhost socket access. Test results describe the checked revision and do not establish scientific or teaching correctness.
 
 ## Architecture and hosting
 
-React and TypeScript provide the interface; Node serves API requests and the built assets. The HTTP layer uses Express, and the fixed-function graph uses D3 scales and line generation. The Meta Responses transport uses the OpenAI-compatible Node SDK against Meta’s endpoint with retries disabled. The candidate retains lesson validation, session quotas and the separate authentication boundary. Exact implementation and verification are tracked in [the implementation plan](docs/implementation-plan.md).
+See the maintained [architecture diagram and technology stack](docs/architecture.md). Update that document with changes to system components, integrations, model roles, storage or deployment.
 
 The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`.
 

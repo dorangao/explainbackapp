@@ -286,6 +286,7 @@ export function Studio({
               options.signal.aborted ||
               !(error instanceof ApiError) ||
               error.status !== 502 ||
+              error.code === "BACKGROUND_FAILED" ||
               ++retrievalFailures >= 3
             )
               throw error;
@@ -314,7 +315,11 @@ export function Studio({
         if (acknowledged) invalidate();
         setMessage(
           failureMessage(result.error) +
-            (acknowledged
+            (acknowledged &&
+            !(
+              result.error instanceof ApiError &&
+              result.error.code === "BACKGROUND_FAILED"
+            )
               ? say(
                   language,
                   " The background result could not be recovered; a new retry may use another request.",
