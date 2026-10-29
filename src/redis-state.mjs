@@ -74,6 +74,8 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   },
  };
  const sessionKey=id=>key('session',id),lockKey=id=>key('lock',id),traceKey=id=>key('trace',id);
+ const lessonKey=id=>key('lesson',id),ownerLessonsKey=owner=>key('owner-lessons',digest(owner).toString('hex').slice(0,32));
+ const readLessons=async ids=>{if(!Array.isArray(ids)||!ids.length)return [];const values=await command(['MGET',...ids.map(lessonKey)]);return values.map(v=>{try{return v?JSON.parse(v):null;}catch{return null;}}).filter(Boolean);};
  const state={
   async create(id,s){return await run(`
    if redis.call('EXISTS',KEYS[3])==0 then return 0 end
@@ -98,6 +100,24 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   `,[lockKey(id),sessionKey(id),traceKey(id)],[token,JSON.stringify(rows)]);},
   async consumeTurn(bucket='global',limit=60){return await run("local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('PEXPIRE',KEYS[1],3600000) end;return n",[key('turns',bucket)])<=limit;},
   async remainingTurns(bucket='global',limit=60){return Math.max(0,limit-Number(await get(key('turns',bucket))??0));},
+  // Saved lessons have no TTL. One JSON record per lesson; per-owner and shared indexes are
+  // sorted sets scored by update time. Writes and their checks share one script.
+  async putLesson(record,cap=50){return await run(`
+   local existing=redis.call('GET',KEYS[1])
+   if existing then local old=cjson.decode(existing);if old.owner~=ARGV[1] then return 0 end
+   elseif redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[3]) then return 0 end
+   redis.call('SET',KEYS[1],ARGV[2]);redis.call('ZADD',KEYS[2],ARGV[4],ARGV[5])
+   if ARGV[6]=='1' then redis.call('ZADD',KEYS[3],ARGV[4],ARGV[5]) else redis.call('ZREM',KEYS[3],ARGV[5]) end
+   return 1
+  `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0'])===1;},
+  async getLesson(id){const value=await get(lessonKey(id));return value?JSON.parse(value):null;},
+  async listLessons(owner){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,99)",[ownerLessonsKey(owner)]);return (await readLessons(ids)).filter(r=>r.owner===owner);},
+  async deleteLesson(owner,id){return await run(`
+   local existing=redis.call('GET',KEYS[1]);if not existing then return 0 end
+   if cjson.decode(existing).owner~=ARGV[1] then return 0 end
+   redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2],ARGV[2]);redis.call('ZREM',KEYS[3],ARGV[2]);return 1
+  `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons')],[owner,id])===1;},
+  async listSharedLessons(limit=48){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit]);return (await readLessons(ids)).filter(r=>r.shared===true);},
  };
  return {state,auth};
 }

@@ -5,7 +5,7 @@ export const snapshot=s=>structuredClone(Object.fromEntries(Object.entries(s).fi
 
 // Local development adapter. The cloud adapter implements the same contract in Redis.
 export function createMemoryState({now=Date.now}={}){
- const sessions=new Map(),traces=new Map(),locks=new Map(),turns=new Map();
+ const sessions=new Map(),traces=new Map(),locks=new Map(),turns=new Map(),lessons=new Map();
  // Hourly provider budgets per bucket: 'global' for tester logins, 'code:<label>' per access code.
  const counter=bucket=>{const c=turns.get(bucket);if(c&&now()-c.window<60*60_000)return c;const fresh={count:0,window:now()};turns.set(bucket,fresh);return fresh;};
  const remove=id=>{sessions.delete(id);traces.delete(id);locks.delete(id);};
@@ -23,5 +23,11 @@ export function createMemoryState({now=Date.now}={}){
   async writeTrace(id,rows,token){if(owns(id,token))traces.set(id,structuredClone(rows));},
   async consumeTurn(bucket='global',limit=60){return ++counter(bucket).count<=limit;},
   async remainingTurns(bucket='global',limit=60){return Math.max(0,limit-counter(bucket).count);},
+  // Saved lessons persist for the process lifetime; a creator keeps at most `cap` of them.
+  async putLesson(record,cap=50){const mine=[...lessons.values()].filter(r=>r.owner===record.owner&&r.id!==record.id);if(mine.length>=cap)return false;lessons.set(record.id,structuredClone(record));return true;},
+  async getLesson(id){return lessons.has(id)?structuredClone(lessons.get(id)):null;},
+  async listLessons(owner){return [...lessons.values()].filter(r=>r.owner===owner).sort((a,b)=>b.updatedAt-a.updatedAt).map(r=>structuredClone(r));},
+  async deleteLesson(owner,id){const r=lessons.get(id);if(!r||r.owner!==owner)return false;lessons.delete(id);return true;},
+  async listSharedLessons(limit=48){return [...lessons.values()].filter(r=>r.shared===true).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,limit).map(r=>structuredClone(r));},
  };
 }

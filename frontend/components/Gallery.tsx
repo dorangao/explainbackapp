@@ -1,8 +1,10 @@
-import { useId } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { t } from "../lib/messages";
 import { galleryLessons, gallerySourceNote, galleryShow } from "../lib/shared";
-import type { Language } from "../lib/types";
-import { say } from "../lib/types";
+import type { GalleryItem, Language } from "../lib/types";
+import { listShared } from "../lib/library";
+import type { SavedSummary } from "../lib/library";
+import { kindLabel } from "./Library";
 function LessonArt({ id }: { id: string }) {
   return (
     <svg
@@ -99,6 +101,25 @@ function LessonArt({ id }: { id: string }) {
             F = ma
           </text>
         </>
+      ) : id === "shared-model" ? (
+        <>
+          <path
+            d="M55 110C110 40 170 40 230 90S300 105 325 60"
+            className="art-line"
+          />
+          <circle cx="230" cy="90" r="5" className="art-dot" />
+          <text x="70" y="48">
+            y(x)
+          </text>
+        </>
+      ) : id === "shared-process" ? (
+        <>
+          <path d="M70 80H290" className="art-dashed" />
+          <circle cx="90" cy="80" r="12" className="art-box" />
+          <circle cx="180" cy="80" r="12" className="art-box" />
+          <circle cx="270" cy="80" r="12" className="art-box" />
+          <path d="M102 80h66M192 80h66" className="art-line" />
+        </>
       ) : (
         <>
           <path
@@ -117,8 +138,207 @@ function LessonArt({ id }: { id: string }) {
     </svg>
   );
 }
+type Filter = "all" | "model" | "process" | "catalog" | "sketch" | "show";
+const filters: Filter[] = [
+  "all",
+  "model",
+  "process",
+  "catalog",
+  "sketch",
+  "show",
+];
+const filterLabel = (language: Language, filter: Filter) =>
+  t(
+    language,
+    (
+      {
+        all: "Gallery.all",
+        model: "Gallery.models",
+        process: "Gallery.processes",
+        catalog: "Gallery.series",
+        sketch: "Gallery.fromASketch",
+        show: "Gallery.withAShow",
+      } as const
+    )[filter],
+  );
+const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
+// Search both languages so a Chinese reader can find an English-titled shared lesson.
+const matches = (query: string, fields: string[]) => {
+  const q = normalize(query).trim();
+  return !q || fields.some((field) => normalize(field).includes(q));
+};
+function LessonCard({
+  language,
+  index,
+  item,
+}: {
+  language: Language;
+  index: number;
+  item: GalleryItem;
+}) {
+  const title = item.lesson.title[language];
+  return (
+    <article className="lesson-card">
+      <a
+        className="lesson-art-link"
+        href={`#lesson:${item.id}`}
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        {item.image ? (
+          <img
+            className="lesson-art lesson-art-image"
+            src={item.image}
+            alt=""
+            width={360}
+            height={158}
+            loading="lazy"
+          />
+        ) : (
+          <LessonArt id={item.id} />
+        )}
+      </a>
+      <div className="lesson-card-body">
+        <span className="lesson-kind">
+          <span className="lesson-number">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          {kindLabel(language, item.kind)}
+        </span>
+        <h3>{title}</h3>
+        {item.source === "muse-sketch" && (
+          <span className="lesson-origin">
+            {t(language, "Gallery.createdFromASketch")}
+          </span>
+        )}
+        <p>{item.summary[language]}</p>
+        <a
+          className="lesson-link"
+          href={`#lesson:${item.id}`}
+          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
+        >
+          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
+        </a>
+        {galleryShow(item.id) && (
+          <a
+            className="lesson-link lesson-link-show"
+            href={`#show:${item.id}`}
+            aria-label={`${t(language, "Gallery.watchTheShow")}: ${title}`}
+          >
+            {t(language, "Gallery.watchTheShow")}{" "}
+            <span aria-hidden="true">▶</span>
+          </a>
+        )}
+        <details className="lesson-source">
+          <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
+          <p>{gallerySourceNote(item.source, language)}</p>
+        </details>
+      </div>
+    </article>
+  );
+}
+function SharedCard({
+  language,
+  item,
+}: {
+  language: Language;
+  item: SavedSummary;
+}) {
+  const title = item.title[language];
+  return (
+    <article className="lesson-card lesson-card-shared">
+      <a
+        className="lesson-art-link"
+        href={`#shared:${item.id}`}
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        <LessonArt
+          id={item.kind === "process" ? "shared-process" : "shared-model"}
+        />
+      </a>
+      <div className="lesson-card-body">
+        <span className="lesson-kind">
+          <span className="lesson-badge">
+            {t(language, "Gallery.sharedBadge")}
+          </span>
+          {kindLabel(language, item.kind)}
+        </span>
+        <h3>{title}</h3>
+        <p>{item.intro[language]}</p>
+        <a
+          className="lesson-link"
+          href={`#shared:${item.id}`}
+          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
+        >
+          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
+        </a>
+        <p className="lesson-meta fine">
+          {new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+            dateStyle: "medium",
+          }).format(item.updatedAt)}
+          {item.model && ` · ${item.model}`}
+          {item.hasShow && ` · ${t(language, "Library.withShow")}`}
+        </p>
+      </div>
+    </article>
+  );
+}
 export function Gallery({ language }: { language: Language }) {
-  const headingId = useId();
+  const headingId = useId(),
+    searchId = useId();
+  const [query, setQuery] = useState(""),
+    [filter, setFilter] = useState<Filter>("all"),
+    [shared, setShared] = useState<SavedSummary[]>([]);
+  // Shared lessons are public; a failed fetch simply leaves the section out.
+  useEffect(() => {
+    let live = true;
+    void listShared()
+      .then((result) => {
+        if (live) setShared(result.lessons);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  const reviewed = useMemo(
+    () =>
+      galleryLessons.filter(
+        (item) =>
+          (filter === "all" ||
+            (filter === "sketch"
+              ? item.source === "muse-sketch"
+              : filter === "show"
+                ? Boolean(galleryShow(item.id))
+                : item.kind === filter)) &&
+          matches(query, [
+            item.lesson.title.en,
+            item.lesson.title.zh,
+            item.summary.en,
+            item.summary.zh,
+            item.lesson.intro.en,
+            item.lesson.intro.zh,
+          ]),
+      ),
+    [filter, query],
+  );
+  const community = useMemo(
+    () =>
+      shared.filter(
+        (item) =>
+          (filter === "all" ||
+            (filter === "show" ? item.hasShow : item.kind === filter)) &&
+          matches(query, [
+            item.title.en,
+            item.title.zh,
+            item.intro.en,
+            item.intro.zh,
+          ]),
+      ),
+    [shared, filter, query],
+  );
+  const total = reviewed.length + community.length;
   return (
     <section className="gallery" aria-labelledby={headingId}>
       <div className="section-title">
@@ -131,78 +351,76 @@ export function Gallery({ language }: { language: Language }) {
           {t(language, "Gallery.freeToExploreNoSign")}
         </span>
       </div>
-      <div className="gallery-grid">
-        {galleryLessons.map((item, index) => (
-          <article className="lesson-card" key={item.id}>
-            <a
-              className="lesson-art-link"
-              href={`#lesson:${item.id}`}
-              tabIndex={-1}
-              aria-hidden="true"
+      <div className="catalog-tools">
+        <label className="catalog-search">
+          <span className="sr-only">
+            {t(language, "Gallery.searchLessons")}
+          </span>
+          <input
+            id={searchId}
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t(language, "Gallery.searchPlaceholder")}
+            aria-label={t(language, "Gallery.searchLessons")}
+          />
+        </label>
+        <div
+          className="catalog-filters"
+          role="group"
+          aria-label={t(language, "Gallery.all")}
+        >
+          {filters.map((value) => (
+            <button
+              key={value}
+              type="button"
+              className={filter === value ? "chip on" : "chip"}
+              aria-pressed={filter === value}
+              onClick={() => setFilter(value)}
             >
-              {item.image ? (
-                <img
-                  className="lesson-art lesson-art-image"
-                  src={item.image}
-                  alt=""
-                  width={360}
-                  height={158}
-                  loading="lazy"
-                />
-              ) : (
-                <LessonArt id={item.id} />
-              )}
-            </a>
-            <div className="lesson-card-body">
-              <span className="lesson-kind">
-                <span className="lesson-number">0{index + 1}</span>
-                {say(
-                  language,
-                  {
-                    model: "ADJUSTABLE MODEL",
-                    process: "PROCESS EXPLORER",
-                    catalog: "EXPERIMENT SERIES",
-                  }[item.kind],
-                  {
-                    model: "可调模型",
-                    process: "过程探索",
-                    catalog: "系列实验",
-                  }[item.kind],
-                )}
-              </span>
-              <h3>{item.lesson.title[language]}</h3>
-              {item.source === "muse-sketch" && (
-                <span className="lesson-origin">
-                  {t(language, "Gallery.createdFromASketch")}
-                </span>
-              )}
-              <p>{item.summary[language]}</p>
-              <a
-                className="lesson-link"
-                href={`#lesson:${item.id}`}
-                aria-label={`${t(language, "Gallery.openLesson")}: ${item.lesson.title[language]}`}
-              >
-                {t(language, "Gallery.openLesson")}{" "}
-                <span aria-hidden="true">↗</span>
-              </a>
-              {galleryShow(item.id) && (
-                <a
-                  className="lesson-link lesson-link-show"
-                  href={`#show:${item.id}`}
-                  aria-label={`${t(language, "Gallery.watchTheShow")}: ${item.lesson.title[language]}`}
-                >
-                  {t(language, "Gallery.watchTheShow")}{" "}
-                  <span aria-hidden="true">▶</span>
-                </a>
-              )}
-              <details className="lesson-source">
-                <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
-                <p>{gallerySourceNote(item.source, language)}</p>
-              </details>
-            </div>
-          </article>
-        ))}
+              {filterLabel(language, value)}
+            </button>
+          ))}
+        </div>
+        <span className="quiet-label catalog-count" aria-live="polite">
+          {total} {t(language, "Gallery.lessonCount")}
+        </span>
       </div>
+      {total === 0 ? (
+        <p className="catalog-empty">{t(language, "Gallery.noMatches")}</p>
+      ) : (
+        <div className="gallery-grid">
+          {reviewed.map((item, index) => (
+            <LessonCard
+              key={item.id}
+              language={language}
+              index={index}
+              item={item}
+            />
+          ))}
+        </div>
+      )}
+      {community.length > 0 && (
+        <section
+          className="shared-section"
+          aria-label={t(language, "Gallery.sharedByCreators")}
+        >
+          <div className="section-title">
+            <div>
+              <p className="eyebrow">
+                {t(language, "Gallery.sharedByCreators")}
+              </p>
+              <h2>{t(language, "Gallery.freshFromTheStudio")}</h2>
+              <p className="fine">{t(language, "Gallery.sharedNote")}</p>
+            </div>
+          </div>
+          <div className="gallery-grid">
+            {community.map((item) => (
+              <SharedCard key={item.id} language={language} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
       <p className="gallery-footnote">
         {t(language, "Gallery.predictChangeAnInputExplain")}
       </p>

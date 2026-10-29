@@ -42,6 +42,8 @@ async function request<T>(
     );
   return data as T;
 }
+// A plain GET with the session cookie; errors carry the server's message and status.
+export const getJson = <T>(path: string) => request<T>(path);
 const signedOut: AuthInfo = {
   configured: false,
   codes: false,

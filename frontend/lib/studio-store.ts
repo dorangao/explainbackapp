@@ -31,6 +31,8 @@ export type StoredStudio = {
   player: PlayerState | null;
   presenting: boolean;
   pace: Pace;
+  // The saved copy this draft came from or was saved to, so Save updates it in place.
+  savedId: string | null;
 };
 // Blocklist of field names that must never reach storage, whatever a reply contains.
 const secretField = /session|code|token|secret|password|key$|authorization/i;
@@ -51,10 +53,19 @@ function storage(): Storage | null {
     return null;
   }
 }
-export function saveStudio(value: Omit<StoredStudio, "version" | "savedAt">) {
+export function saveStudio(
+  value: Omit<StoredStudio, "version" | "savedAt" | "savedId"> & {
+    savedId?: string | null;
+  },
+) {
   const store = storage();
   if (!store) return;
-  const record = scrub({ ...value, version: 1, savedAt: Date.now() });
+  const record = scrub({
+    savedId: null,
+    ...value,
+    version: 1,
+    savedAt: Date.now(),
+  });
   try {
     store.setItem(storageKey, JSON.stringify(record));
   } catch {
@@ -119,6 +130,9 @@ export function loadStudio(): StoredStudio | null {
         value.player && typeof value.player === "object" ? value.player : null,
       presenting: value.presenting === true,
       pace: paces.includes(value.pace as Pace) ? (value.pace as Pace) : "off",
+      savedId: /^[a-f0-9]{16}$/.test(String(value.savedId ?? ""))
+        ? (value.savedId as string)
+        : null,
     };
   } catch {
     return null;

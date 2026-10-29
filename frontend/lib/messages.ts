@@ -747,6 +747,113 @@ export const messages = {
     en: "Guided replay finished.",
     zh: "引导回放已结束。",
   },
+  "Gallery.adjustableModel": { en: "ADJUSTABLE MODEL", zh: "可调模型" },
+  "Gallery.processExplorer": { en: "PROCESS EXPLORER", zh: "过程探索" },
+  "Gallery.experimentSeries": { en: "EXPERIMENT SERIES", zh: "系列实验" },
+  "Gallery.searchLessons": { en: "Search lessons", zh: "搜索课程" },
+  "Gallery.searchPlaceholder": {
+    en: "Try “cooling”, “pendulum” or “cache”",
+    zh: "试试“冷却”“单摆”或“缓存”",
+  },
+  "Gallery.all": { en: "All", zh: "全部" },
+  "Gallery.models": { en: "Adjustable models", zh: "可调模型" },
+  "Gallery.processes": { en: "Process explorers", zh: "过程探索" },
+  "Gallery.series": { en: "Experiment series", zh: "系列实验" },
+  "Gallery.fromASketch": { en: "From a sketch", zh: "来自草图" },
+  "Gallery.withAShow": { en: "With a show", zh: "有讲解秀" },
+  "Gallery.noMatches": {
+    en: "No lesson matches that. Try another word, or create your own.",
+    zh: "没有匹配的课程。换个词试试，或者自己创建一节。",
+  },
+  "Gallery.sharedByCreators": { en: "SHARED BY CREATORS", zh: "创作者分享" },
+  "Gallery.freshFromTheStudio": {
+    en: "Fresh from the Studio.",
+    zh: "来自工作室的新课程。",
+  },
+  "Gallery.sharedNote": {
+    en: "Lessons that reviewers and testers created with Muse and chose to share. They play without sign-in and have not been through the author's content review.",
+    zh: "评审和测试者用 Muse 创建并选择分享的课程。无需登录即可学习，但尚未经过作者的内容审阅。",
+  },
+  "Gallery.sharedBadge": { en: "SHARED LESSON", zh: "分享课程" },
+  "Gallery.lessonCount": { en: "lessons", zh: "节课程" },
+  "Library.yourLessons": { en: "YOUR LESSONS", zh: "你的课程" },
+  "Library.pickUpWhereYouLeft": {
+    en: "Pick up where you left off.",
+    zh: "从上次停下的地方继续。",
+  },
+  "Library.nothingSavedYet": {
+    en: "Nothing saved yet. Create a lesson, review it, then press Save to keep it here and share it by link.",
+    zh: "还没有保存的课程。创建一节课，审阅后点击“保存”，就能留在这里并通过链接分享。",
+  },
+  "Library.couldNotLoad": {
+    en: "Your saved lessons could not be loaded.",
+    zh: "无法加载你保存的课程。",
+  },
+  "Library.retry": { en: "Retry", zh: "重试" },
+  "Library.couldNotOpen": {
+    en: "That lesson could not be opened. It may have been deleted.",
+    zh: "无法打开这节课，它可能已被删除。",
+  },
+  "Library.couldNotUpdate": {
+    en: "That change could not be saved. Try again.",
+    zh: "无法保存该更改，请重试。",
+  },
+  "Library.deleted": { en: "Lesson deleted.", zh: "课程已删除。" },
+  "Library.withShow": { en: "with show", zh: "含讲解秀" },
+  "Library.open": { en: "open now", zh: "当前打开" },
+  "Library.updated": { en: "Updated", zh: "更新于" },
+  "Library.openLesson": { en: "Open", zh: "打开" },
+  "Library.delete": { en: "Delete", zh: "删除" },
+  "Library.yesDelete": { en: "Yes, delete", zh: "确认删除" },
+  "Library.keep": { en: "Keep", zh: "保留" },
+  "Library.private": { en: "Private", zh: "私有" },
+  "Library.sharedByLink": { en: "Shared by link", zh: "已通过链接分享" },
+  "Library.shareLink": { en: "Share link", zh: "分享链接" },
+  "Library.copyLink": { en: "Copy link", zh: "复制链接" },
+  "Library.shareDots": { en: "Share…", zh: "分享…" },
+  "Library.linkCopied": { en: "Link copied.", zh: "链接已复制。" },
+  "Library.copyFailed": {
+    en: "Copy is blocked here. Select the link and copy it yourself.",
+    zh: "此处无法自动复制，请选中链接后手动复制。",
+  },
+  "Library.linkTurnedOn": {
+    en: "Anyone with the link can now open this lesson, no sign-in needed.",
+    zh: "现在任何拥有链接的人都可以打开这节课，无需登录。",
+  },
+  "Library.linkTurnedOff": {
+    en: "The link no longer opens this lesson. Your saved copy is unchanged.",
+    zh: "链接已失效，你保存的副本不受影响。",
+  },
+  "Library.saveToMyLessons": { en: "Save to my lessons", zh: "保存到我的课程" },
+  "Library.saveChanges": { en: "Save changes", zh: "保存更改" },
+  "Library.saved": { en: "Saved", zh: "已保存" },
+  "Library.savedNotice": {
+    en: "Saved to your lessons. Share it by link from the shelf or the bar above.",
+    zh: "已保存到你的课程。可在课程架或上方工具栏通过链接分享。",
+  },
+  "Library.savedUpdated": { en: "Saved changes.", zh: "更改已保存。" },
+  "Library.couldNotSave": {
+    en: "The lesson could not be saved.",
+    zh: "无法保存这节课。",
+  },
+  "Library.savedCopy": { en: "Saved copy", zh: "已保存副本" },
+  "Library.openedSaved": {
+    en: "Opened your saved lesson. Changes are kept in this browser until you save them.",
+    zh: "已打开你保存的课程。更改会先留在此浏览器中，直到你再次保存。",
+  },
+  "Library.sharedLessonNote": {
+    en: "Shared by its creator from Lesson Studio. Drafted with Muse and reviewed by that creator, not by the author of the library.",
+    zh: "由创作者从课程工作室分享。使用 Muse 起草并由该创作者审阅，未经课程库作者审阅。",
+  },
+  "Library.sharedUnavailable": {
+    en: "This shared lesson is not available. Its creator may have turned the link off.",
+    zh: "这节分享课程不可用，创作者可能已关闭链接。",
+  },
+  "Library.watchTheShow": { en: "Watch the show", zh: "观看讲解秀" },
+  "Library.makeItYours": {
+    en: "Make a copy in Create",
+    zh: "复制到“创建”继续编辑",
+  },
 } as const;
 export type MessageKey = keyof typeof messages;
 export const t = (language: Language, key: MessageKey): string =>

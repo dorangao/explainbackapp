@@ -15,6 +15,7 @@ const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((fn) => fn());
 vi.mock("./lib/api", () => ({
   ApiError: class extends Error {},
+  getJson: async () => ({ lessons: [] }),
   useAuth: () => {
     const [, force] = useReducer((n: number) => n + 1, 0);
     useEffect(() => {
