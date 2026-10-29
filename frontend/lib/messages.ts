@@ -483,6 +483,10 @@ export const messages = {
     zh: "SAM 3.1 已查看图片。",
   },
   "RevisionSummary.fromCache": { en: "from cache", zh: "来自缓存" },
+  "RevisionSummary.modelAccount": {
+    en: "The model's own account of its reasoning, unverified:",
+    zh: "模型对自身推理的说明（未经核验）：",
+  },
   "RevisionSummary.drewAnIllustrationFor": {
     en: "drew an illustration for",
     zh: "绘制了一张插图，用于",
@@ -777,8 +781,8 @@ export const messages = {
     zh: "为一张幻灯片配图",
   },
   "JudgePath.illustrateDetail": {
-    en: "Muse Image draws the claim slide from the checked script.",
-    zh: "Muse Image 依据核验过的脚本为观点页绘图。",
+    en: "Muse Image draws the slide the show had no time for, or the claim slide.",
+    zh: "Muse Image 为讲解秀来不及绘制的那页配图，否则为观点页配图。",
   },
   "JudgePath.save": { en: "Save to your lessons", zh: "保存到我的课程" },
   "JudgePath.saveDetail": {

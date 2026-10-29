@@ -28,6 +28,9 @@ export async function callMeta({
   // Prompt caching happens on the shared prefix automatically; a stable key per use case
   // routes requests that share a prefix to the backend that already holds it.
   promptCacheKey,
+  // Ask for a short natural-language summary of the model's private reasoning ("auto",
+  // "concise" or "detailed"). The summary is optional output and may be empty.
+  reasoningSummary,
   timeoutMs = 30_000,
   fetchImpl = globalThis.fetch,
   onTrace,
@@ -54,7 +57,8 @@ export async function callMeta({
     // A keyed prefix asks for day-long retention (a hint): a reviewer's turns are minutes
     // apart, longer than the default in-memory cache tends to keep a prefix.
     ...(promptCacheKey?{prompt_cache_key:promptCacheKey,prompt_cache_retention:'24h'}:{}),
-    ...(instructions?{instructions}:{}),...(reasoningEffort?{reasoning:{effort:reasoningEffort}}:{}),
+    ...(instructions?{instructions}:{}),
+    ...(reasoningEffort||reasoningSummary?{reasoning:{...(reasoningEffort?{effort:reasoningEffort}:{}),...(reasoningSummary?{summary:reasoningSummary}:{})}}:{}),
     ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}}}:tools?{tools,tool_choice:'auto',parallel_tool_calls:false}:{})};
   if(structuredOutput)body.instructions=(instructions??'')+'\nTransport for this request: return the '+tools[0].name+' argument object directly as JSON matching the response schema. This is a structured response, not a tool invocation.';
   if(background && Buffer.byteLength(JSON.stringify(body))>1_048_576)throw new Error('Image is too large for a background request. Use a smaller image.');
@@ -98,20 +102,31 @@ export async function callMeta({
     trace({type:'error',message:timedOut?'timeout':'transport failure'});
     throw new Error(timedOut ? 'Meta request timed out.' : 'Could not reach Meta Model API. Check your network connection.');
   }
-  trace({type:'response',status:response.status,body:{id:data?.id,status:data?.status,model:data?.model,usage:data?.usage,
+  trace({type:'response',status:response.status,body:{id:data?.id,status:data?.status,model:data?.model,usage:data?.usage,...(reasoningSummary?{reasoning:reasoningSummaryText(data)}:{}),
     output:(Array.isArray(data?.output)?data.output:[]).flatMap(item=>item?.type==='function_call'?[{type:'function_call',name:item.name,arguments:item.arguments}]:item?.type==='message'&&item.role==='assistant'?[{type:'message',role:'assistant',content:(Array.isArray(item.content)?item.content:[]).filter(c=>c?.type==='output_text').map(c=>({type:'output_text',text:c.text}))}]:[])}});
   if(background && ['queued','in_progress'].includes(data?.status) && /^resp_[A-Za-z0-9_-]+$/.test(data?.id??''))return {pendingId:data.id};
-  return readMetaResponse(data,{tools,structuredOutput});
+  return readMetaResponse(data,{tools,structuredOutput,reasoningSummary:Boolean(reasoningSummary)});
 }
 
-function readMetaResponse(data,{tools,structuredOutput=false}={}) {
+// The model's own one-line account of its reasoning, when the request asked for one and the
+// model produced it: the `summary` entries of reasoning output items, joined and bounded.
+// Never the raw chain of thought, which the API does not return.
+export function reasoningSummaryText(data){
+  const parts=(Array.isArray(data?.output)?data.output:[]).filter(item=>item?.type==='reasoning').flatMap(item=>Array.isArray(item.summary)?item.summary:[]).map(s=>typeof s?.text==='string'?s.text.trim():'').filter(Boolean);
+  const text=parts.join(' ').replace(/\s+/g,' ').trim();
+  return text?text.slice(0,600):null;
+}
+// `reasoningSummary` is true only when the request asked for one; otherwise any reasoning
+// text in the reply is left unread, so nothing the caller did not ask for is exposed.
+function readMetaResponse(data,{tools,structuredOutput=false,reasoningSummary=false}={}) {
   if (data?.status !== 'completed') throw new Error('Meta response was not completed; no success was recorded.');
+  const reasoning=reasoningSummary?reasoningSummaryText(data):undefined;
   if (tools&&!structuredOutput) {
     const calls = (Array.isArray(data.output) ? data.output : []).filter(item => item?.type === 'function_call');
     if (calls.length !== 1 || !tools.some(tool => tool.name === calls[0].name) || typeof calls[0].arguments !== 'string') {
       throw new Error('Meta must return exactly one allowed learning action.');
     }
-    return { id: data.id, model: data.model, text: '', usage: data.usage,
+    return { id: data.id, model: data.model, text: '', usage: data.usage, reasoning,
       toolCall: { name: calls[0].name, arguments: calls[0].arguments } };
   }
   const text = (Array.isArray(data.output) ? data.output : [])
@@ -122,13 +137,13 @@ function readMetaResponse(data,{tools,structuredOutput=false}={}) {
   if (!text) throw new Error('Meta response contained no assistant text.');
   if(structuredOutput){
     let value;try{value=JSON.parse(text);}catch{throw new Error('Meta returned invalid structured JSON.');}
-    return {id:data.id,model:data.model,usage:data.usage,text:'',structured:{name:tools[0].name,value}};
+    return {id:data.id,model:data.model,usage:data.usage,reasoning,text:'',structured:{name:tools[0].name,value}};
   }
-  return { id: data.id, model: data.model, text, usage: data.usage };
+  return { id: data.id, model: data.model, text, usage: data.usage, reasoning };
 }
 
 // A background response is polled only by its owning server session, never by a browser ID.
-export async function retrieveMetaBackground({apiKey,id,tools,structuredOutput=false,fetchImpl=globalThis.fetch}={}) {
+export async function retrieveMetaBackground({apiKey,id,tools,structuredOutput=false,reasoningSummary=false,fetchImpl=globalThis.fetch}={}) {
   if(typeof apiKey!=='string'||!apiKey.trim()||!/^resp_[A-Za-z0-9_-]+$/.test(id??''))throw new Error('Invalid background response.');
   let response,data;
   try {
@@ -138,7 +153,7 @@ export async function retrieveMetaBackground({apiKey,id,tools,structuredOutput=f
   } catch {throw new Error('Could not retrieve the background response.');}
   if(['queued','in_progress'].includes(data?.status))return {pending:true};
   if(['failed','cancelled','incomplete'].includes(data?.status))return {failed:true};
-  try{return readMetaResponse(data,{tools,structuredOutput});}catch{return {failed:true};}
+  try{return readMetaResponse(data,{tools,structuredOutput,reasoningSummary});}catch{return {failed:true};}
 }
 
 export const META_IMAGE_ENDPOINT = 'https://api.meta.ai/v1/images/generations';

@@ -30,10 +30,18 @@ export function RequestSummary({
           : "")
       : "";
   return (
-    <p className="request-summary" role="status">
-      <strong>{metrics.model}</strong> {verb} · {seconds} s · 1{" "}
-      {t(language, "RevisionSummary.request")}
-      {tokens}
-    </p>
+    <div className="request-summary" role="status">
+      <p>
+        <strong>{metrics.model}</strong> {verb} · {seconds} s · 1{" "}
+        {t(language, "RevisionSummary.request")}
+        {tokens}
+      </p>
+      {metrics.reasoning && (
+        <p className="model-account">
+          <span>{t(language, "RevisionSummary.modelAccount")}</span>{" "}
+          {metrics.reasoning}
+        </p>
+      )}
+    </div>
   );
 }
