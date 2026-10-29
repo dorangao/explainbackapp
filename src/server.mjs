@@ -3,17 +3,18 @@ import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
 import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
-import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,validConcept} from './meta.mjs';
-import {IMAGE_DATA_URL,MAX_IMAGE_CHARS} from './lesson-author.mjs';
+import {generateMetaImage,transcribeMetaAudio,segmentMetaImage} from './meta.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {suctionScenario,suctionTitle} from '../public/suction.mjs';
 import {flightScenario,flightTitle} from '../public/flight.mjs';
 import {createTesterAuth,expiredTesterCookie} from './tester-auth.mjs';
 import {parseAccessCodes,budgetFor,publicAudience} from './access-codes.mjs';
 import {createTrace} from './trace.mjs';
-import {buildSavedLesson,attachImages,validateShowScript,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
-import {createBlobStore,decodeImageDataUrl,recordImageUrls} from './blob.mjs';
+import {createBlobStore,decodeImageDataUrl} from './blob.mjs';
 import {createMemoryState} from './state.mjs';
+import {RequestError} from './request-error.mjs';
+import {registerSharedRoutes,registerLessonRoutes} from './lesson-routes.mjs';
+import {detectInImage,illustrateSlide} from './studio-images.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
 import {readWavBase64} from './wav.mjs';
@@ -34,7 +35,6 @@ export const safeHeaders = {
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://*.public.blob.vercel-storage.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
 };
-class RequestError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
 function localOrigin(req){
   const port=req.socket.localPort;
@@ -140,12 +140,7 @@ export function createHandler({
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
   // Shared lessons open without signing in, like the gallery. Ids are unguessable.
-  app.get('/api/shared', tracked(async (req,res) => reply(res,200,{lessons:(await state.listSharedLessons(MAX_SHARED_LISTED)).map(lessonSummary)})));
-  app.get('/api/shared/:id', tracked(async (req,res) => {
-    const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
-    if(!record||record.shared!==true)return reply(res,404,{error:'This shared lesson is not available.'});
-    reply(res,200,publicLesson(record));
-  }));
+  registerSharedRoutes(app,{state,reply,tracked});
   app.use((req,res,next) => {
     if(req.path.startsWith('/api/')&&!res.locals.tester)return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     next();
@@ -154,33 +149,7 @@ export function createHandler({
   // invite sees them again after signing in from another browser; the tester account
   // shares one shelf. Saving makes no model request.
   const ownerOf=tester=>tester.audience?.label?`code:${tester.audience.label}`:tester.id===OPEN_ID?'local':'tester';
-  app.get('/api/lessons', tracked(async (req,res) => reply(res,200,{lessons:(await state.listLessons(ownerOf(res.locals.tester))).map(lessonSummary),limit:MAX_SAVED_PER_OWNER})));
-  app.get('/api/lessons/:id', tracked(async (req,res) => {
-    const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
-    if(!record||record.owner!==ownerOf(res.locals.tester))return reply(res,404,{error:'Saved lesson not found.'});
-    reply(res,200,publicLesson(record));
-  }));
-  app.post(['/api/lessons','/api/lessons/share','/api/lessons/delete'], requireOrigin, parseBody, tracked(async (req,res) => {
-    const owner=ownerOf(res.locals.tester),body=req.body;
-    if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
-    const own=async()=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||record.owner!==owner)throw new RequestError(404,'Saved lesson not found.');return record;};
-    if(req.path==='/api/lessons/delete'){const record=await own();await state.deleteLesson(owner,body.id);await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
-    if(req.path==='/api/lessons/share'){
-      if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
-      const record={...await own(),shared:body.shared,updatedAt:Date.now()};
-      if(!await state.putLesson(record,MAX_SAVED_PER_OWNER))throw new RequestError(409,'Could not update this lesson.');
-      return reply(res,200,lessonSummary(record));
-    }
-    const previous=body.id!==undefined?await own():null;
-    let record;try{record=buildSavedLesson(body,{owner,previous});}catch{throw new RequestError(400,'Save a valid bilingual lesson, with optional show script, tryout report and grades.');}
-    // Images: kept when already stored under this creator, uploaded from data URLs when
-    // Blob storage exists, dropped otherwise. Uploads happen before the cap check, so a
-    // refused save removes what it uploaded.
-    let stale;try{stale=await attachImages(record,body,{store:imageStore,owner,previous});}catch{throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
-    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER)){await imageStore?.remove(recordImageUrls(record).filter(url=>!recordImageUrls(previous).includes(url)));throw new RequestError(409,`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);}
-    await imageStore?.remove(stale);
-    reply(res,200,lessonSummary(record));
-  }));
+  registerLessonRoutes(app,{state,access,imageStore,ownerOf,reply,tracked,requireOrigin,parseBody});
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
@@ -272,58 +241,11 @@ export function createHandler({
       if(s.workflow==='lesson-studio'){
         const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/detect'?'detect':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
-        // SAM 3.1 locates the one thing the creator names in their sketch or photo and
-        // returns pixel boxes; it is one request on the budget and never sees the lesson.
-        if(mode==='detect'){
-          if(!segmentCall)throw new RequestError(503,'The segmentation model is not configured.');
-          const concept=typeof body.concept==='string'?body.concept.trim():'';
-          if(!validConcept(concept)||typeof body.image!=='string'||body.image.length>MAX_IMAGE_CHARS||!IMAGE_DATA_URL.test(body.image))throw new RequestError(400,'Name one thing in a few words and attach an image.');
-          if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
-          s.attempts++;await save();
-          const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
-          const call=trace?.start({provider:'meta',model:'sam-3.1',input:concept,instructions:'segmentation'});
-          try{
-            await trace?.flush();
-            const startedAt=performance.now();
-            const found=await segmentCall({image:body.image,concept,timeoutMs:30_000,...(call?{onTrace:call.event}:{})});
-            if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
-            if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
-            call?.finish(found.boxes.length?'accepted':'empty');try{await trace?.flush();}catch{}
-            await save(trace?.read());
-            json(200,{concept,boxes:found.boxes.slice(0,32),width:found.width,height:found.height,model:found.model,elapsedMs:Math.round(performance.now()-startedAt),usage:found.usage?{input:found.usage.input_tokens??null,output:found.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts});return;
-          }catch(error){
-            call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
-            if(error instanceof RequestError)throw error;
-            const failure=new RequestError(502,'The image could not be analysed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
-          }finally{try{await trace?.flush();}catch{}}
-        }
-        // One illustration from Muse Image for a slide of the current show (or a redrawn
-        // cover). The prompt is built here from the checked script; it counts as one request.
-        if(mode==='illustrate'){
-          if(!imageCall)throw new RequestError(503,'The image model is not configured.');
-          let prompt,slide=null;
-          try{const lesson=validateLesson(body.lesson),script=validateShowScript(body.show,lesson);if(!script)throw new Error();slide=body.slide===undefined?null:body.slide;prompt=illustrationPrompt(script,slide,body.direction??'');}
-          catch{throw new RequestError(400,'Send the checked lesson, its show script and a slide to illustrate.');}
-          if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
-          s.attempts++;await save();
-          const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
-          const call=trace?.start({provider:'meta',model:'muse-image-1.0',input:prompt,instructions:'image generation'});
-          try{
-            await trace?.flush();
-            const startedAt=performance.now();
-            const image=await imageCall({prompt,timeoutMs:imageBudgetMs(0),...(call?{onTrace:call.event}:{})});
-            if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
-            if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
-            const url=await storeImage(image,ownerOf(tester));
-            call?.finish('accepted');try{await trace?.flush();}catch{}
-            await save(trace?.read());
-            json(200,{image:url,model:image.model,slide,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:image.usage?{input:image.usage.input_tokens??null,output:image.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts});return;
-          }catch(error){
-            call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
-            if(error instanceof RequestError)throw error;
-            const failure=new RequestError(502,'The illustration could not be drawn. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
-          }finally{try{await trace?.flush();}catch{}}
-        }
+        // Image routes (SAM 3.1 detection, Muse Image illustration) live in studio-images.mjs
+        // and share this handler's session, budget and trace plumbing through `ctx`.
+        const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageBudgetMs,owner:ownerOf(tester)};
+        if(mode==='detect'){await detectInImage(ctx);return;}
+        if(mode==='illustrate'){await illustrateSlide(ctx);return;}
         // Quick learner feedback and the test learner use Spark regardless of the creator model.
         const llm=['tryout','guide'].includes(mode)?selected(roles.tester):s.llm;
         if(!llm.configured)throw new RequestError(503,'The selected model is not configured.');

@@ -2,13 +2,18 @@
 // no model request; only the sign-in session is sent, as with every /api call.
 import type {
   Bilingual,
+  Feedback,
   Language,
   Lesson,
   Post,
   Show,
+  Target,
   TryoutChapter,
+  TryoutReply,
   Verdict,
 } from "./types";
+import type { Cached } from "./studio-cache";
+import { fingerprint } from "./studio-cache";
 import { getJson } from "./api";
 export type LessonKind = "model" | "process" | "catalog";
 export type SavedSummary = {
@@ -55,6 +60,51 @@ export type SavedLesson = SavedSummary & {
   tryout: SavedTryout | null;
   grades: Record<string, SavedGrade>;
 };
+// A saved tryout report and grades in the shapes the Studio caches use. Keys are the ones
+// the caches were made with, so each result shows as fresh or stale against the live
+// lesson state exactly as before; nothing here makes a request.
+export function cachesFromSaved(
+  lesson: Lesson,
+  record: { tryout: SavedTryout | null; grades: Record<string, SavedGrade> },
+  at: number,
+  target: Target | null,
+): {
+  tryout: Cached<TryoutReply> | null;
+  guides: Record<string, Cached<Feedback>>;
+  texts: Record<string, string>;
+} {
+  const tryout =
+    record.tryout && target
+      ? {
+          reply: {
+            ...record.tryout,
+            model: record.tryout.model ?? undefined,
+            llm: target,
+            attemptsRemaining: 0,
+          } as TryoutReply,
+          at,
+          key: fingerprint({ lesson, language: record.tryout.language }),
+        }
+      : null;
+  const guides: Record<string, Cached<Feedback>> = {};
+  const texts: Record<string, string> = {};
+  for (const [k, g] of Object.entries(record.grades ?? {})) {
+    texts[k] = g.explanation;
+    guides[k] = {
+      reply: {
+        explanation: g.feedback,
+        nextAction: "replay",
+        attemptsRemaining: 0,
+        verdict: g.verdict,
+        followUp: g.followUp ?? undefined,
+        model: g.model ?? undefined,
+      },
+      at,
+      key: g.key,
+    };
+  }
+  return { tryout, guides, texts };
+}
 export const sharedIdFromHash = (hash: string): string | null =>
   /^#shared:([a-f0-9]{16})$/.exec(hash ?? "")?.[1] ?? null;
 export const sharedUrl = (id: string) =>

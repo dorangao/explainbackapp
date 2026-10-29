@@ -47,10 +47,12 @@ import type { CacheState } from "./CacheNote";
 import { Gallery } from "./Gallery";
 import { LessonShelf, ShareControls } from "./Library";
 import {
+  cachesFromSaved,
   readMine,
   saveLesson as saveToShelf,
   shareLesson,
 } from "../lib/library";
+import { judgeBlocker, judgeStepStates } from "../lib/judge-path";
 import { JudgePath } from "./JudgePath";
 import type { JudgeStep, JudgeStepId } from "./JudgePath";
 import type {
@@ -802,39 +804,10 @@ export function Studio({
     record: { tryout: SavedTryout | null; grades: Record<string, SavedGrade> },
     at: number,
   ) {
-    setTryout(
-      record.tryout && target
-        ? {
-            reply: {
-              ...record.tryout,
-              model: record.tryout.model ?? undefined,
-              llm: target,
-              attemptsRemaining: 0,
-            } as TryoutReply,
-            at,
-            key: fingerprint({ lesson, language: record.tryout.language }),
-          }
-        : null,
-    );
-    const guides: Record<string, Cached<Feedback>> = {};
-    const texts: Record<string, string> = {};
-    for (const [k, g] of Object.entries(record.grades ?? {})) {
-      texts[k] = g.explanation;
-      guides[k] = {
-        reply: {
-          explanation: g.feedback,
-          nextAction: "replay",
-          attemptsRemaining: 0,
-          verdict: g.verdict,
-          followUp: g.followUp ?? undefined,
-          model: g.model ?? undefined,
-        },
-        at,
-        key: g.key,
-      };
-    }
-    setGuide(guides);
-    setExplanations(texts);
+    const caches = cachesFromSaved(lesson, record, at, target ?? null);
+    setTryout(caches.tryout);
+    setGuide(caches.guides);
+    setExplanations(caches.texts);
   }
   // Shares the saved copy by link from the judge path; the shelf has the same switch.
   async function shareSaved(): Promise<boolean> {
@@ -1082,40 +1055,15 @@ export function Studio({
     tryoutKey = fingerprint({ lesson: draft, language }),
     showKey = fingerprint({ lesson: draft }),
     reviseKey = fingerprint({ draft, revision: revisionPrompt.trim() });
-  const judgeSteps: JudgeStep[] = [
-    { id: "draft", state: draft ? "done" : "todo", request: true },
-    {
-      id: "tryout",
-      state: draft && tryout?.key === tryoutKey ? "done" : "todo",
-      request: !(tryout?.key === tryoutKey),
-    },
-    {
-      id: "show",
-      state: draft && show?.key === showKey ? "done" : "todo",
-      request: !(show?.key === showKey),
-    },
-    {
-      id: "illustrate",
-      state: !providerStatus?.images
-        ? "unavailable"
-        : draft &&
-            show?.key === showKey &&
-            Object.keys(show.reply.illustrations ?? {}).length > 0
-          ? "done"
-          : "todo",
-      request: true,
-    },
-    {
-      id: "save",
-      state: savedId && savedItem ? "done" : "todo",
-      request: false,
-    },
-    {
-      id: "share",
-      state: savedItem?.shared ? "done" : "todo",
-      request: false,
-    },
-  ];
+  const judgeSteps: JudgeStep[] = judgeStepStates({
+    hasDraft: Boolean(draft),
+    tryoutFresh: tryout?.key === tryoutKey,
+    showFresh: show?.key === showKey,
+    illustrated: Object.keys(show?.reply.illustrations ?? {}).length > 0,
+    imagesAvailable: Boolean(providerStatus?.images),
+    saved: Boolean(savedId && savedItem),
+    shared: Boolean(savedItem?.shared),
+  });
   const judgeStepsRef = useRef(judgeSteps);
   judgeStepsRef.current = judgeSteps;
   const caches = {
@@ -1219,15 +1167,11 @@ export function Studio({
             language={language}
             steps={judgeSteps}
             running={judgeRunning || busy}
-            blocked={
-              judgeSteps.every((s) => !s.request || s.state !== "todo")
-                ? null
-                : providerStatus?.access && providerStatus.access.remaining <= 0
-                  ? "hour"
-                  : remaining <= 0
-                    ? "session"
-                    : null
-            }
+            blocked={judgeBlocker(
+              judgeSteps,
+              providerStatus?.access?.remaining ?? null,
+              remaining,
+            )}
             used={8 - remaining}
             onRun={(id) => void runJudgeStep(id)}
             onRunAll={() => void runJudgeAll()}
