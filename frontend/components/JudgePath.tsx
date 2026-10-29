@@ -2,16 +2,8 @@ import { t } from "../lib/messages";
 import type { MessageKey } from "../lib/messages";
 import type { Language } from "../lib/types";
 
-export type JudgeStepId =
-  "draft" | "tryout" | "show" | "illustrate" | "save" | "share";
-export type JudgeStep = {
-  id: JudgeStepId;
-  // "done": the result is present (made now or reused from the cache).
-  // "todo": one click runs it. "unavailable": this server lacks the model for it.
-  state: "done" | "todo" | "unavailable";
-  // Whether running it now would make a model request.
-  request: boolean;
-};
+import type { JudgeStep, JudgeStepId } from "../lib/judge-path";
+export type { JudgeStep, JudgeStepId } from "../lib/judge-path";
 const labels: Record<JudgeStepId, { title: MessageKey; detail: MessageKey }> = {
   draft: { title: "JudgePath.draft", detail: "JudgePath.draftDetail" },
   tryout: { title: "JudgePath.tryout", detail: "JudgePath.tryoutDetail" },
