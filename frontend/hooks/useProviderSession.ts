@@ -14,6 +14,7 @@ export type RequestMetrics = {
     | "tryout"
     | "show"
     | "illustrate"
+    | "detect"
     | "transcribe";
   at: number;
 };

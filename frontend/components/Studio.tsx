@@ -20,6 +20,7 @@ import type {
   TryoutReply,
   ShowReply,
   IllustrateReply,
+  DetectReply,
 } from "../lib/types";
 import { say } from "../lib/types";
 import { ApiError } from "../lib/api";
@@ -50,6 +51,9 @@ import type { SavedLesson, SavedSummary } from "../lib/library";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
+import { Spotlight } from "./Spotlight";
+import { toDataUrl } from "../lib/image";
+import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
 const ShowPlayer = lazy(() =>
   import("./ShowPlayer").then((module) => ({ default: module.ShowPlayer })),
@@ -116,6 +120,10 @@ export function Studio({
     [backgroundRunning, setBackgroundRunning] = useState(false),
     [source, setSource] = useState<string | null>(null),
     [sourceImage, setSourceImage] = useState<string | null>(null),
+    // What SAM 3.1 found in the source image, kept with the image it was found in.
+    [detection, setDetection] = useState<
+      (Detection & { image: string }) | null
+    >(null),
     // The saved copy on the creator's shelf, when this draft has one.
     [savedId, setSavedId] = useState<string | null>(null),
     [savedItem, setSavedItem] = useState<SavedSummary | null>(null),
@@ -625,6 +633,46 @@ export function Studio({
     setShow({ reply: result.reply, at: Date.now(), key: showKey });
     setShowing(true);
     setMessage(t(language, "Studio.theShowIsReady"));
+  }
+  // One SAM 3.1 request: find the thing the creator names in the source image.
+  async function detect(concept: string) {
+    if (
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      !sourceImage
+    )
+      return;
+    const image = sourceImage;
+    setMessage("");
+    let bytes: string;
+    try {
+      bytes = await toDataUrl(image);
+    } catch {
+      setMessage(t(language, "Studio.couldNotReadImage"));
+      return;
+    }
+    const result = await run<DetectReply>(target, "detect", (id, options) =>
+      post<DetectReply>(
+        "/api/studio/detect",
+        { sessionId: id, image: bytes, concept },
+        { ...options, timeoutMs: 45_000 },
+      ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return;
+    }
+    const { concept: found, boxes, width, height, model } = result.reply;
+    setDetection({
+      concept: found,
+      boxes,
+      width,
+      height,
+      model: model ?? "sam-3.1",
+      image,
+    });
+    setMessage(t(language, "Studio.foundInImage"));
   }
   // One Muse Image request for a slide of the current show, or a redrawn cover. The
   // server builds the prompt from the checked script; the creator may add a short note.
@@ -1275,12 +1323,21 @@ export function Studio({
             {source && (
               <div className="lesson-provenance">
                 {sourceImage && (
-                  <img
-                    src={sourceImage}
-                    alt={t(language, "Studio.theSketchThisLessonWas")}
-                    width={160}
-                    height={120}
-                    loading="lazy"
+                  <Spotlight
+                    language={language}
+                    image={sourceImage}
+                    detection={
+                      detection?.image === sourceImage ? detection : null
+                    }
+                    onFind={
+                      authenticated &&
+                      providerStatus?.detect &&
+                      target?.configured
+                        ? (concept) => void detect(concept)
+                        : undefined
+                    }
+                    busy={busy}
+                    canFind={remaining > 0}
                   />
                 )}
                 <p>

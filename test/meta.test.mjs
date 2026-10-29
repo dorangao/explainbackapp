@@ -183,3 +183,16 @@ test('an invalid JSON response fails without exposing its contents', async () =>
     return true;
   });
 });
+test('SAM output parses into pixel boxes and the segmentation request hides image bytes from traces',async()=>{
+ const {parseSegmentation,segmentMetaImage,validConcept}=await import('../src/meta.mjs');
+ const parsed=parseSegmentation('<0f>0<|box;x1=181;y1=365;x2=556;y2=486;w=1516;h=1600;c=0.96|><|mask;x=0;y=0;c=0.96;data=1,2,!a|>,1<|box;x1=5;y1=6;x2=7;y2=8;w=1516;h=1600;c=0.5|><|mask;x=0;y=0;data=1,!b|>');
+ assert.deepEqual(parsed,{boxes:[{x1:181,y1:365,x2:556,y2:486,confidence:0.96},{x1:5,y1:6,x2:7,y2:8,confidence:0.5}],width:1516,height:1600});
+ assert.deepEqual(parseSegmentation(''),{boxes:[],width:0,height:0});
+ assert.equal(validConcept('yellow school bus'),true);assert.equal(validConcept('where is the bus?'),false);assert.equal(validConcept('x'.repeat(61)),false);
+ const events=[];let sent;
+ const result=await segmentMetaImage({apiKey:'k',image:'data:image/png;base64,QUJD',concept:'glasses',onTrace:e=>events.push(e),fetchImpl:async(url,init)=>{sent=JSON.parse(init.body);return new Response(JSON.stringify({model:'sam-3.1',output_text:'<0f>0<|box;x1=1;y1=2;x2=3;y2=4;w=10;h=20|><|mask;x=0;y=0;data=!a|>',usage:{input_tokens:5,output_tokens:6}}),{status:200});}});
+ assert.equal(sent.model,'sam-3.1');assert.equal(sent.input[0].content[0].text,'glasses');assert.equal(sent.input[0].content[1].image_url,'data:image/png;base64,QUJD');assert.equal(sent.stream,undefined);
+ assert.deepEqual(result.boxes,[{x1:1,y1:2,x2:3,y2:4}]);assert.equal(result.width,10);assert.deepEqual(result.usage,{input_tokens:5,output_tokens:6});
+ assert.ok(!JSON.stringify(events).includes('QUJD'));assert.equal(events.at(-1).body.matches,1);
+ await assert.rejects(segmentMetaImage({apiKey:'k',image:'data:image/png;base64,QUJD',concept:'glasses',fetchImpl:async()=>new Response('{}',{status:404})}),/status 404/);
+});

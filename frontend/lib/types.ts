@@ -33,6 +33,8 @@ export type Status = {
   // saved lessons.
   images?: boolean;
   imageStorage?: boolean;
+  // SAM 3.1 can find a named object in an attached sketch or photo.
+  detect?: boolean;
   traceEnabled: boolean;
   access: Access | null;
   problems: { id: string; title: Bilingual }[];
@@ -216,6 +218,20 @@ export type ShowReply = ReplyMetrics & {
   coverModel: string | null;
   // Slide illustrations drawn on request, by slide index.
   illustrations?: Record<string, string>;
+  llm: Target;
+  attemptsRemaining: number;
+};
+export type DetectReply = ReplyMetrics & {
+  concept: string;
+  boxes: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+    confidence?: number;
+  }[];
+  width: number;
+  height: number;
   llm: Target;
   attemptsRemaining: number;
 };

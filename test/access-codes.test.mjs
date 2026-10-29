@@ -35,8 +35,8 @@ test('memory auth issues audience sessions for codes with separate capacity and 
  const judge=auth.login({code:'7kq4-muse-2026'});assert.equal(judge.audience.label,'judges');assert.equal(auth.authenticate(judge.cookie.split(';')[0]).audience.quota,3);
  assert.throws(()=>auth.login({code:'WRONG-CODE-123'}),e=>e.code==='ACCESS_CODE'&&e.status===401);
  assert.throws(()=>auth.login({code:['7KQ4-MUSE-2026']}),e=>e.code==='ACCESS_CODE');
- for(let i=0;i<19;i++)auth.login({code:'7KQ4-MUSE-2026'});
- assert.throws(()=>auth.login({code:'7KQ4-MUSE-2026'}),e=>e.code==='TESTER_CAPACITY');
+ for(let i=0;i<99;i++)auth.login({code:'7KQ4-MUSE-2026'});
+ assert.throws(()=>auth.login({code:'7KQ4-MUSE-2026'}),e=>e.code==='TESTER_CAPACITY','a code holds 100 concurrent sign-ins');
  assert.ok(auth.login(testerCredentials).id,'tester capacity is counted separately from code capacity');
  const press=auth.login({code:'PRESS-CODE-1'});assert.equal(press.audience.label,'press');
  now=codes[1].expiresAt+1;assert.equal(auth.authenticate(press.cookie.split(';')[0]),null,'sessions end with the code');

@@ -2584,3 +2584,53 @@ body {
 .show-tools input::placeholder {
   color: #6f7f76;
 }
+/* The source sketch with SAM 3.1 boxes drawn over it. */
+.spotlight {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 320px;
+}
+.spotlight-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.spotlight-frame img {
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+.spotlight-boxes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.spotlight-boxes rect {
+  fill: rgba(17, 109, 96, 0.14);
+  stroke: #116d60;
+  stroke-width: 2;
+}
+.spotlight-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.spotlight-form input {
+  flex: 1 1 150px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--surface);
+}
+.spotlight-result {
+  margin: 0;
+}

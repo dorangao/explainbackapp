@@ -54,6 +54,7 @@ Image bytes live in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) w
 
 | Route | Who | Purpose |
 |---|---|---|
+| `POST /api/studio/detect` | signed in, studio session | `{sessionId, image, concept}` asks SAM 3.1 for every match of one short noun phrase in the attached image and returns `{concept, boxes, width, height, model}` in image pixels (up to 32 boxes); 503 without the model, 400 for a sentence or question instead of a noun phrase. The Spotlight under a sketch lesson's provenance draws the boxes; results stay in the session. |
 | `POST /api/studio/illustrate` | signed in, studio session | `{sessionId, lesson, show, slide?, direction?}` draws one slide illustration (or the cover when `slide` is omitted) and returns `{image, model, slide, prompt}`; 503 without the image model, 400 for an unknown slide or a note with markup. |
 | `POST /api/lessons` | owner | Now also takes `cover`, `coverModel`, `illustrations` (`{slideIndex: url}`) and `sketch`, each a data URL to upload or a URL already stored under this creator. |
-| `GET /api/status` | signed in | Adds `images` (image model available) and `imageStorage` (Blob configured). |
+| `GET /api/status` | signed in | Adds `images` (image model available), `imageStorage` (Blob configured) and `detect` (SAM 3.1 available). |

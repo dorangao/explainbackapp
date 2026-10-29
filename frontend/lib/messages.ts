@@ -456,6 +456,32 @@ export const messages = {
     en: "WHAT MUSE CHANGED",
     zh: "MUSE 改了什么",
   },
+  "RevisionSummary.lookedForAnObjectIn": {
+    en: "looked for an object in the image of",
+    zh: "在图片中查找了物体，用于",
+  },
+  "Spotlight.placeholder": {
+    en: "Name one thing, e.g. pendulum",
+    zh: "写一个物体名，例如：单摆",
+  },
+  "Spotlight.label": {
+    en: "What to find in the image",
+    zh: "在图片中查找什么",
+  },
+  "Spotlight.find": { en: "Find with SAM 3.1", zh: "用 SAM 3.1 查找" },
+  "Spotlight.looking": { en: "Looking…", zh: "查找中…" },
+  "Spotlight.note": {
+    en: "SAM 3.1 locates what you name; it does not read or judge the lesson.",
+    zh: "SAM 3.1 只定位你所指的物体，不会阅读或评判课程。",
+  },
+  "Studio.couldNotReadImage": {
+    en: "The image could not be read for SAM 3.1.",
+    zh: "无法读取图片以供 SAM 3.1 使用。",
+  },
+  "Studio.foundInImage": {
+    en: "SAM 3.1 looked at the image.",
+    zh: "SAM 3.1 已查看图片。",
+  },
   "RevisionSummary.drewAnIllustrationFor": {
     en: "drew an illustration for",
     zh: "绘制了一张插图，用于",
