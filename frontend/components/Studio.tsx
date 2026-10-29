@@ -89,6 +89,7 @@ export function Studio({
   lessonId,
   starter,
   onBusy,
+  onRequestSettled,
   onRequestAccess,
   external = null,
 }: {
@@ -101,6 +102,8 @@ export function Studio({
   lessonId: string | null;
   starter: number;
   onBusy: (busy: boolean) => void;
+  // After any provider request settles; App refreshes the status (hourly budget).
+  onRequestSettled?: () => void;
   onRequestAccess: () => void;
   // A shared lesson opened by link (`#shared:ID`): reviewed content from another creator.
   external?: SavedLesson | null;
@@ -148,6 +151,7 @@ export function Studio({
     language,
     onBusy,
     onInvalidate: clearFeedback,
+    onSettled: onRequestSettled,
   });
   const {
     busy,
@@ -359,12 +363,35 @@ export function Studio({
   }, [starter, authenticated, closeLesson, language]);
   const draftRef = useRef(draft);
   draftRef.current = draft;
-  // The generic failure line, plus the server's rejection reason when it sent one.
-  const failureMessage = (error: unknown) =>
-    t(language, "Studio.theRequestCouldNotBe") +
-    (error instanceof ApiError && error.reason
-      ? `\n${t(language, "Studio.reason")}: ${error.reason}`
-      : "");
+  // What went wrong, in words the person can act on. The server's own sentence is used
+  // when it names a condition (budget used up, session reset, model not configured,
+  // sign-in needed, request too large); otherwise the generic line, plus the server's
+  // rejection reason when it sent one.
+  const failureMessage = (error: unknown) => {
+    if (error instanceof ApiError) {
+      const key = (
+        {
+          401: "Studio.failSignIn",
+          409: "Studio.failConflict",
+          413: "Studio.failTooLarge",
+          429: "Studio.failBudget",
+          503: "Studio.failNotConfigured",
+        } as const
+      )[error.status as 401 | 409 | 413 | 429 | 503];
+      if (key) return t(language, key);
+    }
+    if (
+      error instanceof Error &&
+      error.message === "Background lesson is still running."
+    )
+      return t(language, "Studio.backgroundStillRunning");
+    return (
+      t(language, "Studio.theRequestCouldNotBe") +
+      (error instanceof ApiError && error.reason
+        ? `\n${t(language, "Studio.reason")}: ${error.reason}`
+        : "")
+    );
+  };
   // `text` is the revision request for compose, or the learner's own explanation for guide.
   // `starter` replaces the typed topic for a scripted compose (the judge path).
   async function request(
@@ -654,7 +681,14 @@ export function Studio({
     }
     setShow({ reply: result.reply, at: Date.now(), key: showKey });
     setShowing(true);
-    setMessage(t(language, "Studio.theShowIsReady"));
+    setMessage(
+      t(
+        language,
+        result.reply.coverSkipped
+          ? "Studio.theShowIsReadyNoCover"
+          : "Studio.theShowIsReady",
+      ),
+    );
     return true;
   }
   // One SAM 3.1 request: find the thing the creator names in the source image.
@@ -1185,9 +1219,14 @@ export function Studio({
             language={language}
             steps={judgeSteps}
             running={judgeRunning || busy}
-            canRun={
-              remaining > 0 ||
+            blocked={
               judgeSteps.every((s) => !s.request || s.state !== "todo")
+                ? null
+                : providerStatus?.access && providerStatus.access.remaining <= 0
+                  ? "hour"
+                  : remaining <= 0
+                    ? "session"
+                    : null
             }
             used={8 - remaining}
             onRun={(id) => void runJudgeStep(id)}

@@ -8,6 +8,25 @@ const fixtureBytes = Buffer.alloc(32);
 fixtureBytes.write("RIFF", 0, "latin1");
 fixtureBytes.write("WEBP", 8, "latin1");
 const FIXTURE_IMAGE = `data:image/webp;base64,${fixtureBytes.toString("base64")}`;
+// Failure and absence modes for the error-state walk, chosen by environment:
+//   FIXTURE_NO_IMAGES=1   no image model (covers, illustrations and the judge step unavailable)
+//   FIXTURE_NO_DETECT=1   no SAM 3.1
+//   FIXTURE_NO_STORE=1    no Blob storage (images dropped on save, with the notice)
+//   FIXTURE_QUOTA=n       hourly budget of the fixture code (default 40)
+//   FIXTURE_FAIL=show|compose|tryout|illustrate   that model call throws
+//   FIXTURE_SLOW_COVER=1  the cover is skipped for time
+const mode = {
+  noImages: process.env.FIXTURE_NO_IMAGES === "1",
+  noDetect: process.env.FIXTURE_NO_DETECT === "1",
+  noStore: process.env.FIXTURE_NO_STORE === "1",
+  quota: Number(process.env.FIXTURE_QUOTA || 40),
+  fail: process.env.FIXTURE_FAIL || "",
+  slowCover: process.env.FIXTURE_SLOW_COVER === "1",
+};
+const failing = (tool) =>
+  (mode.fail === "compose" && tool === "compose_lesson") ||
+  (mode.fail === "tryout" && tool === "try_lesson") ||
+  (mode.fail === "show" && tool === "make_show");
 const server = createApp({
   testerCredentials: {
     username: "browser-tester",
@@ -21,7 +40,7 @@ const server = createApp({
       {
         code: "BROWSER-TEST-CODE",
         label: "browser fixture",
-        quota: 40,
+        quota: mode.quota,
         expiresAt: Date.now() + 86400000,
       },
     ],
@@ -29,12 +48,15 @@ const server = createApp({
   },
   // A fixture image model (a tiny WebP) and a fixture store that hands images back as
   // data URLs: no bytes leave the machine, yet saving keeps covers like Blob would.
-  imageCall: async () => ({
-    dataUrl: FIXTURE_IMAGE,
-    model: "muse-image-1.0",
-    usage: null,
-  }),
-  imageStore: {
+  imageCall: mode.noImages
+    ? null
+    : async ({ timeoutMs }) => {
+        if (mode.fail === "illustrate") throw new Error("fixture failure");
+        if (mode.slowCover && timeoutMs < 60_000)
+          throw new Error("fixture: cover skipped");
+        return { dataUrl: FIXTURE_IMAGE, model: "muse-image-1.0", usage: null };
+      },
+  imageStore: mode.noStore ? null : {
     configured: true,
     owns: (url) => typeof url === "string" && url.startsWith("data:image/"),
     putImage: async ({ bytes, contentType }) =>
@@ -42,7 +64,7 @@ const server = createApp({
     remove: async () => 0,
   },
   // A fixture SAM 3.1: one box for anything named, none for "nothing".
-  segmentCall: async ({ concept }) => ({
+  segmentCall: mode.noDetect ? null : async ({ concept }) => ({
     boxes:
       concept === "nothing"
         ? []
@@ -54,6 +76,7 @@ const server = createApp({
   }),
   modelCall: async (args) => {
     const name = args.tools?.[0]?.name;
+    if (failing(name)) throw new Error("fixture failure");
     const input = JSON.parse(args.input);
     if (name === "compose_lesson")
       return {
