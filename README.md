@@ -11,6 +11,7 @@ This is a **submission candidate** based on the ExplainBack source snapshot iden
 - Open a reviewed gallery lesson or narrated show without signing in. Gallery playback uses included lesson data and generated cover assets and does not make a model request.
 - In Lesson Studio, request a new lesson or revision, review its assumptions and definition, and explicitly present it. Structured, bounded lesson data is interpreted by the app; generated JavaScript is not executed.
 - Where configured, Muse can draft and revise lessons, try them as a learner, evaluate an explanation, write a show script, generate its cover, or transcribe spoken explanations. Voice playback for shows uses the browser's speech synthesis.
+- Signed-in creators keep the lessons they make on a personal shelf, update them in place, and share any one by link; shared lessons open without sign-in and appear in the library under *Shared by creators*. The library has search and kind filters. See [docs/lesson-library.md](docs/lesson-library.md).
 - English and Chinese are available. Model output and a working numeric calculation do not establish scientific correctness or teaching effectiveness; lessons require human review.
 
 ## Local setup

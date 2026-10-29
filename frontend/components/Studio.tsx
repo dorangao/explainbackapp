@@ -43,6 +43,9 @@ import {
 } from "../lib/studio-store";
 import type { CacheState } from "./CacheNote";
 import { Gallery } from "./Gallery";
+import { LessonShelf, ShareControls } from "./Library";
+import { readMine, saveLesson as saveToShelf } from "../lib/library";
+import type { SavedLesson, SavedSummary } from "../lib/library";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
@@ -71,6 +74,7 @@ export function Studio({
   starter,
   onBusy,
   onRequestAccess,
+  external = null,
 }: {
   language: Language;
   authenticated: boolean;
@@ -82,6 +86,8 @@ export function Studio({
   starter: number;
   onBusy: (busy: boolean) => void;
   onRequestAccess: () => void;
+  // A shared lesson opened by link (`#shared:ID`): reviewed content from another creator.
+  external?: SavedLesson | null;
 }) {
   const formId = useId();
   const [topic, setTopic] = useState(""),
@@ -108,7 +114,12 @@ export function Studio({
     [showing, setShowing] = useState(false),
     [backgroundRunning, setBackgroundRunning] = useState(false),
     [source, setSource] = useState<string | null>(null),
-    [sourceImage, setSourceImage] = useState<string | null>(null);
+    [sourceImage, setSourceImage] = useState<string | null>(null),
+    // The saved copy on the creator's shelf, when this draft has one.
+    [savedId, setSavedId] = useState<string | null>(null),
+    [savedItem, setSavedItem] = useState<SavedSummary | null>(null),
+    [saving, setSaving] = useState(false),
+    [shelfRefresh, setShelfRefresh] = useState(0);
   const clearFeedback = useCallback(() => setFeedback(null), []);
   const provider = useProviderSession({
     post,
@@ -185,6 +196,8 @@ export function Studio({
     setRevisionPrompt("");
     setShowing(false);
     setMessage("");
+    setSavedId(null);
+    setSavedItem(null);
     playerState.current = null;
     clearStudio();
   }, [invalidate]);
@@ -208,6 +221,7 @@ export function Studio({
     setGuide(saved.guide);
     setExplanations(saved.explanations);
     setPace(saved.pace);
+    setSavedId(saved.savedId);
     setRevisionKey((k) => k + 1);
     if (saved.presenting) {
       setPlayer(restorePlayer(saved.draft, saved.player));
@@ -235,6 +249,7 @@ export function Studio({
           player: presenting ? playerState.current : null,
           presenting,
           pace,
+          savedId,
         }),
       250,
     );
@@ -256,12 +271,32 @@ export function Studio({
     presenting,
     pace,
     playerTick,
+    savedId,
   ]);
+  // The share controls need the saved copy's summary; a restored draft fetches it once.
+  useEffect(() => {
+    if (!authenticated || !savedId || savedItem?.id === savedId) return;
+    let live = true;
+    void readMine(savedId)
+      .then((record) => {
+        if (!live) return;
+        const { lesson: _lesson, show: _show, ...summary } = record;
+        setSavedItem(summary);
+      })
+      .catch(() => {
+        if (live) setSavedId(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [authenticated, savedId, savedItem?.id]);
   // A gallery lesson is reviewed content: open it straight into the player.
   const openedGallery = useRef<string | null>(null);
   useEffect(() => {
     if (!lessonId || openedGallery.current === lessonId) return;
-    const item = galleryLessons.find((g) => g.id === lessonId);
+    const item = external
+      ? { lesson: external.lesson, source: "shared", image: undefined }
+      : galleryLessons.find((g) => g.id === lessonId);
     if (!item) return;
     openedGallery.current = lessonId;
     invalidate();
@@ -271,7 +306,18 @@ export function Studio({
     setPresenting(true);
     setSource(item.source);
     setSourceImage(item.image ?? null);
-  }, [lessonId, invalidate, loadLesson]);
+    if (external?.show)
+      setShow({
+        reply: {
+          show: external.show,
+          cover: null,
+          coverModel: null,
+          model: external.model ?? undefined,
+        } as ShowReply,
+        at: external.updatedAt,
+        key: fingerprint({ lesson }),
+      });
+  }, [lessonId, external, invalidate, loadLesson]);
   // An invite or the Create link seeds the editable starter topic.
   const seenStarter = useRef(0);
   useEffect(() => {
@@ -601,6 +647,70 @@ export function Studio({
       setMessage(t(language, "Studio.completeBothLanguagesBeforeExporting"));
     }
   }
+  // Keeps the lesson (and its show script) on the creator's shelf; no model request.
+  async function saveLesson() {
+    if (!authenticated || saving || busyRef.current) return;
+    let valid: Lesson;
+    try {
+      valid = validateLesson(draft);
+    } catch {
+      setMessage(t(language, "Studio.completeBothLanguagesBeforeExporting"));
+      return;
+    }
+    setSaving(true);
+    try {
+      const summary = await saveToShelf(post, {
+        ...(savedId ? { id: savedId } : {}),
+        lesson: valid,
+        show:
+          show?.key === fingerprint({ lesson: valid }) ? show.reply.show : null,
+        model: metrics?.model ?? show?.reply.model ?? target?.model ?? null,
+      });
+      if (!alive.current) return;
+      setSavedId(summary.id);
+      setSavedItem(summary);
+      setShelfRefresh((n) => n + 1);
+      setMessage(
+        t(language, savedId ? "Library.savedUpdated" : "Library.savedNotice"),
+      );
+    } catch (e) {
+      if (alive.current)
+        setMessage(
+          e instanceof ApiError
+            ? e.message
+            : t(language, "Library.couldNotSave"),
+        );
+    } finally {
+      if (alive.current) setSaving(false);
+    }
+  }
+  function openSaved(record: SavedLesson) {
+    const { lesson: body, show: script, ...summary } = record;
+    const lesson = loadLesson(body);
+    setRevision(null);
+    setTryout(null);
+    setGuide({});
+    setExplanations({});
+    setComposeStamp(null);
+    setReviseStamp(null);
+    setSavedId(summary.id);
+    setSavedItem(summary);
+    setShow(
+      script
+        ? {
+            reply: {
+              show: script,
+              cover: null,
+              coverModel: null,
+              model: summary.model ?? undefined,
+            } as ShowReply,
+            at: summary.updatedAt,
+            key: fingerprint({ lesson }),
+          }
+        : null,
+    );
+    setMessage(t(language, "Library.openedSaved"));
+  }
   function present() {
     try {
       setPlayer(createLessonPlayer(validateLesson(draft)));
@@ -661,6 +771,21 @@ export function Studio({
           <p className="fine">
             {remaining} {t(language, "Studio.requestsLeftInThisProvider")}
           </p>
+          {savedItem && !lessonId && (
+            <div className="saved-bar">
+              <span className="saved-flag">
+                ✓ {t(language, "Library.savedCopy")}
+              </span>
+              <ShareControls
+                language={language}
+                post={post}
+                item={savedItem}
+                busy={busy || saving}
+                onChange={setSavedItem}
+                onNotice={setMessage}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -898,6 +1023,21 @@ export function Studio({
                   {t(language, "Studio.oneModelRequestWhenYou")}
                 </p>
               </form>
+              <LessonShelf
+                key={shelfRefresh}
+                language={language}
+                post={post}
+                currentId={savedId}
+                busy={busy}
+                onOpen={openSaved}
+                onNotice={setMessage}
+                onDeleted={(id) => {
+                  if (id === savedId) {
+                    setSavedId(null);
+                    setSavedItem(null);
+                  }
+                }}
+              />
             </>
           )}
         </section>
@@ -986,6 +1126,9 @@ export function Studio({
               setRevision={setRevisionPrompt}
               caches={caches}
               onRecreate={() => void request("compose")}
+              onSave={authenticated ? () => void saveLesson() : undefined}
+              savedId={savedId}
+              saving={saving}
             />
           </Suspense>
         )}
@@ -1025,7 +1168,23 @@ export function Studio({
                     loading="lazy"
                   />
                 )}
-                <p>{gallerySourceNote(source, language)}</p>
+                <p>
+                  {source === "shared"
+                    ? t(language, "Library.sharedLessonNote")
+                    : gallerySourceNote(source, language)}
+                  {external?.model &&
+                    source === "shared" &&
+                    ` · ${external.model}`}
+                </p>
+                {source === "shared" && show && (
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => setShowing(true)}
+                  >
+                    {t(language, "Library.watchTheShow")} ▶
+                  </button>
+                )}
               </div>
             )}
           </>

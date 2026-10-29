@@ -239,6 +239,9 @@ export function DraftReview({
   setRevision,
   caches,
   onRecreate,
+  onSave,
+  savedId,
+  saving,
 }: {
   draft: Lesson;
   language: Language;
@@ -269,6 +272,10 @@ export function DraftReview({
     show: CacheState;
   };
   onRecreate: () => void;
+  // Keeps the lesson on the creator's shelf (no model request). Present when signed in.
+  onSave?: () => void;
+  savedId: string | null;
+  saving: boolean;
 }) {
   const formId = useId();
   const [pending, setPending] = useState<Record<number, string>>({}),
@@ -599,6 +606,20 @@ export function DraftReview({
         >
           {t(language, "DraftReview.presentThisLesson")}
         </button>
+        {onSave && (
+          <button
+            className="secondary save-action"
+            disabled={busy || hasPending || saving}
+            onClick={onSave}
+          >
+            {saving
+              ? t(language, "Studio.loading")
+              : t(
+                  language,
+                  savedId ? "Library.saveChanges" : "Library.saveToMyLessons",
+                )}
+          </button>
+        )}
         <button
           className="secondary"
           disabled={busy || hasPending}

@@ -10,6 +10,7 @@ import {flightScenario,flightTitle} from '../public/flight.mjs';
 import {createTesterAuth,expiredTesterCookie} from './tester-auth.mjs';
 import {parseAccessCodes,budgetFor,publicAudience} from './access-codes.mjs';
 import {createTrace} from './trace.mjs';
+import {buildSavedLesson,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
 import {createMemoryState} from './state.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
@@ -91,7 +92,7 @@ export function createHandler({
     if (req.headers.origin !== res.locals.origin) return next(new RequestError(403, 'This action must come from this app.'));
     next();
   };
-  const bodyLimit = path => path === '/api/studio/compose' ? 1_400_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show'].includes(path) ? 48_000 : 16_384;
+  const bodyLimit = path => path === '/api/studio/compose' ? 1_400_000 : path === '/api/lessons' ? 120_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show'].includes(path) ? 48_000 : 16_384;
   const parseBody = (req, res, next) => {
     if (!req.headers['content-type']?.startsWith('application/json')) return next(new RequestError(415, 'Use JSON for this request.'));
     if (req.headers['content-encoding'] && req.headers['content-encoding'].toLowerCase() !== 'identity') return next(new RequestError(415, 'Compressed request encoding is not supported.'));
@@ -125,10 +126,43 @@ export function createHandler({
     try { const result=await access.login(req.body,req.headers.cookie); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
+  // Shared lessons open without signing in, like the gallery. Ids are unguessable.
+  app.get('/api/shared', tracked(async (req,res) => reply(res,200,{lessons:(await state.listSharedLessons(MAX_SHARED_LISTED)).map(lessonSummary)})));
+  app.get('/api/shared/:id', tracked(async (req,res) => {
+    const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
+    if(!record||record.shared!==true)return reply(res,404,{error:'This shared lesson is not available.'});
+    reply(res,200,publicLesson(record));
+  }));
   app.use((req,res,next) => {
     if(req.path.startsWith('/api/')&&!res.locals.tester)return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     next();
   });
+  // A creator's saved lessons. Reviewer invites own their lessons by label, so the same
+  // invite sees them again after signing in from another browser; the tester account
+  // shares one shelf. Saving makes no model request.
+  const ownerOf=tester=>tester.audience?.label?`code:${tester.audience.label}`:tester.id===OPEN_ID?'local':'tester';
+  app.get('/api/lessons', tracked(async (req,res) => reply(res,200,{lessons:(await state.listLessons(ownerOf(res.locals.tester))).map(lessonSummary),limit:MAX_SAVED_PER_OWNER})));
+  app.get('/api/lessons/:id', tracked(async (req,res) => {
+    const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
+    if(!record||record.owner!==ownerOf(res.locals.tester))return reply(res,404,{error:'Saved lesson not found.'});
+    reply(res,200,publicLesson(record));
+  }));
+  app.post(['/api/lessons','/api/lessons/share','/api/lessons/delete'], requireOrigin, parseBody, tracked(async (req,res) => {
+    const owner=ownerOf(res.locals.tester),body=req.body;
+    if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
+    const own=async()=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||record.owner!==owner)throw new RequestError(404,'Saved lesson not found.');return record;};
+    if(req.path==='/api/lessons/delete'){await own();await state.deleteLesson(owner,body.id);return reply(res,200,{deleted:true,id:body.id});}
+    if(req.path==='/api/lessons/share'){
+      if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
+      const record={...await own(),shared:body.shared,updatedAt:Date.now()};
+      if(!await state.putLesson(record,MAX_SAVED_PER_OWNER))throw new RequestError(409,'Could not update this lesson.');
+      return reply(res,200,lessonSummary(record));
+    }
+    const previous=body.id!==undefined?await own():null;
+    let record;try{record=buildSavedLesson(body,{owner,previous});}catch{throw new RequestError(400,'Save a valid bilingual lesson, with an optional show script.');}
+    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER))throw new RequestError(409,`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
+    reply(res,200,lessonSummary(record));
+  }));
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;

@@ -20,6 +20,8 @@ import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
 import { useInstallPrompt } from "./lib/install";
+import { readShared, sharedIdFromHash } from "./lib/library";
+import type { SavedLesson } from "./lib/library";
 const Labs = lazy(() =>
   import("./components/labs/Labs").then((module) => ({
     default: module.Labs,
@@ -41,6 +43,7 @@ function readRoute() {
       : "studio") as Area,
     lessonId: galleryIdFromHash(hash) as string | null,
     showId: showIdFromHash(hash) as string | null,
+    sharedId: sharedIdFromHash(hash),
   };
 }
 export function App() {
@@ -64,6 +67,31 @@ export function App() {
     main = useRef<HTMLElement>(null),
     accessRef = useRef<HTMLDivElement>(null);
   const setLang = useCallback((value: Language) => setLanguage(value), []);
+  // A shared lesson is fetched by its link; it needs no sign-in and makes no model request.
+  const [shared, setShared] = useState<{
+    id: string;
+    record: SavedLesson | null;
+    failed: boolean;
+  } | null>(null);
+  useEffect(() => {
+    const id = route.sharedId;
+    if (!id) {
+      setShared(null);
+      return;
+    }
+    let live = true;
+    setShared({ id, record: null, failed: false });
+    void readShared(id)
+      .then((record) => {
+        if (live) setShared({ id, record, failed: false });
+      })
+      .catch(() => {
+        if (live) setShared({ id, record: null, failed: true });
+      });
+    return () => {
+      live = false;
+    };
+  }, [route.sharedId]);
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
     try {
@@ -73,10 +101,12 @@ export function App() {
   // The tab title names the open gallery lesson or show, so shares and history read well.
   useEffect(() => {
     const item = galleryLesson(route.lessonId ?? route.showId ?? "");
-    document.title = item
-      ? `${item.lesson.title[language]} · ExplainBack`
+    const title =
+      item?.lesson.title[language] ?? shared?.record?.title[language];
+    document.title = title
+      ? `${title} · ExplainBack`
       : t(language, "App.explainbackLearnByExplaining");
-  }, [language, route.lessonId, route.showId]);
+  }, [language, route.lessonId, route.showId, shared]);
   const installer = useInstallPrompt();
   useEffect(() => {
     const update = () => {
@@ -120,7 +150,12 @@ export function App() {
       firstAuth.current = true;
       setShowAccess(false);
     } else if (firstAuth.current) {
-      setRoute({ area: "studio", lessonId: null, showId: null });
+      setRoute({
+        area: "studio",
+        lessonId: null,
+        showId: null,
+        sharedId: null,
+      });
       history.replaceState(null, "", "#studio");
       firstAuth.current = false;
     }
@@ -133,7 +168,12 @@ export function App() {
     const ok = await auth.login(body);
     if (ok) {
       setShowAccess(false);
-      setRoute({ area: "create", lessonId: null, showId: null });
+      setRoute({
+        area: "create",
+        lessonId: null,
+        showId: null,
+        sharedId: null,
+      });
       history.replaceState(null, "", "#create");
       setStarter((n) => n + 1);
     }
@@ -149,15 +189,15 @@ export function App() {
       setVisited((previous) => ({ ...previous, [route.area]: true }));
   }, [auth.info.authenticated, route.area]);
   const focusRoute = useRef(
-    `${route.area}/${route.lessonId}/${route.showId}/${libraryVisit}`,
+    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${libraryVisit}`,
   );
   useEffect(() => {
-    const key = `${route.area}/${route.lessonId}/${route.showId}/${libraryVisit}`;
+    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${libraryVisit}`;
     if (key === focusRoute.current) return;
     focusRoute.current = key;
     main.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, [route.area, route.lessonId, route.showId, libraryVisit]);
+  }, [route.area, route.lessonId, route.showId, route.sharedId, libraryVisit]);
   const area = route.area;
   const galleryShowItem = route.showId
     ? { lesson: galleryLesson(route.showId), show: galleryShow(route.showId) }
@@ -296,6 +336,7 @@ export function App() {
           visible={
             !route.lessonId &&
             !route.showId &&
+            !route.sharedId &&
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
@@ -304,6 +345,31 @@ export function App() {
           onBusy={noop}
           onRequestAccess={openAccess}
         />
+        {route.sharedId && shared?.record && (
+          <Studio
+            key={`shared-${auth.identity}-${route.sharedId}`}
+            language={language}
+            authenticated={auth.info.authenticated}
+            status={auth.status}
+            post={auth.post}
+            visible={area === "studio"}
+            view="studio"
+            lessonId={`shared:${route.sharedId}`}
+            external={shared.record}
+            starter={0}
+            onBusy={noop}
+            onRequestAccess={openAccess}
+          />
+        )}
+        {route.sharedId && shared?.failed && (
+          <section className="creation-locked">
+            <p>{t(language, "Library.sharedUnavailable")}</p>
+            <a href="#studio">{t(language, "App.exploreLessons")}</a>
+          </section>
+        )}
+        {route.sharedId && shared && !shared.record && !shared.failed && (
+          <p role="status">{t(language, "Studio.loading")}</p>
+        )}
         {route.lessonId && (
           <Studio
             key={`gallery-${auth.identity}-${route.lessonId}`}

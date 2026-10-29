@@ -10,7 +10,8 @@ flowchart LR
   SW["Service worker<br/>shell and asset cache"] --> Browser
   Browser -->|"Same-origin HTTPS<br/>session, compose, poll, guide"| API["Express API<br/>origin + authentication + quotas"]
   Vercel --> API
-  API -->|"Sessions, locks, quotas<br/>and optional traces"| Redis["Upstash Redis<br/>production and preview namespaces"]
+  API -->|"Sessions, locks, quotas,<br/>saved and shared lessons"| Redis["Upstash Redis<br/>production and preview namespaces"]
+  Browser -->|"Save, share, open<br/>no model request"| API
   API -->|"Wonder: background create / revise<br/>submit and poll"| Meta["Meta Model API<br/>Responses, Image and Voice"]
   API -->|"Spark: learner feedback and tryout<br/>Image: cover / Voice: transcription"| Meta
   Meta -->|"Structured output"| Validate["Contract and claim validation<br/>human review still required"]
@@ -36,7 +37,7 @@ flowchart LR
 | Simulations and graphics | Plain ES modules, D3 scale/shape/selection; bounded expressions and predefined engines | `public/`, `frontend/components/ExperimentView.tsx` |
 | Server | Node.js 22, Express 5; shared local and Vercel API handler | `src/server.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image and Voice; OpenAI-compatible Responses SDK for text, direct Meta APIs for image and audio | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
-| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions and rate limits | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs` |
+| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/lessons.mjs` |
 | Delivery | Vercel static frontend and serverless function, Node 22, service worker and web manifest | `vercel.json`, `scripts/build-vercel.mjs`, `public/sw.js` |
 | Optional local model | Ollama, guarded for sequential local use; not available through the cloud router | `src/llm/ollama*.mjs`, `src/cloud.mjs` |
 | Verification | Node test runner, Vitest, React Testing Library, Playwright, TypeScript, Oxlint and Prettier | `package.json`, `test/`, `frontend/`, `e2e/` |
