@@ -3,6 +3,8 @@ import { t } from "../lib/messages";
 import type { Lesson, Language, Demo, TryoutReply } from "../lib/types";
 import type { RequestMetrics } from "../hooks/useProviderSession";
 import { RequestSummary } from "./RequestSummary";
+import { CacheNote, actionLabel } from "./CacheNote";
+import type { CacheState } from "./CacheNote";
 import { say } from "../lib/types";
 import {
   validateLesson,
@@ -233,6 +235,10 @@ export function DraftReview({
   hasShow,
   onMakeShow,
   onWatchShow,
+  revision,
+  setRevision,
+  caches,
+  onRecreate,
 }: {
   draft: Lesson;
   language: Language;
@@ -252,11 +258,21 @@ export function DraftReview({
   hasShow: boolean;
   onMakeShow: () => void;
   onWatchShow: () => void;
+  // The revision prompt lives in Studio so it is remembered with the draft.
+  revision: string;
+  setRevision: (value: string) => void;
+  // Per model-backed action: when it last answered and whether its inputs changed since.
+  caches: {
+    compose: CacheState;
+    revise: CacheState;
+    tryout: CacheState;
+    show: CacheState;
+  };
+  onRecreate: () => void;
 }) {
   const formId = useId();
   const [pending, setPending] = useState<Record<number, string>>({}),
-    [error, setError] = useState(""),
-    [revision, setRevision] = useState("");
+    [error, setError] = useState("");
   const generated = draft.chapters.some((c) => c.demo),
     hasPending = Object.keys(pending).length > 0,
     warnings = lessonLanguageWarnings(draft);
@@ -296,10 +312,27 @@ export function DraftReview({
           <h2 id={`${formId}-title`}>{draft.title[language]}</h2>
         </div>
         <button className="text-button" disabled={busy} onClick={onClose}>
-          {t(language, "DraftReview.closeLesson")}
+          {t(language, "DraftReview.startANewLesson")}
         </button>
       </div>
       <p className="lead-small">{draft.intro[language]}</p>
+      {caches.compose && (
+        <div className="cache-row">
+          <span className="fine">{t(language, "Cache.draftedByMuse")}</span>
+          <CacheNote cache={caches.compose} language={language} />
+          {canRequest && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy || hasPending}
+              onClick={onRecreate}
+            >
+              {t(language, "Cache.reRunCreate")}
+            </button>
+          )}
+        </div>
+      )}
+      <p className="fine">{t(language, "DraftReview.thisDraftIsRemembered")}</p>
       <p className="review-notice">
         {t(language, "DraftReview.checkTheTeachingTextFormulas")}
       </p>
@@ -462,8 +495,13 @@ export function DraftReview({
           >
             {busy
               ? t(language, "DraftReview.museIsWorking")
-              : t(language, "DraftReview.letTheTestLearnerTry")}
+              : actionLabel(
+                  language,
+                  t(language, "DraftReview.letTheTestLearnerTry"),
+                  caches.tryout,
+                )}
           </button>
+          <CacheNote cache={caches.tryout} language={language} />
           {tryout && (
             <TryoutReport
               tryout={tryout}
@@ -489,7 +527,11 @@ export function DraftReview({
             >
               {busy
                 ? t(language, "DraftReview.museIsWorking")
-                : t(language, "DraftReview.makeANarratedShow")}
+                : actionLabel(
+                    language,
+                    t(language, "DraftReview.makeANarratedShow"),
+                    caches.show,
+                  )}
             </button>
             {hasShow && (
               <button type="button" disabled={busy} onClick={onWatchShow}>
@@ -497,6 +539,7 @@ export function DraftReview({
               </button>
             )}
           </div>
+          <CacheNote cache={caches.show} language={language} />
           {hasShow && metrics?.mode === "show" && (
             <RequestSummary metrics={metrics} language={language} />
           )}
@@ -524,8 +567,13 @@ export function DraftReview({
             disabled={busy || hasPending || !revision.trim()}
             onClick={() => onRevise(revision)}
           >
-            {t(language, "DraftReview.reviseLessonDemo")}
+            {actionLabel(
+              language,
+              t(language, "DraftReview.reviseLessonDemo"),
+              caches.revise,
+            )}
           </button>
+          <CacheNote cache={caches.revise} language={language} />
         </section>
       )}
       {generated && (

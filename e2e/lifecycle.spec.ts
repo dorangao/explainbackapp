@@ -277,3 +277,108 @@ test("expired access clears the private draft and returns to the public library"
     page.getByRole("link", { name: "Physics", exact: true }),
   ).toHaveCount(0);
 });
+
+test("a remembered draft survives a reload, reopens with no provider request and can be forgotten", async ({
+  page,
+}) => {
+  const studioRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/studio"))
+      studioRequests.push(request.url());
+  });
+  await page.goto("/#invite:BROWSER-TEST-CODE");
+  await page.getByLabel("Import lesson JSON").setInputFiles({
+    name: "lesson.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(coolingLesson())),
+  });
+  await page.getByText("Edit lesson text", { exact: true }).click();
+  await page
+    .getByLabel("Lesson title", { exact: true })
+    .fill("Remembered cooling lesson");
+  await page
+    .getByLabel(
+      "I reviewed the demo definition and its assumptions for this presentation.",
+    )
+    .check();
+  await page
+    .getByLabel("Ask Muse to revise this draft")
+    .fill("Keep this prompt for later.");
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        localStorage
+          .getItem("explainback-studio-draft")
+          ?.includes("Remembered cooling lesson"),
+      ),
+    )
+    .toBe(true);
+  expect(studioRequests).toEqual([]);
+  await page.reload();
+  await expect(
+    page.getByRole("heading", {
+      name: "Remembered cooling lesson",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/Restored your last lesson/)).toBeVisible();
+  await expect(
+    page.getByLabel(
+      "I reviewed the demo definition and its assumptions for this presentation.",
+    ),
+  ).toBeChecked();
+  await expect(page.getByLabel("Ask Muse to revise this draft")).toHaveValue(
+    "Keep this prompt for later.",
+  );
+  expect(studioRequests).toEqual([]);
+  await page.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.getByRole("link", { name: "Create", exact: true }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Remembered cooling lesson",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Start a new lesson", exact: true })
+    .click();
+  await expect(
+    page.getByLabel("What would you like to explore?"),
+  ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByLabel("What would you like to explore?"),
+  ).toBeVisible();
+  expect(studioRequests).toEqual([]);
+});
+
+test("guided replay walks a gallery lesson through every stage without clicks and pauses on a manual action", async ({
+  page,
+}) => {
+  await page.goto("/#lesson:cooling");
+  const player = page.locator(".lesson-player");
+  await expect(player).toHaveAttribute("data-stage", "predict");
+  await page.getByLabel("Guided replay").selectOption("fast");
+  await expect(player).toHaveAttribute("data-stage", "experiment", {
+    timeout: 6000,
+  });
+  await expect(player).toHaveAttribute("data-stage", "explain", {
+    timeout: 10000,
+  });
+  await page
+    .getByRole("button", { name: "Replay experiment", exact: true })
+    .click();
+  await expect(player).toHaveAttribute("data-stage", "experiment");
+  await expect(
+    page.getByRole("button", { name: "Resume replay", exact: true }),
+  ).toBeVisible();
+  await page.waitForTimeout(1500);
+  await expect(player).toHaveAttribute("data-stage", "experiment");
+  await page
+    .getByRole("button", { name: "Resume replay", exact: true })
+    .click();
+  await expect(player).toHaveAttribute("data-stage", "complete", {
+    timeout: 20000,
+  });
+  await expect(page.getByText("Guided replay finished.")).toBeVisible();
+});
