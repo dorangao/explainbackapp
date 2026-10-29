@@ -6,6 +6,9 @@ export const DEFAULT_META_MODEL = 'muse-spark-1.3';
 // Models offered by default. Wonder is larger and slower, so it gets a longer budget.
 export const DEFAULT_META_MODELS = ['muse-spark-1.3', 'muse-wonder-1.0'];
 export const metaTimeoutMs = model => (model.startsWith('muse-wonder') ? 50_000 : 30_000);
+// The usage summary the app reports: input and output tokens plus how many input tokens
+// the server served from its prompt cache (a subset of input, billed at the cached rate).
+export const usageSummary = usage => usage ? { input: usage.input_tokens ?? null, output: usage.output_tokens ?? null, cached: usage.input_tokens_details?.cached_tokens ?? null } : null;
 
 export async function callMeta({
   apiKey,
@@ -18,6 +21,13 @@ export async function callMeta({
   structuredOutput = false,
   images,
   background = false,
+  // Multi-turn: chain this turn onto an earlier stored response so the model keeps its
+  // reasoning context. `store` must be true on the earlier turn for the id to resolve.
+  previousResponseId,
+  store = background,
+  // Prompt caching happens on the shared prefix automatically; a stable key per use case
+  // routes requests that share a prefix to the backend that already holds it.
+  promptCacheKey,
   timeoutMs = 30_000,
   fetchImpl = globalThis.fetch,
   onTrace,
@@ -37,7 +47,10 @@ export async function callMeta({
   const trace=event=>{try{onTrace?.(event);}catch{/* Diagnostics must not affect calls. */}};
   // Multimodal requests use one user message with text plus image parts (Responses API shape).
   const content=images?[{type:'input_text',text:input},...images.map(image_url=>({type:'input_image',image_url}))]:null;
-  const body={model,input:content?[{type:'message',role:'user',content}]:input,store:background,...(background?{background:true}:{}),max_output_tokens:maxOutputTokens,
+  if(previousResponseId!==undefined&&!/^resp_[A-Za-z0-9_-]{1,200}$/.test(String(previousResponseId)))throw new Error('previousResponseId must be a response id.');
+  if(promptCacheKey!==undefined&&!/^[A-Za-z0-9:_.-]{1,120}$/.test(String(promptCacheKey)))throw new Error('promptCacheKey must be a short plain key.');
+  const body={model,input:content?[{type:'message',role:'user',content}]:input,store:Boolean(store||background),...(background?{background:true}:{}),max_output_tokens:maxOutputTokens,
+    ...(previousResponseId?{previous_response_id:previousResponseId}:{}),...(promptCacheKey?{prompt_cache_key:promptCacheKey}:{}),
     ...(instructions?{instructions}:{}),...(reasoningEffort?{reasoning:{effort:reasoningEffort}}:{}),
     ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}}}:tools?{tools,tool_choice:'auto',parallel_tool_calls:false}:{})};
   if(structuredOutput)body.instructions=(instructions??'')+'\nTransport for this request: return the '+tools[0].name+' argument object directly as JSON matching the response schema. This is a structured response, not a tool invocation.';
@@ -72,7 +85,7 @@ export async function callMeta({
         404: 'Check META_MODEL against your available models.',
         429: 'Check credits and rate limits before retrying.',
       }[error.status] ?? 'Check the Meta dashboard before retrying.';
-      throw new Error(`Meta API returned HTTP ${error.status}. ${guidance}`);
+      throw Object.assign(new Error(`Meta API returned HTTP ${error.status}. ${guidance}`),{status:error.status});
     }
     if (error instanceof SyntaxError) {
       trace({type:'error',message:'invalid JSON'});

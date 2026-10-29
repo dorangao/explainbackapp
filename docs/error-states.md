@@ -20,4 +20,4 @@ Checked October 29, 2026 Pacific against the fixture server with each condition 
 | A saved copy could not be stored (cap of 50, or a bad image) | The server's reason is shown; nothing is lost in the browser. | server messages |
 | Empty states | An empty shelf, a catalog search with no match and a public list with no shared lessons each say so in a sentence. | `Library.nothingSavedYet`, `Gallery.noMatches` |
 
-Failure messages are chosen by HTTP status in `failureMessage` (`frontend/components/Studio.tsx`), so the server's English sentences never reach a Chinese reader.
+A chained turn whose earlier response is gone is retried once without the chain before any failure is shown. Failure messages are chosen by HTTP status in `failureMessage` (`frontend/components/Studio.tsx`), so the server's English sentences never reach a Chinese reader.

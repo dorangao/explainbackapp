@@ -482,6 +482,7 @@ export const messages = {
     en: "SAM 3.1 looked at the image.",
     zh: "SAM 3.1 已查看图片。",
   },
+  "RevisionSummary.fromCache": { en: "from cache", zh: "来自缓存" },
   "RevisionSummary.drewAnIllustrationFor": {
     en: "drew an illustration for",
     zh: "绘制了一张插图，用于",
