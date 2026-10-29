@@ -51,4 +51,4 @@ The cloud entry point is `api/index.js`. It requires shared Redis configuration 
 
 ## Source and assets
 
-Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The six gallery show covers were generated with Muse Image and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. The repository includes synthetic test fixtures and excludes local environment files and generated evaluation output. The author keeps the detailed provenance record locally and will provide it on request.
+Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The six gallery show covers and their slide illustrations were generated with Muse Image (narration by Muse Wonder, regenerated October 29, 2026), and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. The repository includes synthetic test fixtures and excludes local environment files and generated evaluation output. The author keeps the detailed provenance record locally and will provide it on request.
