@@ -2531,3 +2531,56 @@ body {
 .saved-bar .share-url {
   flex: 0 1 280px;
 }
+/* Slide illustrations and the illustrator controls in the show player. */
+.show-illustration {
+  margin: 18px 0 0;
+}
+.show-illustration img {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: 10px;
+}
+.show-tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 8px 0 0;
+}
+.show-tools input {
+  flex: 1 1 260px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  background: var(--surface);
+}
+/* Cover thumbnails on the creator's shelf. */
+.shelf-thumb {
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  background: #e8eee3;
+}
+@media (max-width: 720px) {
+  .shelf-thumb {
+    width: 100%;
+    height: 120px;
+  }
+}
+.app-shell .show-player .show-tools button.secondary {
+  color: #d7e6dc;
+  border-color: #4d6b5c;
+}
+.app-shell .show-player .show-tools button.secondary:hover:not(:disabled) {
+  background: #24382e;
+}
+.show-tools input::placeholder {
+  color: #6f7f76;
+}

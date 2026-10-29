@@ -17,6 +17,17 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(coolingLesson())),
   });
+  // The show gets a cover from the fixture image model; one slide gets an illustration.
+  await page.getByRole("button", { name: "Make a narrated show" }).click();
+  await expect(page.locator(".show-cover img")).toBeVisible();
+  await page.getByRole("button", { name: "Next slide" }).click();
+  await page.getByLabel("Note for the illustrator").fill("soft morning light");
+  await page.getByRole("button", { name: "Illustrate this slide" }).click();
+  await expect(page.locator(".show-illustration img")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Redraw illustration" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Close show" }).click();
   await page.getByRole("button", { name: "Save to my lessons" }).click();
   await expect(
     page.getByText("Saved to your lessons", { exact: false }),
@@ -31,10 +42,16 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(page.getByText("Saved changes.")).toBeVisible();
   await page.getByRole("button", { name: "Start a new lesson" }).click();
   await expect(page.getByText("1 / 50")).toBeVisible();
+  await expect(page.locator(".shelf-thumb")).toBeVisible();
+  // The three image requests were the show (with its cover) and the illustration.
+  expect(modelCalls.filter((u) => u.endsWith("/show")).length).toBe(1);
+  expect(modelCalls.filter((u) => u.endsWith("/illustrate")).length).toBe(1);
   await expect(
     page.getByRole("switch", { name: "Shared by link" }),
   ).toBeVisible();
-  expect(modelCalls).toEqual([]);
+  expect(
+    modelCalls.filter((u) => !/\/(session|show|illustrate)$/.test(u)),
+  ).toEqual([]);
 
   // A fresh, signed-out browser opens the link and finds the lesson in the catalog.
   const visitor = await browser.newContext();
@@ -51,10 +68,20 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
     .getByRole("searchbox", { name: "Search lessons" })
     .fill("cooling coffee");
   await expect(guest.getByText("1 lessons")).toBeVisible();
+  await expect(
+    guest.locator(".lesson-card-shared .lesson-art-image"),
+  ).toBeVisible();
   await guest
     .getByRole("link", { name: /Open lesson: Cooling coffee/ })
     .click();
   await expect(guest.locator(".lesson-player")).toBeVisible();
+  // The saved show plays with its stored cover and illustration, signed out.
+  await guest.getByRole("button", { name: "Watch the show" }).click();
+  await expect(guest.locator(".show-cover img")).toBeVisible();
+  await guest.getByRole("button", { name: "Next slide" }).click();
+  await expect(guest.locator(".show-illustration img")).toBeVisible();
+  await expect(guest.getByLabel("Note for the illustrator")).toHaveCount(0);
+  await guest.getByRole("button", { name: "Close show" }).click();
   await expect(
     guest.getByRole("button", { name: "Preview access" }),
   ).toBeVisible();

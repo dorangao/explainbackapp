@@ -14,6 +14,8 @@ const summary = (over: Partial<SavedSummary> = {}): SavedSummary => ({
   title: { en: "Cooling coffee", zh: "咖啡冷却" },
   intro: { en: "Explore an ideal cooling model.", zh: "探索理想冷却模型。" },
   kind: "model",
+  cover: null,
+  sketch: null,
   hasShow: true,
   model: "muse-wonder-1.0",
   shared: false,
@@ -34,10 +36,11 @@ afterEach(() => {
 });
 describe("LessonShelf", () => {
   it("lists saved lessons, opens one without a model call, shares by link and deletes after confirming", async () => {
+    const cover = "https://x.public.blob.vercel-storage.com/images/a/b.webp";
     getJson.mockImplementation(async (path: string) =>
       path === "/api/lessons"
-        ? { lessons: [summary()], limit: 50 }
-        : { ...summary(), lesson: coolingLesson(), show: null },
+        ? { lessons: [summary({ cover })], limit: 50 }
+        : { ...summary({ cover }), lesson: coolingLesson(), show: null },
     );
     const posts: { path: string; body: unknown }[] = [];
     const post: Post = async (path, body) => {
@@ -66,6 +69,9 @@ describe("LessonShelf", () => {
       await screen.findByRole("heading", { name: "Cooling coffee" }),
     ).toBeTruthy();
     expect(screen.getByText("1 / 50")).toBeTruthy();
+    expect(document.querySelector(".shelf-thumb")?.getAttribute("src")).toBe(
+      cover,
+    );
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
     await waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
     expect(opened.mock.calls[0][0].lesson.title.en).toBe("Cooling coffee");

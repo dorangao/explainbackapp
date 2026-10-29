@@ -21,16 +21,22 @@ export function ShowPlayer({
   lesson,
   show,
   cover,
+  illustrations = null,
   language,
   scriptModel,
   coverModel,
   onClose,
   pace: paceProp,
   onPace,
+  onIllustrate,
+  illustrating = false,
+  canIllustrate = true,
 }: {
   lesson: Lesson;
   show: Show;
   cover: string | null;
+  // Slide illustrations by slide index, drawn on request and kept with a saved lesson.
+  illustrations?: Record<string, string> | null;
   language: Language;
   scriptModel: string | null;
   coverModel: string | null;
@@ -38,12 +44,19 @@ export function ShowPlayer({
   // Replay pace shared with the lesson player; "off" plays at the normal pace.
   pace?: Pace;
   onPace?: (pace: Pace) => void;
+  // When given, the creator can ask Muse Image for a slide illustration or a new
+  // cover (one request each); absent for shared and gallery shows.
+  onIllustrate?: (slide: number | null, direction: string) => void;
+  illustrating?: boolean;
+  canIllustrate?: boolean;
 }) {
   const [index, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [voice, setVoice] = useState(() => speechAvailable()),
     [progress, setProgress] = useState(0),
     [ownPace, setOwnPace] = useState<Pace>("normal"),
+    // An optional note for the illustrator, sent with the next drawing request.
+    [direction, setDirection] = useState(""),
     // How far the current slide's narration time has run while playing.
     [bar, setBar] = useState(0);
   const pace = paceProp && paceProp !== "off" ? paceProp : ownPace;
@@ -60,6 +73,9 @@ export function ShowPlayer({
     [chapter, language],
   );
   const narration = slide.narration[language];
+  const illustration =
+    slide.kind === "cover" ? null : (illustrations?.[String(index)] ?? null);
+  const illustrated = Object.keys(illustrations ?? {}).length > 0;
   const stop = useCallback(() => {
     if (speechAvailable()) window.speechSynthesis.cancel();
   }, []);
@@ -240,6 +256,11 @@ export function ShowPlayer({
             <p>{chapter.explanation[language]}</p>
           </div>
         )}
+        {illustration && (
+          <figure className="show-illustration">
+            <img src={illustration} alt="" width={768} height={512} />
+          </figure>
+        )}
       </div>
       <div className="show-caption">
         <p className="eyebrow">{slide.heading[language]}</p>
@@ -308,6 +329,42 @@ export function ShowPlayer({
           {t(language, "ShowPlayer.closeShow")}
         </button>
       </div>
+      {onIllustrate && (
+        <div className="show-tools">
+          <input
+            type="text"
+            value={direction}
+            maxLength={300}
+            placeholder={t(language, "ShowPlayer.illustrationNote")}
+            aria-label={t(language, "ShowPlayer.illustrationNoteLabel")}
+            onChange={(event) => setDirection(event.target.value)}
+          />
+          <button
+            type="button"
+            className="secondary"
+            disabled={illustrating || !canIllustrate}
+            onClick={() => {
+              stop();
+              setPlaying(false);
+              onIllustrate(slide.kind === "cover" ? null : index, direction);
+            }}
+          >
+            {illustrating
+              ? t(language, "ShowPlayer.drawing")
+              : slide.kind === "cover"
+                ? t(
+                    language,
+                    cover ? "ShowPlayer.redrawCover" : "ShowPlayer.drawCover",
+                  )
+                : t(
+                    language,
+                    illustration
+                      ? "ShowPlayer.redrawSlide"
+                      : "ShowPlayer.illustrateSlide",
+                  )}
+          </button>
+        </div>
+      )}
       <p className="fine show-credits">
         {scriptModel
           ? say(
@@ -321,6 +378,13 @@ export function ShowPlayer({
               language,
               ` · cover drawn by Meta ${coverModel}`,
               ` · 封面由 Meta ${coverModel} 绘制`,
+            )
+          : ""}
+        {illustrated
+          ? say(
+              language,
+              ` · slide illustrations drawn by Meta ${coverModel ?? "muse-image-1.0"}`,
+              ` · 幻灯片插图由 Meta ${coverModel ?? "muse-image-1.0"} 绘制`,
             )
           : ""}
         {t(language, "ShowPlayer.voiceByYourBrowserNot")}

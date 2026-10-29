@@ -31,3 +31,18 @@ export function readShow(result,lesson){
  if(slides[0].kind!=='cover'||slides.filter(s=>s.kind==='cover').length!==1||slides.at(-1).kind!=='takeaway'||!slides.some(s=>s.kind==='experiment'))throw new Error('Invalid show order.');
  return {version:1,slides,coverPrompt:a.coverPrompt.trim()};
 }
+// A prompt for Muse Image, built by the server from the checked show script rather
+// than sent by the browser: one slide's English heading and narration as the scene,
+// the show's cover prompt as the setting, in the same calm editorial style as the
+// cover. `direction` is optional creator guidance, plain text and short. Slide null
+// redraws the cover from its own prompt.
+export const ILLUSTRATION_STYLE='A calm, flat, editorial illustration, no text, no numbers, no diagrams, no people’s faces, muted green and paper tones.';
+const clip=(s,max)=>{const v=String(s??'').replace(/\s+/g,' ').trim();return v.length>max?v.slice(0,max-1).trimEnd()+'…':v;};
+export function illustrationPrompt(show,slide,direction=''){
+ if(typeof direction!=='string'||direction.length>300||/[<>{}[\]\\]/.test(direction))throw new Error('Invalid direction.');
+ const note=direction.trim()?` Creator note: ${clip(direction,300)}`:'';
+ if(slide===null||slide===undefined)return clip(`${show.coverPrompt}${note}`,1000);
+ if(!Number.isInteger(slide)||slide<0||slide>=show.slides.length)throw new Error('Invalid slide.');
+ const s=show.slides[slide];
+ return clip(`${ILLUSTRATION_STYLE} Scene: ${clip(s.heading.en,80)}. ${clip(s.narration.en,320)} Setting: ${clip(show.coverPrompt,300)}${note}`,1000);
+}

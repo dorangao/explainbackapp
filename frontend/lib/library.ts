@@ -10,11 +10,19 @@ export type SavedSummary = {
   kind: LessonKind;
   hasShow: boolean;
   model: string | null;
+  // Image URLs kept in Blob storage; null when none was saved.
+  cover: string | null;
+  sketch: string | null;
   shared: boolean;
   createdAt: number;
   updatedAt: number;
 };
-export type SavedLesson = SavedSummary & { lesson: Lesson; show: Show | null };
+export type SavedLesson = SavedSummary & {
+  lesson: Lesson;
+  show: Show | null;
+  coverModel: string | null;
+  illustrations: Record<string, string>;
+};
 export const sharedIdFromHash = (hash: string): string | null =>
   /^#shared:([a-f0-9]{16})$/.exec(hash ?? "")?.[1] ?? null;
 export const sharedUrl = (id: string) =>
@@ -34,6 +42,10 @@ export const saveLesson = (
     lesson: Lesson;
     show?: Show | null;
     model?: string | null;
+    cover?: string | null;
+    coverModel?: string | null;
+    illustrations?: Record<string, string> | null;
+    sketch?: string | null;
   },
 ) => post<SavedSummary>("/api/lessons", body);
 export const shareLesson = (post: Post, id: string, shared: boolean) =>

@@ -18,6 +18,7 @@ export function RequestSummary({
     guide: t(language, "RevisionSummary.explainedThisResult"),
     tryout: t(language, "RevisionSummary.triedThisLessonAs"),
     show: t(language, "RevisionSummary.wroteTheShowFor"),
+    illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
   }[metrics.mode];
   const tokens =

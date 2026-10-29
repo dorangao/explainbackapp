@@ -456,6 +456,10 @@ export const messages = {
     en: "WHAT MUSE CHANGED",
     zh: "MUSE 改了什么",
   },
+  "RevisionSummary.drewAnIllustrationFor": {
+    en: "drew an illustration for",
+    zh: "绘制了一张插图，用于",
+  },
   "RevisionSummary.wroteTheShowFor": {
     en: "wrote the show for this lesson",
     zh: "为本课撰写了讲解秀",
@@ -480,6 +484,22 @@ export const messages = {
   "ShowPlayer.previousSlide": { en: "Previous slide", zh: "上一张" },
   "ShowPlayer.takeaway": { en: "TAKEAWAY", zh: "要点" },
   "ShowPlayer.theClaim": { en: "THE CLAIM", zh: "观点" },
+  "ShowPlayer.illustrateSlide": {
+    en: "Illustrate this slide",
+    zh: "为这张幻灯片配图",
+  },
+  "ShowPlayer.redrawSlide": { en: "Redraw illustration", zh: "重绘插图" },
+  "ShowPlayer.drawCover": { en: "Draw a cover", zh: "绘制封面" },
+  "ShowPlayer.redrawCover": { en: "Redraw cover", zh: "重绘封面" },
+  "ShowPlayer.drawing": { en: "Drawing…", zh: "绘制中…" },
+  "ShowPlayer.illustrationNote": {
+    en: "Optional note for the illustrator, e.g. warm morning light",
+    zh: "给插画的可选提示，例如：温暖的晨光",
+  },
+  "ShowPlayer.illustrationNoteLabel": {
+    en: "Note for the illustrator",
+    zh: "给插画的提示",
+  },
   "ShowPlayer.voiceByYourBrowserNot": {
     en: " · voice by your browser, not a Meta model · values come from the checked lesson",
     zh: " · 朗读由浏览器完成，不是 Meta 模型 · 数值来自经核验的课程",
@@ -634,6 +654,10 @@ export const messages = {
   "Studio.theRequestCouldNotBe": {
     en: "The request could not be completed or validated. Your draft is preserved. Please retry explicitly.",
     zh: "请求未完成或未通过验证，草稿已保留，请手动重试。",
+  },
+  "Studio.illustrationReady": {
+    en: "The illustration is ready. Save the lesson to keep it.",
+    zh: "插图已完成。保存课程即可保留。",
   },
   "Studio.theShowIsReady": {
     en: "The show is ready. Watch it, or present the lesson as usual.",
@@ -800,6 +824,10 @@ export const messages = {
   },
   "Library.deleted": { en: "Lesson deleted.", zh: "课程已删除。" },
   "Library.withShow": { en: "with show", zh: "含讲解秀" },
+  "Library.imagesNotKept": {
+    en: "Images are not kept on this server; the lesson and its show script were saved.",
+    zh: "此服务器不保存图片；课程及其讲解秀脚本已保存。",
+  },
   "Library.open": { en: "open now", zh: "当前打开" },
   "Library.updated": { en: "Updated", zh: "更新于" },
   "Library.openLesson": { en: "Open", zh: "打开" },

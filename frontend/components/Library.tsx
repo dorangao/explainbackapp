@@ -217,6 +217,16 @@ export function LessonShelf({
                 item.id === currentId ? "shelf-item current" : "shelf-item"
               }
             >
+              {item.cover && (
+                <img
+                  className="shelf-thumb"
+                  src={item.cover}
+                  alt=""
+                  width={120}
+                  height={80}
+                  loading="lazy"
+                />
+              )}
               <div className="shelf-main">
                 <span className="lesson-kind">
                   {kindLabel(language, item.kind)}
