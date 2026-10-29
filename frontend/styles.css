@@ -2634,3 +2634,97 @@ body {
 .spotlight-result {
   margin: 0;
 }
+/* The judge path: the six-step reviewer tour on the Create page. */
+.judge-path {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin: 0 0 28px;
+  background: var(--surface);
+}
+.judge-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.judge-head h3 {
+  margin: 4px 0 6px;
+  font-size: 1.15rem;
+  letter-spacing: -0.3px;
+}
+.judge-head .fine {
+  margin: 0;
+  max-width: 52ch;
+}
+.judge-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.judge-steps {
+  list-style: none;
+  margin: 16px 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.judge-steps li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--light);
+}
+.judge-steps li[data-state="done"] {
+  background: #e6f0e9;
+}
+.judge-steps li[data-state="unavailable"] {
+  opacity: 0.6;
+}
+.judge-steps strong {
+  display: block;
+  font-size: 0.9rem;
+}
+.judge-steps small {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.judge-mark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.75rem;
+  background: #fff;
+  color: var(--accent);
+  border: 1px solid #cadbd0;
+}
+li[data-state="done"] .judge-mark {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.judge-cost {
+  font-size: 0.74rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.judge-foot {
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .judge-steps li {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+  .judge-cost,
+  .judge-steps li .text-button {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

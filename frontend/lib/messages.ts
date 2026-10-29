@@ -714,6 +714,66 @@ export const messages = {
     en: "What would you like to understand?",
     zh: "你想弄明白什么？",
   },
+  "JudgePath.eyebrow": { en: "FOR REVIEWERS", zh: "评审路径" },
+  "JudgePath.title": { en: "The six-minute tour", zh: "六步速览" },
+  "JudgePath.intro": {
+    en: "Draft, try, narrate, illustrate, save, share: the whole creation story in order. Results you already have are reused, so repeating the tour costs nothing.",
+    zh: "起草、试学、讲解、配图、保存、分享：按顺序走完整个创作过程。已有的结果会被复用，重复一遍不花费请求。",
+  },
+  "JudgePath.draft": { en: "Draft a lesson", zh: "起草课程" },
+  "JudgePath.draftDetail": {
+    en: "Muse drafts the cooling-coffee model from the starter question.",
+    zh: "Muse 根据起始问题起草咖啡冷却模型。",
+  },
+  "JudgePath.tryout": { en: "Try it as a learner", zh: "以学习者身份试学" },
+  "JudgePath.tryoutDetail": {
+    en: "Spark predicts, operates and explains; its answers are checked.",
+    zh: "Spark 预测、操作并解释，答案会被核对。",
+  },
+  "JudgePath.show": { en: "Make the narrated show", zh: "生成讲解秀" },
+  "JudgePath.showDetail": {
+    en: "A bilingual slide script with a Muse Image cover.",
+    zh: "双语幻灯片脚本，附 Muse Image 封面。",
+  },
+  "JudgePath.illustrate": {
+    en: "Illustrate one slide",
+    zh: "为一张幻灯片配图",
+  },
+  "JudgePath.illustrateDetail": {
+    en: "Muse Image draws the claim slide from the checked script.",
+    zh: "Muse Image 依据核验过的脚本为观点页绘图。",
+  },
+  "JudgePath.save": { en: "Save to your lessons", zh: "保存到我的课程" },
+  "JudgePath.saveDetail": {
+    en: "Keeps the lesson, show and images on your shelf.",
+    zh: "将课程、讲解秀和图片保存到书架。",
+  },
+  "JudgePath.share": { en: "Share by link", zh: "通过链接分享" },
+  "JudgePath.shareDetail": {
+    en: "Anyone with the link can open it, signed out.",
+    zh: "任何人无需登录即可通过链接打开。",
+  },
+  "JudgePath.runNext": { en: "Run next", zh: "执行下一步" },
+  "JudgePath.runAll": { en: "Run all remaining", zh: "执行全部剩余步骤" },
+  "JudgePath.running": { en: "Running…", zh: "执行中…" },
+  "JudgePath.run": { en: "Run", zh: "执行" },
+  "JudgePath.allDone": { en: "Tour complete", zh: "已全部完成" },
+  "JudgePath.done": { en: "Done", zh: "已完成" },
+  "JudgePath.unavailable": { en: "Not on this server", zh: "此服务器不可用" },
+  "JudgePath.oneRequest": { en: "1 request", zh: "1 次请求" },
+  "JudgePath.noRequest": { en: "No request", zh: "不花费请求" },
+  "JudgePath.complete": {
+    en: "All steps done. Open the share link in a private window to see what a visitor sees.",
+    zh: "全部完成。在隐私窗口打开分享链接，即可看到访客视角。",
+  },
+  "JudgePath.remainingCost": {
+    en: "Requests the remaining steps will make",
+    zh: "剩余步骤将花费的请求数",
+  },
+  "JudgePath.usedSoFar": {
+    en: "Used in this session",
+    zh: "本次会话已用",
+  },
   "Studio.whatWouldYouLikeTo2": {
     en: "What would you like to explore?",
     zh: "你想探索什么？",

@@ -24,7 +24,9 @@ test("authored edits survive navigation through the library, a gallery lesson an
       name: "Find a question. Try it for yourself.",
     }),
   ).toBeVisible();
-  await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
+  await page
+    .getByRole("link", { name: /Open lesson: Newton cooling/i })
+    .click();
   await expect(page.locator(".lesson-player:visible")).toBeVisible();
   await page.getByRole("link", { name: "Create", exact: true }).click();
   await expect(
@@ -36,7 +38,9 @@ test("Back, Forward and unknown gallery links synchronize the player", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
+  await page
+    .getByRole("link", { name: /Open lesson: Newton cooling/i })
+    .click();
   await expect(page.locator(".lesson-player")).toBeVisible();
   await page.goBack();
   await expect(
