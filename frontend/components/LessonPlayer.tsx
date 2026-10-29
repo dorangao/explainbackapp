@@ -13,6 +13,9 @@ import type { Recording } from "../lib/recorder";
 import type { Feedback, Language, Player } from "../lib/types";
 import { say } from "../lib/types";
 import { formatDemoNumber } from "../lib/shared";
+import { guideKey, paceFactor, paces } from "../lib/studio-cache";
+import type { Cached, Pace } from "../lib/studio-cache";
+import { CacheNote, actionLabel } from "./CacheNote";
 import { measureQuantum, sampleQuantum } from "../../public/quantum.mjs";
 import { ExperimentView } from "./ExperimentView";
 const measure = measureQuantum as (state: unknown) => {
@@ -37,6 +40,12 @@ export function LessonPlayer({
   onClearFeedback,
   onBack,
   onLibrary,
+  guideCache = null,
+  explanations,
+  onExplanations,
+  pace = "off",
+  onPace,
+  onState,
 }: {
   player: Player;
   language: Language;
@@ -50,6 +59,17 @@ export function LessonPlayer({
   onClearFeedback: () => void;
   onBack: () => void;
   onLibrary: () => void;
+  // The remembered Muse feedback for the current chapter, shown without a request while
+  // the explanation and experiment are unchanged.
+  guideCache?: Cached<Feedback> | null;
+  // The learner's own explanations per chapter, remembered with the draft.
+  explanations?: Record<string, string>;
+  onExplanations?: (value: Record<string, string>) => void;
+  // Guided replay: the lesson advances on its own at this pace; "off" is manual.
+  pace?: Pace;
+  onPace?: (pace: Pace) => void;
+  // Reports the engine's state after each change so the draft memory can keep it.
+  onState?: (state: Player["state"]) => void;
 }) {
   const formId = useId();
   const [, update] = useReducer((n) => n + 1, 0),
@@ -63,11 +83,22 @@ export function LessonPlayer({
     } | null>(null),
     [counts, setCounts] = useState<number[] | null>(null),
     // The learner's own explanation, kept per chapter so a replay does not erase it.
-    [own, setOwn] = useState<Record<number, string>>({}),
+    [own, setOwnState] = useState<Record<string, string>>(
+      () => explanations ?? {},
+    ),
+    // Guided replay: paused by any manual action; the bar shows the current step's timer.
+    [paused, setPaused] = useState(pace !== "off"),
+    [bar, setBar] = useState(0),
     // Spoken explanation: microphone → WAV → Muse Voice Transcribe → the textarea.
     [voice, setVoice] = useState<"idle" | "recording" | "transcribing">("idle"),
     [voiceNote, setVoiceNote] = useState("");
   const recording = useRef<Recording | null>(null);
+  const onExplanationsRef = useRef(onExplanations);
+  onExplanationsRef.current = onExplanations;
+  const setOwn = useCallback((next: Record<string, string>) => {
+    setOwnState(next);
+    onExplanationsRef.current?.(next);
+  }, []);
   useEffect(
     () => () => {
       void recording.current?.stop().catch(() => {});
@@ -89,15 +120,10 @@ export function LessonPlayer({
         }
         const text = await onTranscribe(wav);
         if (text) {
-          setOwn((previous) => {
-            const before = previous[chapterIndex]?.trimEnd();
-            return {
-              ...previous,
-              [chapterIndex]: (before ? `${before} ${text}` : text).slice(
-                0,
-                700,
-              ),
-            };
+          const before = ownRef.current[chapterIndex]?.trimEnd();
+          setOwn({
+            ...ownRef.current,
+            [chapterIndex]: (before ? `${before} ${text}` : text).slice(0, 700),
           });
           setVoiceNote(t(language, "LessonPlayer.transcribedByMuseVoiceEdit"));
         } else setVoiceNote("");
@@ -105,7 +131,7 @@ export function LessonPlayer({
         setVoice("idle");
       }
     },
-    [language, onTranscribe],
+    [language, onTranscribe, setOwn],
   );
   const startVoice = useCallback(
     async (chapterIndex: number) => {
@@ -139,6 +165,24 @@ export function LessonPlayer({
   );
   const chapter = player.lesson.chapters[state.chapter],
     ownText = own[state.chapter] ?? "";
+  const ownRef = useRef(own);
+  ownRef.current = own;
+  // The remembered feedback is current only while its inputs still fingerprint the same.
+  const currentGuideKey = guideKey(player, language, ownText);
+  const cachedFeedback =
+    guideCache && !feedback
+      ? { at: guideCache.at, stale: guideCache.key !== currentGuideKey }
+      : null;
+  const shownFeedback =
+    feedback ??
+    (cachedFeedback && !cachedFeedback.stale ? guideCache!.reply : null);
+  const stateKey = `${state.chapter}/${state.stage}/${state.prediction}/${state.progress}/${state.transfer}/${experimentKey}`;
+  const onStateRef = useRef(onState);
+  onStateRef.current = onState;
+  useEffect(() => {
+    onStateRef.current?.(player.state);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stateKey summarises the mutable player state
+  }, [player, stateKey]);
   // Pause when the lesson is hidden, busy or re-localised; playback resumes only on request.
   const pauseKey = `${language}/${visible}/${busy}`;
   const lastPause = useRef(pauseKey);
@@ -153,13 +197,15 @@ export function LessonPlayer({
     document.addEventListener("visibilitychange", hide);
     return () => document.removeEventListener("visibilitychange", hide);
   }, []);
+  const factor = paceFactor(pace);
   useEffect(() => {
     if (!playing || busy || !visible || state.stage !== "experiment") return;
     let frame = 0,
       last = 0,
       progress = player.state.progress;
     const tick = (now: number) => {
-      if (last) progress = Math.min(1, progress + (now - last) / 6000);
+      if (last)
+        progress = Math.min(1, progress + (now - last) / (6000 * factor));
       last = now;
       player.scrub(progress);
       update();
@@ -168,7 +214,11 @@ export function LessonPlayer({
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [playing, busy, visible, player, state.stage]);
+  }, [playing, busy, visible, player, state.stage, factor]);
+  // Any manual action takes over from the guided replay until Resume.
+  const manual = () => {
+    if (pace !== "off" && !paused) setPaused(true);
+  };
   const resetFeedback = () => {
     onClearFeedback();
     setResult(null);
@@ -177,11 +227,67 @@ export function LessonPlayer({
     setNotice("");
   };
   const act = (fn: () => void) => {
+    manual();
     setPlaying(false);
     resetFeedback();
     fn();
     update();
   };
+  // Guided replay: predict → experiment (auto-play) → explain → transfer, each after a
+  // dwell scaled by the pace. It never sends a model request; the transfer answer is the
+  // lesson's own, revealed so a presenter can keep going.
+  const guided = pace !== "off" && !paused && !busy && visible;
+  const stage = state.stage,
+    progressDone = state.progress === 1;
+  useEffect(() => {
+    if (!guided) return;
+    if (stage === "complete") {
+      setPaused(true);
+      return;
+    }
+    if (stage === "experiment" && !progressDone) {
+      setPlaying(true);
+      setBar(0);
+      return;
+    }
+    const dwell =
+      (stage === "predict"
+        ? 4000
+        : stage === "experiment"
+          ? 2500
+          : stage === "explain"
+            ? 8000
+            : 6000) * factor;
+    const started = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      setBar(Math.min(1, (now - started) / dwell));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    const timer = window.setTimeout(() => {
+      cancelAnimationFrame(frame);
+      if (stage === "predict" && !player.state.prediction)
+        player.predict("unsure");
+      if (stage === "transfer" && player.state.transfer !== true) {
+        const answer = String(player.experiment().transfer.answer);
+        setAnswer(answer);
+        setResult(player.check(answer));
+      }
+      onClearFeedback();
+      player.next();
+      setBar(0);
+      update();
+    }, dwell);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stage and progressDone summarise the mutable player state
+  }, [guided, stage, progressDone, factor, player]);
+  useEffect(() => {
+    if (pace === "off") setBar(0);
+  }, [pace]);
   const stages = {
     predict: t(language, "LessonPlayer.makeAPrediction"),
     experiment: t(language, "LessonPlayer.runTheExperiment"),
@@ -217,6 +323,36 @@ export function LessonPlayer({
           : state.stage === "explain"
             ? t(language, "LessonPlayer.tryAFreshCase2")
             : t(language, "LessonPlayer.nextChapter");
+  const nextRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!visible) return;
+    const handler = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target &&
+        ["INPUT", "TEXTAREA", "SELECT", "BUTTON"].includes(target.tagName);
+      if (event.key === " " && pace !== "off" && !typing) {
+        event.preventDefault();
+        setPaused((p) => !p);
+      } else if (event.key === "ArrowRight" && !typing) nextRef.current();
+      else if (event.key === "ArrowLeft" && !typing) {
+        if (!["predict", "complete"].includes(player.state.stage))
+          act(() => player.replay());
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- act is recreated each render; the ref carries the latest next
+  }, [visible, pace, player]);
+  nextRef.current = () => {
+    if (nextDisabled) return;
+    act(() => {
+      if (player.state.stage === "complete") player.restart();
+      else player.next();
+    });
+    setAnswer("");
+    heading.current?.focus();
+  };
   function setInput(id: string, value: number) {
     try {
       act(() => player.input(id, value));
@@ -242,6 +378,58 @@ export function LessonPlayer({
         <button className="text-button" onClick={onBack} disabled={busy}>
           {t(language, "LessonPlayer.lessonOverview")}
         </button>
+      </div>
+      <div className="replay-bar-row" data-pace={pace}>
+        <label className="replay-pace">
+          {t(language, "Replay.guidedReplay")}
+          <select
+            value={pace}
+            disabled={busy}
+            onChange={(event) => {
+              const next = event.target.value as Pace;
+              setPaused(false);
+              onPace?.(next);
+            }}
+          >
+            {paces.map((value) => (
+              <option key={value} value={value}>
+                {t(language, `Replay.${value}` as const)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {pace !== "off" && (
+          <>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy || state.stage === "complete"}
+              aria-pressed={!paused}
+              onClick={() => setPaused((p) => !p)}
+            >
+              {paused
+                ? t(language, "Replay.resume")
+                : t(language, "Replay.pause")}
+            </button>
+            <progress
+              className="replay-progress"
+              aria-label={t(language, "Replay.progress")}
+              max={1}
+              value={
+                state.stage === "experiment" && !progressDone
+                  ? state.progress
+                  : bar
+              }
+            />
+            <span className="fine" role="status">
+              {state.stage === "complete"
+                ? t(language, "Replay.finished")
+                : paused
+                  ? t(language, "Replay.paused")
+                  : t(language, "Replay.running")}
+            </span>
+          </>
+        )}
       </div>
       <div className="player-heading">
         <p className="eyebrow">
@@ -292,6 +480,7 @@ export function LessonPlayer({
                     aria-pressed={state.prediction === value}
                     disabled={busy}
                     onClick={() => {
+                      manual();
                       player.predict(value);
                       update();
                     }}
@@ -337,6 +526,7 @@ export function LessonPlayer({
                   className="secondary"
                   disabled={busy || state.stage !== "experiment"}
                   onClick={() => {
+                    manual();
                     if (playing) setPlaying(false);
                     else {
                       if (state.progress === 1) player.scrub(0);
@@ -450,9 +640,10 @@ export function LessonPlayer({
                   maxLength={700}
                   disabled={busy}
                   value={ownText}
-                  onChange={(event) =>
-                    setOwn({ ...own, [state.chapter]: event.target.value })
-                  }
+                  onChange={(event) => {
+                    manual();
+                    setOwn({ ...own, [state.chapter]: event.target.value });
+                  }}
                 />
                 {canAsk && onTranscribe && (
                   <div className="explain-back-voice">
@@ -500,9 +691,13 @@ export function LessonPlayer({
                     >
                       {busy
                         ? t(language, "LessonPlayer.museIsWorking")
-                        : t(
+                        : actionLabel(
                             language,
-                            "LessonPlayer.checkMyExplanationWithMuse",
+                            t(
+                              language,
+                              "LessonPlayer.checkMyExplanationWithMuse",
+                            ),
+                            cachedFeedback,
                           )}
                     </button>
                   ) : (
@@ -515,6 +710,12 @@ export function LessonPlayer({
                   )}
                   <span className="fine">{ownText.length}/700</span>
                 </div>
+                <CacheNote cache={cachedFeedback} language={language} />
+                {cachedFeedback?.stale && (
+                  <p className="fine">
+                    {t(language, "Cache.earlierFeedbackOutOfDate")}
+                  </p>
+                )}
               </div>
               <p className="eyebrow">
                 {t(language, "LessonPlayer.authoredExplanationReviewable")}
@@ -535,22 +736,25 @@ export function LessonPlayer({
                   )}
                 </button>
               )}
-              {feedback && (
+              {shownFeedback && (
                 <div className="model-feedback">
-                  {feedback.verdict && (
+                  {shownFeedback.verdict && (
                     <p>
-                      <span className="verdict" data-verdict={feedback.verdict}>
-                        {t(language, verdictKeys[feedback.verdict])}
+                      <span
+                        className="verdict"
+                        data-verdict={shownFeedback.verdict}
+                      >
+                        {t(language, verdictKeys[shownFeedback.verdict])}
                       </span>
                     </p>
                   )}
-                  <p>{feedback.explanation}</p>
-                  {feedback.followUp && (
+                  <p>{shownFeedback.explanation}</p>
+                  {shownFeedback.followUp && (
                     <p className="follow-up">
                       <strong>
                         {t(language, "LessonPlayer.followUpQuestion")}:
                       </strong>{" "}
-                      {feedback.followUp}
+                      {shownFeedback.followUp}
                     </p>
                   )}
                   <button
@@ -558,9 +762,9 @@ export function LessonPlayer({
                     disabled={busy}
                     onClick={() =>
                       act(() => {
-                        if (feedback.nextAction === "compare")
+                        if (shownFeedback.nextAction === "compare")
                           player.variant(1 - state.variant);
-                        else if (feedback.nextAction === "replay")
+                        else if (shownFeedback.nextAction === "replay")
                           player.replay();
                         else player.next();
                       })
@@ -572,12 +776,12 @@ export function LessonPlayer({
                         compare: "Compare a preset",
                         replay: "Replay experiment",
                         transfer: "Try the transfer question",
-                      }[feedback.nextAction],
+                      }[shownFeedback.nextAction],
                       {
                         compare: "比较另一组设置",
                         replay: "重播实验",
                         transfer: "尝试迁移题",
-                      }[feedback.nextAction],
+                      }[shownFeedback.nextAction],
                     )}{" "}
                     →
                   </button>
@@ -596,6 +800,7 @@ export function LessonPlayer({
                       disabled={busy}
                       key={i}
                       onClick={() => {
+                        manual();
                         setResult(player.check(String(i)));
                         update();
                       }}
@@ -608,6 +813,7 @@ export function LessonPlayer({
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
+                    manual();
                     setResult(player.check(answer) ?? "invalid");
                     update();
                   }}
@@ -670,12 +876,7 @@ export function LessonPlayer({
             <button
               disabled={nextDisabled}
               onClick={() => {
-                act(() => {
-                  if (state.stage === "complete") player.restart();
-                  else player.next();
-                });
-                setAnswer("");
-                heading.current?.focus();
+                nextRef.current();
               }}
             >
               {nextLabel}

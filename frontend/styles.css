@@ -2222,3 +2222,63 @@ body {
     animation: none;
   }
 }
+/* Remembered results and guided replay */
+.cache-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+.cache-note[data-stale="true"] {
+  color: #8a4b1f;
+}
+.cache-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+  margin: 6px 0 10px;
+}
+.cache-row .cache-note {
+  margin: 0;
+}
+.replay-bar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin: -10px 0 22px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface, #f7f5ef);
+}
+.replay-pace {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.replay-pace select {
+  width: auto;
+}
+.replay-progress {
+  flex: 1 1 160px;
+  min-width: 120px;
+  height: 8px;
+  accent-color: #116d60;
+}
+.show-controls .show-pace {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+.show-controls .show-pace select {
+  width: auto;
+  padding: 4px 8px;
+}
+.show-controls .replay-progress {
+  flex: 1 1 100%;
+  order: 10;
+  accent-color: #a9c6b4;
+}

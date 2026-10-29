@@ -143,3 +143,39 @@ describe("ShowPlayer", () => {
     expect(spoken).toHaveLength(2);
   });
 });
+
+describe("ShowPlayer pace", () => {
+  it("pauses playback on a manual step, reports the pace and shows progress", () => {
+    const onPace = vi.fn();
+    render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        language="en"
+        scriptModel={null}
+        coverModel={null}
+        onClose={() => {}}
+        pace="fast"
+        onPace={onPace}
+      />,
+    );
+    expect((screen.getByLabelText(/Pace/) as HTMLSelectElement).value).toBe(
+      "fast",
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Play$/ }));
+    expect(spoken).toHaveLength(1);
+    expect(spoken[0].text).toBe("Spoken cover.");
+    fireEvent.click(screen.getByRole("button", { name: /Next slide/ }));
+    expect(screen.getByText("Spoken claim.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Play$/ })).toBeTruthy();
+    expect(spoken).toHaveLength(1);
+    fireEvent.change(screen.getByLabelText(/Pace/), {
+      target: { value: "slow" },
+    });
+    expect(onPace).toHaveBeenCalledWith("slow");
+    expect(
+      (screen.getByLabelText(/Replay progress/) as HTMLProgressElement).value,
+    ).toBeCloseTo(1 / 5, 5);
+  });
+});

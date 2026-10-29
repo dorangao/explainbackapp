@@ -4,6 +4,8 @@ import type { Language, Lesson, Show } from "../lib/types";
 import { say } from "../lib/types";
 import { chapterExperiment, formatDemoNumber as fmt } from "../lib/shared";
 import { ExperimentView } from "./ExperimentView";
+import { paceFactor } from "../lib/studio-cache";
+import type { Pace } from "../lib/studio-cache";
 
 const speechAvailable = () =>
   typeof window !== "undefined" &&
@@ -23,6 +25,8 @@ export function ShowPlayer({
   scriptModel,
   coverModel,
   onClose,
+  pace: paceProp,
+  onPace,
 }: {
   lesson: Lesson;
   show: Show;
@@ -31,11 +35,23 @@ export function ShowPlayer({
   scriptModel: string | null;
   coverModel: string | null;
   onClose: () => void;
+  // Replay pace shared with the lesson player; "off" plays at the normal pace.
+  pace?: Pace;
+  onPace?: (pace: Pace) => void;
 }) {
   const [index, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [voice, setVoice] = useState(() => speechAvailable()),
-    [progress, setProgress] = useState(0);
+    [progress, setProgress] = useState(0),
+    [ownPace, setOwnPace] = useState<Pace>("normal"),
+    // How far the current slide's narration time has run while playing.
+    [bar, setBar] = useState(0);
+  const pace = paceProp && paceProp !== "off" ? paceProp : ownPace;
+  const factor = paceFactor(pace);
+  const setPace = (next: Pace) => {
+    setOwnPace(next);
+    onPace?.(next);
+  };
   const slide = show.slides[index],
     last = index === show.slides.length - 1;
   const chapter = lesson.chapters[slide.chapter] ?? lesson.chapters[0];
@@ -47,9 +63,11 @@ export function ShowPlayer({
   const stop = useCallback(() => {
     if (speechAvailable()) window.speechSynthesis.cancel();
   }, []);
+  // A manual step takes over: playback pauses until Play is pressed again.
   const go = useCallback(
     (next: number) => {
       stop();
+      setPlaying(false);
       setIndex(Math.max(0, Math.min(show.slides.length - 1, next)));
     },
     [show.slides.length, stop],
@@ -73,24 +91,49 @@ export function ShowPlayer({
           v.lang.toLowerCase().startsWith(language === "zh" ? "zh" : "en"),
         );
       if (match) utterance.voice = match;
-      utterance.rate = 0.95;
+      utterance.rate = Math.min(2, Math.max(0.5, 0.95 / factor));
       utterance.onend = advance;
       utterance.onerror = () => {
-        timer = window.setTimeout(advance, readingMs(narration));
+        timer = window.setTimeout(advance, readingMs(narration) * factor);
       };
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
-    } else timer = window.setTimeout(advance, readingMs(narration));
+    } else timer = window.setTimeout(advance, readingMs(narration) * factor);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       if (speechAvailable()) window.speechSynthesis.cancel();
     };
-  }, [playing, index, voice, narration, language, last, show.slides.length]);
+  }, [
+    playing,
+    index,
+    voice,
+    narration,
+    language,
+    last,
+    show.slides.length,
+    factor,
+  ]);
+  // The progress bar follows the estimated narration time of the current slide.
+  useEffect(() => {
+    if (!playing) {
+      setBar(0);
+      return;
+    }
+    const duration = readingMs(narration) * factor,
+      started = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      setBar(Math.min(1, (now - started) / duration));
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, index, narration, factor]);
   // Experiment slides sweep the parameter once, over roughly the narration time.
   useEffect(() => {
     if (slide.kind !== "experiment") return;
-    const duration = Math.max(5000, readingMs(narration));
+    const duration = Math.max(5000, readingMs(narration) * factor);
     let frame = 0;
     const started = performance.now();
     const tick = (now: number) => {
@@ -101,7 +144,7 @@ export function ShowPlayer({
     setProgress(0);
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [slide.kind, index, narration]);
+  }, [slide.kind, index, narration, factor]);
   useEffect(() => stop, [stop]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -233,6 +276,25 @@ export function ShowPlayer({
         <span className="show-counter">
           {index + 1} / {show.slides.length}
         </span>
+        <label className="show-pace">
+          {t(language, "Replay.pace")}
+          <select
+            value={pace}
+            onChange={(event) => setPace(event.target.value as Pace)}
+          >
+            {(["slow", "normal", "fast"] as const).map((value) => (
+              <option key={value} value={value}>
+                {t(language, `Replay.${value}` as const)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <progress
+          className="replay-progress"
+          aria-label={t(language, "Replay.progress")}
+          max={1}
+          value={(index + bar) / show.slides.length}
+        />
         <label className="show-voice">
           <input
             type="checkbox"

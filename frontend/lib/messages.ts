@@ -680,6 +680,73 @@ export const messages = {
     en: "Image attached. It will be sent only when you create a lesson.",
     zh: "图片已附加，仅在创建课程时发送。",
   },
+  "Cache.cachedResult": { en: "Cached result", zh: "已缓存结果" },
+  "Cache.unchangedSince": {
+    en: "Inputs unchanged since",
+    zh: "输入自以下时间起未变",
+  },
+  "Cache.changedSince": {
+    en: "Inputs changed since the last response at",
+    zh: "输入已更改，上次回应时间",
+  },
+  "Cache.noRequestWasMade": {
+    en: "No model request was made.",
+    zh: "未发出模型请求。",
+  },
+  "Cache.reRun": { en: "Re-run", zh: "重新运行" },
+  "Cache.sendChangesToMuse": {
+    en: "Send changes to Muse",
+    zh: "将更改发送给 Muse",
+  },
+  "Cache.draftedByMuse": {
+    en: "Muse drafted this lesson",
+    zh: "Muse 起草了这堂课",
+  },
+  "Cache.reRunCreate": {
+    en: "Re-run · draft again from the same question",
+    zh: "重新运行 · 用同一问题再次起草",
+  },
+  "Cache.earlierFeedbackOutOfDate": {
+    en: "Your explanation or the experiment changed, so the earlier feedback is out of date.",
+    zh: "你的解释或实验已更改，之前的反馈已过时。",
+  },
+  "Studio.restoredYourLastLesson": {
+    en: "Restored your last lesson from this browser. No model request was made.",
+    zh: "已从此浏览器恢复上一堂课，未发出模型请求。",
+  },
+  "Studio.startedANewLesson": {
+    en: "Started a new lesson. The previous draft was removed from this browser.",
+    zh: "已开始新课程，之前的草稿已从此浏览器移除。",
+  },
+  "DraftReview.startANewLesson": {
+    en: "Start a new lesson",
+    zh: "开始新课程",
+  },
+  "DraftReview.thisDraftIsRemembered": {
+    en: "This draft is remembered in this browser only. Export JSON to keep a copy.",
+    zh: "此草稿仅保存在此浏览器中，导出 JSON 可保留副本。",
+  },
+  "Replay.guidedReplay": { en: "Guided replay", zh: "引导回放" },
+  "Replay.pace": { en: "Pace", zh: "节奏" },
+  "Replay.off": { en: "Off", zh: "关闭" },
+  "Replay.slow": { en: "Slow", zh: "慢" },
+  "Replay.normal": { en: "Normal", zh: "正常" },
+  "Replay.fast": { en: "Fast", zh: "快" },
+  "Replay.pause": { en: "Pause replay", zh: "暂停回放" },
+  "Replay.resume": { en: "Resume replay", zh: "继续回放" },
+  "Replay.paused": {
+    en: "Paused. Any click takes over; Resume continues the guided replay.",
+    zh: "已暂停。任何点击都会接管；点击“继续回放”以继续。",
+  },
+  "Replay.running": {
+    en: "Advancing on its own. Space pauses, arrows step, any click takes over.",
+    zh: "正在自动推进。空格暂停，方向键单步，任何点击都会接管。",
+  },
+  "Replay.progress": { en: "Replay progress", zh: "回放进度" },
+  "Replay.finished": {
+    en: "Guided replay finished.",
+    zh: "引导回放已结束。",
+  },
 } as const;
 export type MessageKey = keyof typeof messages;
 export const t = (language: Language, key: MessageKey): string =>

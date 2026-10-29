@@ -32,6 +32,16 @@ import {
 import { blobToBase64 } from "../lib/recorder";
 import { useProviderSession } from "../hooks/useProviderSession";
 import { useImageAttachment } from "../hooks/useImageAttachment";
+import { fingerprint, guideKey } from "../lib/studio-cache";
+import type { Cached, Pace } from "../lib/studio-cache";
+import {
+  clearStudio,
+  hasStoredStudio,
+  loadStudio,
+  restorePlayer,
+  saveStudio,
+} from "../lib/studio-store";
+import type { CacheState } from "./CacheNote";
 import { Gallery } from "./Gallery";
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
@@ -46,6 +56,9 @@ const ProviderConsole = lazy(() =>
 );
 
 type Revision = { before: Lesson; after: Lesson };
+type Stamp = { at: number; key: string };
+const cacheState = (stamp: Stamp | null, key: string): CacheState =>
+  stamp ? { at: stamp.at, stale: stamp.key !== key } : null;
 
 export function Studio({
   language,
@@ -82,8 +95,16 @@ export function Studio({
     [message, setMessage] = useState(""),
     [feedback, setFeedback] = useState<Feedback | null>(null),
     [revision, setRevision] = useState<Revision | null>(null),
-    [tryout, setTryout] = useState<TryoutReply | null>(null),
-    [show, setShow] = useState<ShowReply | null>(null),
+    // Model results are kept with the inputs they answered; see studio-cache.ts.
+    [tryout, setTryout] = useState<Cached<TryoutReply> | null>(null),
+    [show, setShow] = useState<Cached<ShowReply> | null>(null),
+    [guide, setGuide] = useState<Record<string, Cached<Feedback>>>({}),
+    [explanations, setExplanations] = useState<Record<string, string>>({}),
+    [composeStamp, setComposeStamp] = useState<Stamp | null>(null),
+    [reviseStamp, setReviseStamp] = useState<Stamp | null>(null),
+    [revisionPrompt, setRevisionPrompt] = useState(""),
+    [pace, setPace] = useState<Pace>("off"),
+    [playerTick, setPlayerTick] = useState(0),
     [showing, setShowing] = useState(false),
     [backgroundRunning, setBackgroundRunning] = useState(false),
     [source, setSource] = useState<string | null>(null),
@@ -107,6 +128,11 @@ export function Studio({
     epoch,
   } = provider;
   const image = useImageAttachment(language);
+  const playerState = useRef<Player["state"] | null>(null);
+  const onPlayerState = useCallback((state: Player["state"]) => {
+    playerState.current = state;
+    setPlayerTick((n) => n + 1);
+  }, []);
   const targets = useMemo(
     () => providerStatus?.models ?? [],
     [providerStatus?.models],
@@ -136,8 +162,6 @@ export function Studio({
     setReviewed(false);
     setSource(null);
     setFeedback(null);
-    setTryout(null);
-    setShow(null);
     setShowing(false);
     setRevisionKey((k) => k + 1);
     setMessage("");
@@ -154,9 +178,85 @@ export function Studio({
     setRevision(null);
     setTryout(null);
     setShow(null);
+    setGuide({});
+    setExplanations({});
+    setComposeStamp(null);
+    setReviseStamp(null);
+    setRevisionPrompt("");
     setShowing(false);
     setMessage("");
+    playerState.current = null;
+    clearStudio();
   }, [invalidate]);
+  // The last lesson is remembered in this browser: restore it once access is confirmed,
+  // without any provider request. Gallery instances (lessonId) never restore.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (!authenticated || lessonId || restored.current) return;
+    restored.current = true;
+    const saved = loadStudio();
+    if (!saved) return;
+    setDraft(saved.draft);
+    setTopic(saved.topic);
+    setCreation(saved.creation);
+    setReviewed(saved.reviewed);
+    setRevisionPrompt(saved.revisionPrompt);
+    setComposeStamp(saved.compose);
+    setReviseStamp(saved.revise);
+    setTryout(saved.tryout);
+    setShow(saved.show);
+    setGuide(saved.guide);
+    setExplanations(saved.explanations);
+    setPace(saved.pace);
+    setRevisionKey((k) => k + 1);
+    if (saved.presenting) {
+      setPlayer(restorePlayer(saved.draft, saved.player));
+      setPresenting(true);
+    }
+    setMessage(t(language, "Studio.restoredYourLastLesson"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the message language is read once at restore
+  }, [authenticated, lessonId]);
+  useEffect(() => {
+    if (!authenticated || lessonId || !draft) return;
+    const timer = window.setTimeout(
+      () =>
+        saveStudio({
+          draft,
+          topic,
+          creation,
+          reviewed,
+          revisionPrompt,
+          compose: composeStamp,
+          revise: reviseStamp,
+          tryout,
+          show,
+          guide,
+          explanations,
+          player: presenting ? playerState.current : null,
+          presenting,
+          pace,
+        }),
+      250,
+    );
+    return () => window.clearTimeout(timer);
+  }, [
+    authenticated,
+    lessonId,
+    draft,
+    topic,
+    creation,
+    reviewed,
+    revisionPrompt,
+    composeStamp,
+    reviseStamp,
+    tryout,
+    show,
+    guide,
+    explanations,
+    presenting,
+    pace,
+    playerTick,
+  ]);
   // A gallery lesson is reviewed content: open it straight into the player.
   const openedGallery = useRef<string | null>(null);
   useEffect(() => {
@@ -177,10 +277,14 @@ export function Studio({
   useEffect(() => {
     if (!starter || !authenticated || seenStarter.current === starter) return;
     seenStarter.current = starter;
-    closeLesson();
-    setTopic(studioWalkthrough(language).topic);
-    setCreation("generated");
+    if (!draftRef.current && !hasStoredStudio()) {
+      closeLesson();
+      setTopic(studioWalkthrough(language).topic);
+      setCreation("generated");
+    }
   }, [starter, authenticated, closeLesson, language]);
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
   // The generic failure line, plus the server's rejection reason when it sent one.
   const failureMessage = (error: unknown) =>
     t(language, "Studio.theRequestCouldNotBe") +
@@ -239,6 +343,13 @@ export function Studio({
       return;
     }
     const before = revisionText && draft ? structuredClone(draft) : null;
+    const requestKey =
+      mode === "guide" && player
+        ? guideKey(player, language, learnerText)
+        : revisionText
+          ? ""
+          : composeKey;
+    const chapterKey = String(player?.state.chapter ?? 0);
     setMessage("");
     setFeedback(null);
     const background =
@@ -335,6 +446,12 @@ export function Studio({
       if (composed.status === "ready" && composed.lesson) {
         const next = loadLesson(composed.lesson);
         setRevision(before ? { before, after: next } : null);
+        if (before)
+          setReviseStamp({
+            at: Date.now(),
+            key: fingerprint({ draft: next, revision: revisionText?.trim() }),
+          });
+        else setComposeStamp({ at: Date.now(), key: requestKey });
         setMessage(
           say(
             language,
@@ -351,7 +468,14 @@ export function Studio({
         );
         if (!revisionText) image.clear();
       } else setMessage(composed.message[language]);
-    } else setFeedback(result.reply as Feedback);
+    } else {
+      const reply = result.reply as Feedback;
+      setFeedback(reply);
+      setGuide((g) => ({
+        ...g,
+        [chapterKey]: { reply, at: Date.now(), key: requestKey },
+      }));
+    }
   }
   // The test learner (tester role) tries the validated draft; its answers are checked by code.
   async function tryLesson() {
@@ -371,7 +495,6 @@ export function Studio({
       return;
     }
     setMessage("");
-    setTryout(null);
     const result = await run<TryoutReply>(
       tester ?? target,
       "tryout",
@@ -386,7 +509,7 @@ export function Studio({
       if (!result.stale) setMessage(failureMessage(result.error));
       return;
     }
-    setTryout(result.reply);
+    setTryout({ reply: result.reply, at: Date.now(), key: tryoutKey });
     setMessage(t(language, "Studio.theTestLearnerTriedThis"));
   }
   // The creator writes the narration; the server adds a Muse Image cover when it can.
@@ -441,7 +564,7 @@ export function Studio({
       if (!result.stale) setMessage(failureMessage(result.error));
       return;
     }
-    setShow(result.reply);
+    setShow({ reply: result.reply, at: Date.now(), key: showKey });
     setShowing(true);
     setMessage(t(language, "Studio.theShowIsReady"));
   }
@@ -489,6 +612,21 @@ export function Studio({
   }
   const canRequest =
     authenticated && Boolean(target?.configured) && remaining > 0;
+  // What each model-backed action depends on; a cached result is current while its key holds.
+  const composeKey = fingerprint({
+      topic: topic.trim(),
+      creation,
+      image: image.image ? fingerprint(image.image.dataUrl) : null,
+    }),
+    tryoutKey = fingerprint({ lesson: draft, language }),
+    showKey = fingerprint({ lesson: draft }),
+    reviseKey = fingerprint({ draft, revision: revisionPrompt.trim() });
+  const caches = {
+    compose: cacheState(composeStamp, composeStamp?.key ?? ""),
+    revise: cacheState(reviseStamp, reviseKey),
+    tryout: cacheState(tryout, tryoutKey),
+    show: cacheState(show, showKey),
+  };
   const showLesson = Boolean(lessonId) || view === "create";
   const statusMessage = languageInterrupted
     ? t(language, "Studio.languageChangedThePendingResult")
@@ -786,12 +924,14 @@ export function Studio({
           <Suspense fallback={loadingNote}>
             <ShowPlayer
               lesson={validateLesson(draft)}
-              show={show.show}
-              cover={show.cover}
+              show={show.reply.show}
+              cover={show.reply.cover}
               language={language}
-              scriptModel={show.model ?? target?.model ?? null}
-              coverModel={show.coverModel}
+              scriptModel={show.reply.model ?? target?.model ?? null}
+              coverModel={show.reply.coverModel}
               onClose={() => setShowing(false)}
+              pace={pace}
+              onPace={setPace}
             />
           </Suspense>
         )}
@@ -829,16 +969,23 @@ export function Studio({
               }}
               onPresent={present}
               onExport={exportLesson}
-              onClose={closeLesson}
+              onClose={() => {
+                closeLesson();
+                setMessage(t(language, "Studio.startedANewLesson"));
+              }}
               onRevise={(text) => void request("compose", text)}
               canRequest={canRequest}
-              tryout={tryout}
+              tryout={tryout?.reply ?? null}
               onTryout={() => void tryLesson()}
               testerLabel={tester?.label ?? null}
               metrics={metrics}
               hasShow={Boolean(show)}
               onMakeShow={() => void makeShow()}
               onWatchShow={() => setShowing(true)}
+              revision={revisionPrompt}
+              setRevision={setRevisionPrompt}
+              caches={caches}
+              onRecreate={() => void request("compose")}
             />
           </Suspense>
         )}
@@ -855,7 +1002,13 @@ export function Studio({
               onTranscribe={providerStatus?.voice ? transcribe : undefined}
               onClearFeedback={clearFeedback}
               onBack={() => setPresenting(false)}
-              onLibrary={closeLesson}
+              onLibrary={lessonId ? closeLesson : invalidate}
+              guideCache={guide[String(player.state.chapter)] ?? null}
+              explanations={explanations}
+              onExplanations={setExplanations}
+              pace={pace}
+              onPace={setPace}
+              onState={onPlayerState}
             />
             {((feedback && metrics?.mode === "guide") ||
               metrics?.mode === "transcribe") && (

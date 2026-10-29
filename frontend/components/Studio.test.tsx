@@ -16,14 +16,18 @@ vi.mock("../lib/recorder", () => ({
   })),
   blobToBase64: async () => "QUJD",
 }));
-import type { Post, Status } from "../lib/types";
+import type { Lesson, Post, Status } from "../lib/types";
 import { ApiError } from "../lib/api";
 import {
   coolingLesson,
   processLesson,
 } from "../../test-support/generated-lessons.mjs";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  // The remembered draft is per browser; each test starts from an empty one.
+  localStorage.clear();
+});
 const status: Status = {
   configured: true,
   models: [
@@ -736,5 +740,250 @@ describe("Rejection reason", () => {
     fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
     const message = await screen.findByText(/could not be completed/);
     expect(message.textContent).toMatch(/Reason: Use 3–6 process stages\./);
+  });
+});
+
+describe("Remembered lesson", () => {
+  const tryoutReply = {
+    chapters: [
+      {
+        prediction: "unsure",
+        reason: "Not sure.",
+        explanation: "The gap shrinks.",
+        transfer: { given: "41.2", correct: true, type: "number", unit: "°C" },
+        confusions: [],
+        suggestions: ["Say what the rate means."],
+      },
+    ],
+    overall: "Clear framing; the rate needs one sentence.",
+    rating: 4,
+    llm: status.models[0],
+    attemptsRemaining: 6,
+  };
+  const showReply = {
+    show: {
+      version: 1,
+      slides: [
+        {
+          kind: "cover",
+          chapter: 0,
+          heading: { en: "Cover", zh: "封面" },
+          narration: { en: "Spoken cover.", zh: "封面旁白。" },
+        },
+      ],
+      coverPrompt: "A mug",
+    },
+    cover: null,
+    coverModel: null,
+    llm: status.models[0],
+    attemptsRemaining: 5,
+  };
+  it("restores the draft, review state and cached results without any provider request, and marks results stale after an edit", async () => {
+    const { fingerprint } = await import("../lib/studio-cache");
+    const { saveStudio } = await import("../lib/studio-store");
+    const draft = coolingLesson() as unknown as Lesson;
+    saveStudio({
+      draft,
+      topic: "Cooling coffee",
+      creation: "generated",
+      reviewed: true,
+      revisionPrompt: "Simplify the wording.",
+      compose: { at: Date.UTC(2026, 9, 28, 17, 42), key: "c" },
+      revise: null,
+      tryout: {
+        reply: tryoutReply as never,
+        at: Date.UTC(2026, 9, 28, 17, 45),
+        key: fingerprint({ lesson: draft, language: "en" }),
+      },
+      show: {
+        reply: showReply as never,
+        at: Date.UTC(2026, 9, 28, 17, 50),
+        key: fingerprint({ lesson: draft }),
+      },
+      guide: {},
+      explanations: {},
+      player: null,
+      presenting: false,
+      pace: "off",
+    });
+    const { calls } = mount({ authenticated: true, status, view: "create" });
+    expect(
+      await screen.findByRole("heading", { name: "Cooling coffee" }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Restored your last lesson/)).toBeTruthy();
+    expect(
+      screen.queryByLabelText(/What would you like to explore/),
+    ).toBeNull();
+    expect(
+      (screen.getByRole("checkbox", { name: /reviewed/i }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(
+      (screen.getByLabelText(/Ask Muse to revise/i) as HTMLTextAreaElement)
+        .value,
+    ).toBe("Simplify the wording.");
+    expect(screen.getByText(/Clear framing; the rate needs/)).toBeTruthy();
+    const tryoutSection = screen.getByText(/Clear framing/).closest("section")!;
+    const tryoutButton = within(tryoutSection).getByRole("button", {
+      name: /^Re-run$/,
+    });
+    expect(tryoutButton).toBeTruthy();
+    expect(
+      within(tryoutSection).getByText(/Cached result/).textContent,
+    ).toMatch(/Inputs unchanged since .*No model request was made/);
+    expect(screen.getByRole("button", { name: /Watch the show/ })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /^Re-run$/ })).toHaveLength(2);
+    expect(screen.getByText(/Muse drafted this lesson/)).toBeTruthy();
+    expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+    // An edit marks the lesson-dependent results stale and asks for an explicit send.
+    fireEvent.change(screen.getByLabelText(/Lesson title/), {
+      target: { value: "Cooling coffee, revisited" },
+    });
+    expect(
+      screen.getAllByRole("button", { name: /Send changes to Muse/ }),
+    ).toHaveLength(2);
+    expect(screen.getAllByText(/Inputs changed since/)).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: /^Re-run$/ })).toBeNull();
+    expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+    // Start a new lesson forgets it and returns to the question form.
+    fireEvent.click(screen.getByRole("button", { name: /Start a new lesson/ }));
+    expect(
+      screen.getByLabelText(/What would you like to explore/),
+    ).toBeTruthy();
+    expect(localStorage.getItem("explainback-studio-draft")).toBeNull();
+  });
+  it("remembers a created draft across a remount and makes no request on reopening", async () => {
+    const posted: string[] = [];
+    const post: Post = async (path) => {
+      posted.push(path);
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "", zh: "" },
+          attemptsRemaining: 7,
+        } as never;
+      return { records: [] } as never;
+    };
+    const first = mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Cooling coffee" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    await screen.findByText(/Draft ready/);
+    fireEvent.click(screen.getByRole("checkbox", { name: /reviewed/i }));
+    await waitFor(() =>
+      expect(localStorage.getItem("explainback-studio-draft")).toMatch(
+        /"reviewed":true/,
+      ),
+    );
+    first.unmount();
+    posted.length = 0;
+    mount({ authenticated: true, status, view: "create" }, post);
+    expect(
+      await screen.findByRole("heading", { name: "Cooling coffee" }),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole("checkbox", { name: /reviewed/i }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(posted.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+  });
+  it("does not restore a private draft while signed out", async () => {
+    const { saveStudio } = await import("../lib/studio-store");
+    saveStudio({
+      draft: coolingLesson() as unknown as Lesson,
+      topic: "",
+      creation: "generated",
+      reviewed: false,
+      revisionPrompt: "",
+      compose: null,
+      revise: null,
+      tryout: null,
+      show: null,
+      guide: {},
+      explanations: {},
+      player: null,
+      presenting: false,
+      pace: "off",
+    });
+    mount({ view: "create" });
+    expect(
+      screen.queryByRole("heading", { name: "Cooling coffee" }),
+    ).toBeNull();
+    expect(screen.getByText(/Lesson creation is available/)).toBeTruthy();
+  });
+});
+
+describe("Guided replay", () => {
+  it("advances predict → experiment → explain → transfer on its own, pauses on a manual click and resumes", async () => {
+    let now = 0;
+    const raf = vi.fn((cb: FrameRequestCallback) => {
+      now += 200;
+      return window.setTimeout(() => cb(now), 16) as unknown as number;
+    });
+    vi.stubGlobal("requestAnimationFrame", raf);
+    vi.stubGlobal("cancelAnimationFrame", (id: number) =>
+      window.clearTimeout(id),
+    );
+    try {
+      const { calls } = mount({ lessonId: "cooling" });
+      await screen.findByRole("heading", { name: /cooling/i });
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const section = document.querySelector(".lesson-player")!;
+      expect(section.getAttribute("data-stage")).toBe("predict");
+      fireEvent.change(screen.getByLabelText(/Guided replay/), {
+        target: { value: "fast" },
+      });
+      // Predict: dwell 4 s × 0.5, then "not sure" is chosen and the claim is tested.
+      await act(async () => {
+        vi.advanceTimersByTime(2100);
+      });
+      expect(section.getAttribute("data-stage")).toBe("experiment");
+      // The experiment plays itself (6 s × 0.5 at 200 ms per frame), then dwells.
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+      expect(section.getAttribute("data-progress")).toBe("1");
+      await act(async () => {
+        vi.advanceTimersByTime(1400);
+      });
+      expect(section.getAttribute("data-stage")).toBe("explain");
+      // A manual click takes over; nothing advances until Resume.
+      fireEvent.click(
+        screen.getByRole("button", { name: /Replay experiment/ }),
+      );
+      expect(section.getAttribute("data-stage")).toBe("experiment");
+      expect(
+        screen.getByRole("button", { name: /Resume replay/ }),
+      ).toBeTruthy();
+      await act(async () => {
+        vi.advanceTimersByTime(10000);
+      });
+      expect(section.getAttribute("data-stage")).toBe("experiment");
+      fireEvent.click(screen.getByRole("button", { name: /Resume replay/ }));
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(1400);
+      });
+      expect(section.getAttribute("data-stage")).toBe("explain");
+      await act(async () => {
+        vi.advanceTimersByTime(4100);
+      });
+      expect(section.getAttribute("data-stage")).toBe("transfer");
+      await act(async () => {
+        vi.advanceTimersByTime(3100);
+      });
+      expect(section.getAttribute("data-stage")).toBe("complete");
+      expect(screen.getByText(/Guided replay finished/)).toBeTruthy();
+      expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
   });
 });
