@@ -19,7 +19,8 @@ export function validateShowScript(value,lesson){
  if(!value||typeof value!=='object'||value.version!==1||!Array.isArray(value.slides)||value.slides.length<4||value.slides.length>9||!text(value.coverPrompt,400))throw new Error('Invalid show script.');
  const slides=value.slides.map(s=>{
   if(!s||typeof s!=='object'||!slideKinds.includes(s.kind)||!Number.isInteger(s.chapter)||s.chapter<0||s.chapter>=lesson.chapters.length||!bilingual(s.heading,80)||!bilingual(s.narration,400))throw new Error('Invalid show slide.');
-  return {kind:s.kind,chapter:s.chapter,heading:{en:s.heading.en.trim(),zh:s.heading.zh.trim()},narration:{en:s.narration.en.trim(),zh:s.narration.zh.trim()}};
+  if(s.illustrate!==undefined&&typeof s.illustrate!=='boolean')throw new Error('Invalid show slide.');
+  return {kind:s.kind,chapter:s.chapter,heading:{en:s.heading.en.trim(),zh:s.heading.zh.trim()},narration:{en:s.narration.en.trim(),zh:s.narration.zh.trim()},...(s.illustrate===true?{illustrate:true}:{})};
  });
  if(slides[0].kind!=='cover'||slides.at(-1).kind!=='takeaway')throw new Error('Invalid show order.');
  return {version:1,slides,coverPrompt:value.coverPrompt.trim()};

@@ -318,6 +318,7 @@ export function App() {
               lesson={galleryShowItem.lesson.lesson}
               show={galleryShowItem.show.show}
               cover={galleryShowItem.show.cover}
+              illustrations={galleryShowItem.show.illustrations ?? null}
               language={language}
               scriptModel={galleryShowItem.show.model}
               coverModel={galleryShowItem.show.coverModel}

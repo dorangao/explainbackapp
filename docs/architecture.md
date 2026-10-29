@@ -52,7 +52,7 @@ For exact installed versions, use `package-lock.json`. Keep credentials out of d
 |---|---|---|
 | Muse Wonder | Drafts and revises lessons, in the background when a sketch is attached | `src/lesson-author.mjs`, `/api/studio/compose` |
 | Muse Spark 1.3 | Plays the first-time learner (tryout), grades explain-backs, writes the narrated show script; the hosted default | `src/lesson-tester.mjs`, `src/lesson-show.mjs` |
-| Muse Image | Draws the show cover and, on request, one illustration per slide | `/api/studio/show`, `/api/studio/illustrate` |
+| Muse Image | Draws the show cover, the slides the show writer flags (up to two, within the request budget) and, on request, any other slide | `/api/studio/show`, `/api/studio/illustrate` |
 | Muse Voice Transcribe | Transcribes the spoken explain-back | `/api/studio/transcribe` |
 | SAM 3.1 | Finds the one thing a creator names in their sketch or photo and draws boxes over it (Spotlight) | `/api/studio/detect`, `frontend/components/Spotlight.tsx` |
 | Muse Glimmer | Local creator model through Ollama (not on Vercel) | `EXPLAINBACK_OLLAMA_MODELS` |
