@@ -50,7 +50,10 @@ export async function callMeta({
   if(previousResponseId!==undefined&&!/^resp_[A-Za-z0-9_-]{1,200}$/.test(String(previousResponseId)))throw new Error('previousResponseId must be a response id.');
   if(promptCacheKey!==undefined&&!/^[A-Za-z0-9:_.-]{1,120}$/.test(String(promptCacheKey)))throw new Error('promptCacheKey must be a short plain key.');
   const body={model,input:content?[{type:'message',role:'user',content}]:input,store:Boolean(store||background),...(background?{background:true}:{}),max_output_tokens:maxOutputTokens,
-    ...(previousResponseId?{previous_response_id:previousResponseId}:{}),...(promptCacheKey?{prompt_cache_key:promptCacheKey}:{}),
+    ...(previousResponseId?{previous_response_id:previousResponseId}:{}),
+    // A keyed prefix asks for day-long retention (a hint): a reviewer's turns are minutes
+    // apart, longer than the default in-memory cache tends to keep a prefix.
+    ...(promptCacheKey?{prompt_cache_key:promptCacheKey,prompt_cache_retention:'24h'}:{}),
     ...(instructions?{instructions}:{}),...(reasoningEffort?{reasoning:{effort:reasoningEffort}}:{}),
     ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}}}:tools?{tools,tool_choice:'auto',parallel_tool_calls:false}:{})};
   if(structuredOutput)body.instructions=(instructions??'')+'\nTransport for this request: return the '+tools[0].name+' argument object directly as JSON matching the response schema. This is a structured response, not a tool invocation.';
