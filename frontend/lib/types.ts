@@ -216,6 +216,8 @@ export type ShowReply = ReplyMetrics & {
   show: Show;
   cover: string | null;
   coverModel: string | null;
+  // Set when the image model was available but the request budget left no time for a cover.
+  coverSkipped?: "time";
   // Slide illustrations drawn on request, by slide index.
   illustrations?: Record<string, string>;
   llm: Target;

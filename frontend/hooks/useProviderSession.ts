@@ -27,11 +27,15 @@ export function useProviderSession({
   language,
   onBusy,
   onInvalidate,
+  onSettled,
 }: {
   post: Post;
   language: Language;
   onBusy: (busy: boolean) => void;
   onInvalidate?: () => void;
+  // Called after every request settles, success or failure, so the caller can refresh
+  // what the request may have changed (the hourly budget shown in the header).
+  onSettled?: () => void;
 }) {
   const [busy, setBusy] = useState(false),
     [remaining, setRemaining] = useState(8),
@@ -44,11 +48,13 @@ export function useProviderSession({
     busyRef = useRef(false),
     postRef = useRef(post),
     languageRef = useRef(language),
-    onInvalidateRef = useRef(onInvalidate);
+    onInvalidateRef = useRef(onInvalidate),
+    settledRef = useRef(onSettled);
   useEffect(() => {
     postRef.current = post;
     onInvalidateRef.current = onInvalidate;
-  }, [post, onInvalidate]);
+    settledRef.current = onSettled;
+  }, [post, onInvalidate, onSettled]);
   const markBusy = useCallback(
     (value: boolean) => {
       busyRef.current = value;
@@ -179,6 +185,7 @@ export function useProviderSession({
           pending.current = null;
           markBusy(false);
         }
+        settledRef.current?.();
       }
     },
     [current, markBusy],

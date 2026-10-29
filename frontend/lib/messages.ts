@@ -685,6 +685,42 @@ export const messages = {
     en: "The illustration is ready. Save the lesson to keep it.",
     zh: "插图已完成。保存课程即可保留。",
   },
+  "Studio.theShowIsReadyNoCover": {
+    en: "The show is ready. There was no time left in this request for a cover; use Draw a cover in the player to add one.",
+    zh: "讲解秀已就绪。本次请求没有剩余时间绘制封面，可在播放器中点击“绘制封面”补上。",
+  },
+  "Studio.failSignIn": {
+    en: "Your sign-in has ended. Sign in again to continue; your draft is kept in this browser.",
+    zh: "登录已失效。请重新登录以继续，草稿已保留在此浏览器中。",
+  },
+  "Studio.failConflict": {
+    en: "Another request for this session is still in progress or the session was reset. Wait a moment, then retry.",
+    zh: "此会话还有请求在进行中，或会话已被重置。请稍候再重试。",
+  },
+  "Studio.failTooLarge": {
+    en: "The request is too large. Use a smaller image or a shorter text.",
+    zh: "请求过大，请使用更小的图片或更短的文本。",
+  },
+  "Studio.failBudget": {
+    en: "The hourly request budget for this access is used up. Saved and reviewed lessons still open without live requests; try again next hour.",
+    zh: "此访问的每小时请求额度已用完。已保存和已审阅的课程仍可打开，无需在线请求；请下一小时再试。",
+  },
+  "Studio.failNotConfigured": {
+    en: "This model is not configured on the server. Choose another model or ask the host to configure it.",
+    zh: "服务器未配置该模型。请选择其他模型，或联系主办方配置。",
+  },
+  "Studio.backgroundStillRunning": {
+    en: "Wonder is still working in the background. Keep this page open; the draft will appear when it finishes, or start a new request.",
+    zh: "Wonder 仍在后台处理。请保持页面打开，完成后草稿会出现；也可以发起新的请求。",
+  },
+  "JudgePath.noHourlyBudget": {
+    en: "The hourly request budget for this access is used up; saved and reviewed lessons still open, and the tour continues next hour",
+    zh: "此访问的每小时请求额度已用完；已保存和已审阅的课程仍可打开，下一小时可继续",
+  },
+  "JudgePath.noBudget": {
+    en: "No requests left in this provider session; start a new provider session below to continue",
+    zh: "当前模型会话已无剩余请求，可在下方开始新的模型会话以继续",
+  },
   "Studio.theShowIsReady": {
     en: "The show is ready. Watch it, or present the lesson as usual.",
     zh: "讲解秀已就绪。可以观看，或照常演示课程。",

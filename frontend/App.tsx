@@ -343,6 +343,7 @@ export function App() {
           lessonId={null}
           starter={starter}
           onBusy={noop}
+          onRequestSettled={() => void auth.refresh()}
           onRequestAccess={openAccess}
         />
         {route.sharedId && shared?.record && (

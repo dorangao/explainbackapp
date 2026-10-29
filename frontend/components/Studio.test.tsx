@@ -1227,3 +1227,124 @@ describe("Reopening a saved lesson", () => {
     shelf.record = null;
   });
 });
+
+describe("Failure states", () => {
+  const compose =
+    (error: () => never): Post =>
+    async (path) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose") error();
+      return { records: [] } as never;
+    };
+  const create = async () => {
+    fireEvent.change(
+      screen.getByLabelText(/What would you like to explore|你想/),
+      { target: { value: "Cooling" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /Create a lesson|创建/ }),
+    );
+  };
+  it("explains a used-up hourly budget in the viewer's language instead of the generic line", async () => {
+    mount(
+      { authenticated: true, status, view: "create", language: "zh" },
+      compose(() => {
+        throw new ApiError(
+          "This access code’s hourly request budget is used up.",
+          429,
+        );
+      }),
+    );
+    await create();
+    await screen.findByText(/每小时请求额度已用完/);
+    expect(screen.queryByText(/hourly request budget/)).toBeNull();
+  });
+  it("names a reset session and an unconfigured model", async () => {
+    const { unmount } = mount(
+      { authenticated: true, status, view: "create" },
+      compose(() => {
+        throw new ApiError("Session was reset; response discarded.", 409);
+      }),
+    );
+    await create();
+    await screen.findByText(/still in progress or the session was reset/);
+    unmount();
+    mount(
+      { authenticated: true, status, view: "create" },
+      compose(() => {
+        throw new ApiError("The selected model is not configured.", 503);
+      }),
+    );
+    await create();
+    await screen.findByText(/not configured on the server/);
+  });
+  it("says when a show came back without a cover for lack of time", async () => {
+    const slide = (kind: string) => ({
+      kind,
+      chapter: 0,
+      heading: { en: kind, zh: kind },
+      narration: { en: "Spoken " + kind + ".", zh: kind },
+    });
+    const post: Post = async (path) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "", zh: "" },
+          attemptsRemaining: 7,
+          model: "test",
+          elapsedMs: 900,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/show")
+        return {
+          show: {
+            version: 1,
+            slides: [
+              slide("cover"),
+              slide("claim"),
+              slide("experiment"),
+              slide("takeaway"),
+            ],
+            coverPrompt: "A mug",
+          },
+          cover: null,
+          coverModel: null,
+          coverSkipped: "time",
+          llm: status.models[0],
+          attemptsRemaining: 6,
+          model: "test",
+          elapsedMs: 50000,
+          usage: null,
+        } as never;
+      return { records: [] } as never;
+    };
+    mount(
+      {
+        authenticated: true,
+        status: { ...status, images: true },
+        view: "create",
+      },
+      post,
+    );
+    await create();
+    await screen.findByText(/Draft ready/);
+    fireEvent.click(
+      screen.getByRole("button", { name: /Make a narrated show/ }),
+    );
+    await screen.findByText(/no time left in this request for a cover/);
+    expect(
+      await screen.findByRole("button", { name: "Draw a cover" }),
+    ).toBeTruthy();
+  });
+  it("tells the judge path why it cannot run when the session budget is gone", () => {
+    const post: Post = async () => ({ records: [] }) as never;
+    mount({ authenticated: true, status, view: "create" }, post);
+    expect(document.querySelector(".judge-foot")?.textContent).toMatch(
+      /Requests the remaining steps will make/,
+    );
+  });
+});

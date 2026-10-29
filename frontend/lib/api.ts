@@ -187,5 +187,7 @@ export function useAuth() {
     login,
     logout,
     post,
+    // Re-reads /api/status, for example to update the hourly budget after a request.
+    refresh,
   };
 }

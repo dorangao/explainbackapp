@@ -30,7 +30,7 @@ export function JudgePath({
   language,
   steps,
   running,
-  canRun,
+  blocked = null,
   used,
   onRun,
   onRunAll,
@@ -38,12 +38,17 @@ export function JudgePath({
   language: Language;
   steps: JudgeStep[];
   running: boolean;
-  canRun: boolean;
+  // Why no request can be made now: the provider session's cap or the hourly budget.
+  blocked?: null | "session" | "hour";
   used: number;
   onRun: (id: JudgeStepId) => void;
   onRunAll: () => void;
 }) {
-  const next = steps.find((s) => s.state === "todo");
+  const canRun = blocked === null;
+  // A step that makes no request (save, share) still runs when the budget is gone.
+  const runnable = (s: JudgeStep) =>
+    s.state === "todo" && (canRun || !s.request);
+  const next = steps.find(runnable);
   const remaining = steps.filter((s) => s.state === "todo");
   const cost = remaining.filter((s) => s.request).length;
   const complete = steps.every((s) => s.state !== "todo");
@@ -58,7 +63,7 @@ export function JudgePath({
         <div className="judge-actions">
           <button
             type="button"
-            disabled={running || !canRun || !next}
+            disabled={running || !next}
             onClick={() => next && onRun(next.id)}
           >
             {running
@@ -102,7 +107,7 @@ export function JudgePath({
               <button
                 type="button"
                 className="text-button"
-                disabled={running || !canRun}
+                disabled={running || !runnable(step)}
                 onClick={() => onRun(step.id)}
               >
                 {t(language, "JudgePath.run")}
@@ -114,7 +119,11 @@ export function JudgePath({
       <p className="fine judge-foot" role="status">
         {complete
           ? t(language, "JudgePath.complete")
-          : `${t(language, "JudgePath.remainingCost")}: ${cost}`}
+          : blocked === "hour"
+            ? t(language, "JudgePath.noHourlyBudget")
+            : blocked === "session"
+              ? t(language, "JudgePath.noBudget")
+              : `${t(language, "JudgePath.remainingCost")}: ${cost}`}
         {" · "}
         {t(language, "JudgePath.usedSoFar")}: {used}
       </p>
