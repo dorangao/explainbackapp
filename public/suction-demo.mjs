@@ -27,11 +27,11 @@ const notes={
  complete:['从说法到可检验的设计','完成了检验、修正、约束下比较，以及新情境迁移。','可继续探索参考模型，并查看真实提供商请求。','代码核验数值，Muse 评估推理。不代表 CFD、真实安全验证或独立学习证据。','已完成']}
 };
 export const suctionGuide=(stage,language)=>notes[language]?.[stage]??null;
-export async function runSuctionDemo({language,testerAuthenticated,traceEnabled,signal,request,show,step,play,checkpoint}){
+export async function runSuctionDemo({language,testerAuthenticated,signal,request,show,step,play,checkpoint}){
  const check=()=>{if(signal.aborted)throw new DOMException('Stopped','AbortError');};
  const pause=async stage=>{await checkpoint(stage,signal);check();};
  const expect=(s,phase)=>{if(s.phase!==phase)throw new Error('Unexpected suction step; inspect the provider feedback.');};
- if(!testerAuthenticated||!traceEnabled||!['en','zh'].includes(language))throw new Error('Tester login, tracing and a supported language are required.');
+ if(!testerAuthenticated||!['en','zh'].includes(language))throw new Error('Tester login and a supported language are required.');
  check();step('start');let s=await request('/api/session',{problemId:'suction',language,synthetic:true,workflow:'claim-testing'});check();expect(s,'claim');show(s);
  const submit=async expected=>{check();const preset=suctionPresets(s,language)[0];if(!preset)throw new Error('No suction preset.');step(s.phase);show(s,preset);await pause(s.phase);s=await request('/api/turn',{sessionId:s.sessionId,explanation:preset.text,demoPreset:true,...(preset.answer?{answer:preset.answer}:{})});show(s);check();expect(s,expected);};
  await submit('confirm');if(s.claim?.kind!=='all-angle-grip')throw new Error('Unexpected claim; no scripted confirmation was sent.');

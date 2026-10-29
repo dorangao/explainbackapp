@@ -489,8 +489,7 @@ export function createPhysicsController(
     s.playbackLast = 0;
   }
   async function runDemo() {
-    if (!s.ready || !live.current.status.traceEnabled || s.busy || autoActive())
-      return;
+    if (!s.ready || s.busy || autoActive()) return;
     const isSuctionDemo = suctionDemoMode();
     clear();
     s.topic = isSuctionDemo ? "suction" : "flight";
@@ -520,7 +519,6 @@ export function createPhysicsController(
     s.after.push(() =>
       dom.autoDemo.current?.scrollIntoView({ block: "start" }),
     );
-    const traceEnabled = live.current.status.traceEnabled;
     const current = () => run.version === s.generation && s.autoRun === run;
     const request = async (path: string, body: Record<string, unknown>) => {
       if (run.controller.signal.aborted)
@@ -558,7 +556,6 @@ export function createPhysicsController(
       await runner({
         language: run.language,
         testerAuthenticated: true,
-        traceEnabled,
         signal: run.controller.signal,
         request,
         checkpoint: demoCheckpoint,

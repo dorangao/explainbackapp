@@ -187,6 +187,33 @@ test("both retained labs mount, switch language, navigate and remount without er
   expect(errors).toEqual([]);
 });
 
+test("the guided demo starts when the server has tracing off", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.route("**/api/status", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, traceEnabled: false } });
+  });
+  await page.goto("/#invite:BROWSER-TEST-CODE");
+  await page.getByRole("link", { name: "Physics", exact: true }).click();
+  const start = page.getByRole("button", { name: "Start demo", exact: true });
+  await expect(start).toBeEnabled();
+  await expect(page.locator("#auto-demo-note")).toContainText(
+    "request console is off",
+  );
+  await start.click();
+  await expect(page.locator("#auto-demo-status")).toContainText(
+    "Paused · read, then select Next",
+  );
+  await expect(page.locator("#auto-demo-progress")).toContainText("Step 1 of");
+  await page.getByRole("button", { name: "Stop demo", exact: true }).click();
+  await expect(page.locator("#auto-demo-status")).toContainText("Demo stopped");
+  expect(errors).toEqual([]);
+});
+
 test("late compose results cannot restore a draft after changing language or signing out", async ({
   page,
 }) => {

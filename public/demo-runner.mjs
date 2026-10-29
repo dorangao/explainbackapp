@@ -1,10 +1,10 @@
 import {demoPresets} from './demo-presets.mjs';
 export const demoSettings={motion:{speedMph:60,duration:5,profileB:'smooth',massKg:2000,grip:1,powerKw:600},flight:{massKg:2000,airtime:1.5,radius:.9,separation:1,stopTime:.3,landingProfile:'pulse'}};
-export async function runPresetDemo({language,testerAuthenticated,traceEnabled,signal,request,show,step,play,checkpoint}){
+export async function runPresetDemo({language,testerAuthenticated,signal,request,show,step,play,checkpoint}){
  const check=()=>{if(signal.aborted)throw new DOMException('Demo stopped.','AbortError');};
  const pause=async stage=>{await checkpoint(stage,signal);check();};
  const expect=(s,phase)=>{if(s.phase!==phase)throw new Error('Unexpected provider step; inspect feedback and continue manually.');};
- if(!testerAuthenticated||!traceEnabled||!['en','zh'].includes(language))throw new Error('Tester login, tracing and a supported language are required.');
+ if(!testerAuthenticated||!['en','zh'].includes(language))throw new Error('Tester login and a supported language are required.');
  check();step('start');
  let s=await request('/api/session',{problemId:'flight',language,synthetic:true,workflow:'claim-testing',flight:demoSettings.flight});
  check();expect(s,'claim');show(s);
