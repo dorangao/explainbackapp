@@ -365,6 +365,10 @@ export function Studio({
   }, [starter, authenticated, closeLesson, language]);
   const draftRef = useRef(draft);
   draftRef.current = draft;
+  // The latest show, updated the moment a reply arrives as well as on render, so a step
+  // that runs right after another (the judge path) never reads a show from before it.
+  const showRef = useRef(show);
+  showRef.current = show;
   // What went wrong, in words the person can act on. The server's own sentence is used
   // when it names a condition (budget used up, session reset, model not configured,
   // sign-in needed, request too large); otherwise the generic line, plus the server's
@@ -681,7 +685,9 @@ export function Studio({
       if (!result.stale) setMessage(failureMessage(result.error));
       return false;
     }
-    setShow({ reply: result.reply, at: Date.now(), key: showKey });
+    const next = { reply: result.reply, at: Date.now(), key: showKey };
+    showRef.current = next;
+    setShow(next);
     setShowing(true);
     setMessage(
       t(
@@ -769,7 +775,7 @@ export function Studio({
       return false;
     }
     const drawn = result.reply;
-    setShow((prev) =>
+    const withImage = (prev: Cached<ShowReply> | null) =>
       prev && prev.reply.show === script
         ? {
             ...prev,
@@ -788,8 +794,9 @@ export function Studio({
                     },
                   },
           }
-        : prev,
-    );
+        : prev;
+    showRef.current = withImage(showRef.current);
+    setShow(withImage);
     setMessage(t(language, "Studio.illustrationReady"));
     return true;
   }
@@ -842,9 +849,10 @@ export function Studio({
     // Prefer the slide the writer flagged but the show had no time to draw; otherwise the
     // first slide that can carry a picture and has none yet.
     illustrate: async () => {
-      if (!show) return false;
-      const slides = show.reply.show.slides,
-        drawn = show.reply.illustrations ?? {};
+      const current = showRef.current;
+      if (!current) return false;
+      const slides = current.reply.show.slides,
+        drawn = current.reply.illustrations ?? {};
       const open = (want: (s: (typeof slides)[number]) => boolean) =>
         slides.findIndex((s, i) => i > 0 && !drawn[String(i)] && want(s));
       const flagged = open((s) => s.illustrate === true),
