@@ -193,7 +193,7 @@ test('a rejected draft reports the validator reason in the 502 and the trace, wi
 test('studio turns chain onto the last stored response of the same model, fall back once when it is gone, and never chain across models',async t=>{
  const seen=[];let n=0,expired=null;
  const {post}=await setup(t,async(args,id)=>{
-  seen.push({id,prev:args.previousResponseId??null,store:args.store,key:args.promptCacheKey});
+  seen.push({id,prev:args.previousResponseId??null,store:args.store,key:args.promptCacheKey,effort:args.reasoningEffort});
   if(args.previousResponseId&&args.previousResponseId===expired)throw Object.assign(new Error('Meta API returned HTTP 404.'),{status:404});
   const name=args.tools[0].name;n++;
   const reply=name==='compose_lesson'?{toolCall:{name,arguments:JSON.stringify({status:'ready',message:bi('Ready'),lesson:lesson()})}}
@@ -209,6 +209,8 @@ test('studio turns chain onto the last stored response of the same model, fall b
  const tried=await(await post('/api/studio/tryout',{sessionId:s.sessionId,lesson:first.lesson,language:'en'})).json();
  assert.equal(tried.chained,false);
  assert.deepEqual(seen.map(x=>x.prev),[null,'resp_1',null]);
+ // Author turns think at low effort, learner turns at minimal; each reply reports the effort it used.
+ assert.deepEqual(seen.map(x=>x.effort),['low','low','minimal']);assert.equal(first.effort,'low');assert.equal(tried.effort,'minimal');
  assert.ok(seen.every(x=>x.store===true&&/^explainback-(compose|tryout)$/.test(x.key)),'every Meta turn is stored and carries a per-mode cache key');
  // A chain whose response has expired is dropped and the turn runs once unchained.
  expired='resp_2';

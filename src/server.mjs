@@ -290,7 +290,7 @@ export function createHandler({
           if(llm.provider==='meta'&&typeof raw?.id==='string'&&/^resp_/.test(raw.id)){s.chains={...(s.chains??{}),[chainKey]:raw.id};}
           let result=null;
           try{result=mode==='tryout'?readLearnerTryout(raw,validateLesson(body.lesson),body.language):mode==='show'?{show:readShow(raw,validateLesson(body.lesson))}:readLessonAuthor(raw,mode,body.creation,mode==='guide'&&body.explanation!==undefined);}catch(error){throw tagRejection(error);}
-          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained,reasoning:raw.reasoning??null};
+          const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained,effort:args.reasoningEffort??null,reasoning:raw.reasoning??null};
           // A show gets one cover illustration from Muse Image when Meta is configured; a failed
           // or missing image never fails the show. Image bytes go to the client only.
           if(mode==='show'){
