@@ -8,7 +8,7 @@ import {testerCredentials} from '../test-support/tester.mjs';
 test('every gallery lesson validates, states its provenance and completes locally in both languages',()=>{
  assert.ok(galleryLessons.length>=4);assert.equal(new Set(galleryIds).size,galleryIds.length);
  for(const item of galleryLessons){
-  assert.match(item.id,/^[a-z-]+$/);assert.ok(['muse','muse-sketch','catalog'].includes(item.source));assert.ok(['model','process','catalog'].includes(item.kind));
+  assert.match(item.id,/^[a-z-]+$/);assert.ok(['muse','muse-sketch','catalog','author'].includes(item.source));assert.ok(['model','process','catalog'].includes(item.kind));
   assert.ok(item.summary.en.length<=200&&item.summary.zh.length<=200);
   const lesson=validateLesson(item.lesson);assert.equal(lesson.chapters.length,item.lesson.chapters.length);
   for(const language of ['en','zh']){
@@ -57,6 +57,8 @@ test('every gallery lesson has a generated show whose cover is packaged with the
   assert.ok(entry.cover&&brandFiles.has(entry.cover),`${item.id} cover is served`);
   assert.ok(statSync(new URL('../public'+entry.cover,import.meta.url)).size>10_000);
   assert.equal(entry.coverModel,'muse-image-1.0');assert.match(entry.model,/^muse-wonder/);
+  // Slide illustrations are served and copied like covers; a 404 here was the October 30 gap.
+  for(const path of Object.values(entry.illustrations??{})){assert.ok(brandFiles.has(path),`${item.id} ${path} is served`);assert.ok(statSync(new URL('../public'+path,import.meta.url)).size>10_000);}
  }
  assert.equal(Object.keys(galleryShows).length,galleryLessons.length);
  assert.equal(showIdFromHash('#show:cooling'),'cooling');assert.equal(showIdFromHash('#show:nope'),null);assert.equal(showIdFromHash('#lesson:cooling'),null);

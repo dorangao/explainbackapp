@@ -71,7 +71,27 @@ export const galleryLessons=Object.freeze([
     inputs:[{id:'g',label:bi('Gravitational acceleration','重力加速度'),unit:'m/s²',min:1,max:20,step:.1,value:9.8}],
     axis:{label:bi('Length','摆长'),unit:'m',min:.1,max:2},
     outputs:[{id:'period',label:bi('Period','周期'),unit:'s',expression:'2*pi*sqrt(x/g)'}],
-    transfer:{question:bi('What is the period in s at the marked length?','在标记摆长处的周期是多少秒？'),values:[{id:'g',value:10}],at:1,output:'period'}}}]}}
+    transfer:{question:bi('What is the period in s at the marked length?','在标记摆长处的周期是多少秒？'),values:[{id:'g',value:10}],at:1,output:'period'}}}]}},
+ // Hand-authored by the ExplainBack author on October 30, 2026: the app explaining its own
+ // pipeline as a process lesson. Stages describe the Lesson Studio path as implemented here.
+ {id:'explainback',kind:'process',source:'author',
+  summary:bi('How ExplainBack itself works: six stages from a typed question to a shared lesson, and which of them the model does and which code does.','ExplainBack 自身如何运作：从输入问题到分享课程的六个阶段，以及其中哪些由模型完成、哪些由代码完成。'),
+  lesson:{version:2,title:bi('How ExplainBack makes a lesson','ExplainBack 如何生成一堂课'),intro:bi('A question goes in; a checked, bilingual lesson with a narrated show comes out. Which steps does the model take, and which does application code take?','输入一个问题，输出一堂经过核验、带讲解秀的双语课程。其中哪些步骤由模型完成，哪些由应用代码完成？'),chapters:[{experiment:'generated',
+   framing:bi('Follow one request from a typed question to a lesson opened by link. Before stepping through, decide: does the model run the experiment and mark the answers?','跟随一次请求，从输入问题到通过链接打开课程。逐步查看之前，先判断：实验是由模型运行、答案由模型批改吗？'),
+   explanation:bi('The model writes and narrates; code validates, computes and marks. Every number a learner sees comes from a compiled formula or a fixed simulation, and every answer is checked against it, so the model never grades its own work.','模型负责撰写和讲述；代码负责校验、计算和批改。学习者看到的每个数字都来自编译后的公式或固定的模拟，每个答案都据此核对，因此模型从不给自己的工作打分。'),
+   demo:{kind:'process',title:bi('From question to shared lesson','从问题到分享的课程'),
+    claim:bi('The model never runs the experiment or marks the answer: it writes the lesson and the script, and application code validates, computes and checks everything a learner sees.','模型从不运行实验或批改答案：它撰写课程和脚本，而应用代码校验、计算并核对学习者看到的一切。'),
+    assumptions:bi('Describes the Lesson Studio path in this repository as of October 30, 2026: Meta Muse Wonder as author, Muse Spark as test learner and explain-back guide, Muse Image for pictures, SAM 3.1 for sketches. Stages are the logical order; time and caching vary. Validation checks structure and ranges, not scientific truth; lessons still need human review.','描述本仓库截至 2026 年 10 月 30 日的 Lesson Studio 流程：Meta Muse Wonder 为作者，Muse Spark 为试学者和解释引导，Muse Image 负责配图，SAM 3.1 处理草图。阶段为逻辑顺序，耗时与缓存会变化。校验检查的是结构和取值范围，而非科学正确性；课程仍需人工审阅。'),
+    stages:[
+     {title:bi('1. Ask: a question or a sketch','1. 提问：一个问题或一张草图'),detail:bi('The creator types a question or attaches a sketch. SAM 3.1 can locate what they name on the sketch; it does not read or judge the lesson. Nothing has been generated yet.','创作者输入问题或附上草图。SAM 3.1 可以在草图上定位他们指定的对象，但不阅读也不评判课程。此时尚未生成任何内容。')},
+     {title:bi('2. Draft: the model returns a contract','2. 起草：模型返回一份契约'),detail:bi('Muse Wonder answers one structured request with a lesson contract: bilingual text, bounded inputs, formulas or stages, and a transfer question. It returns no code.','Muse Wonder 用一次结构化请求返回课程契约：双语文本、有界输入、公式或阶段，以及一道迁移题。它不返回任何代码。')},
+     {title:bi('3. Check: code validates and compiles','3. 核验：代码校验并编译'),detail:bi('The app validates the contract against its schema, compiles each formula and range-checks it across the axis. A contract that fails is refused, never repaired.','应用按模式校验契约，编译每个公式并在整个坐标轴范围内检查取值。不通过的契约会被拒绝，而不是被修补。')},
+     {title:bi('4. Try: a test learner, marked by code','4. 试学：由代码批改的试学者'),detail:bi('Muse Spark reads the lesson as a learner, predicts, operates and answers the transfer question. Code marks that answer; its confusions go back to the author as a revision.','Muse Spark 以学习者身份阅读课程，进行预测、操作并回答迁移题。代码批改该答案；它的困惑会作为修订意见反馈给作者。')},
+     {title:bi('5. Learn: predict, operate, explain back','5. 学习：预测、操作、解释'),detail:bi('A learner commits to a prediction, runs the experiment and explains the result in their own words. Muse grades the explanation against the computed result and asks one question.','学习者先做出预测，再运行实验，并用自己的话解释结果。Muse 对照计算得到的结果评判这段解释，并提出一个问题。')},
+     {title:bi('6. Share: show, save and link','6. 分享：讲解秀、保存与链接'),detail:bi('Wonder writes a bilingual script and flags slides worth a picture; Muse Image draws them. Lesson, show and pictures are saved and open by link without sign-in or a model request.','Wonder 撰写双语脚本并标出值得配图的页面，由 Muse Image 绘制。课程、讲解秀和图片一起保存，通过链接打开时无需登录，也不触发模型请求。')}],
+    transfer:{question:bi('A learner\'s explanation is graded as supported by the evidence. What produced the result the grade was checked against?','某位学习者的解释被评为有证据支持。这次评判所对照的结果是由什么产生的？'),
+     choices:[bi('The model\'s own view of what should have happened.','模型自己对应当发生什么的看法。'),bi('The formula or simulation the app computed from the learner\'s settings.','应用根据学习者的设置计算出的公式或模拟。'),bi('The test learner\'s earlier report on the lesson.','试学者此前对这堂课的报告。')],answer:1,
+     rationale:bi('Grades are made against the result the app computed from the checked contract. The model judges whether the explanation fits that evidence, not what it believes should have happened.','评判对照的是应用根据核验过的契约计算出的结果。模型判断的是解释是否符合这一证据，而不是它认为应当发生什么。')}}}]}}
 ]);
 export const galleryIds=Object.freeze(galleryLessons.map(l=>l.id));
 export function galleryLesson(id){return galleryLessons.find(l=>l.id===id)??null;}
@@ -79,6 +99,7 @@ export function galleryLesson(id){return galleryLessons.find(l=>l.id===id)??null
 export function galleryIdFromHash(hash){const m=/^#lesson:([a-z-]+)$/.exec(hash??'');return m&&galleryIds.includes(m[1])?m[1]:null;}
 export function gallerySourceNote(source,language='en'){
  const zh=language==='zh';
+ if(source==='author')return zh?'由 ExplainBack 作者于 2026 年 10 月 30 日手写，描述本仓库中实现的流程；不涉及模型起草。':'Hand-authored by the ExplainBack author on October 30, 2026, describing the pipeline as implemented in this repository; no model drafted it.';
  if(source==='muse-sketch')return zh?'由 Meta muse-spark-1.3 根据这张手绘草图起草（2026 年 10 月 28 日，冻结的图片评估），作者审阅并做了小幅编辑后收录。':'Drafted by Meta muse-spark-1.3 from this hand-drawn sketch on October 28, 2026 (frozen image evaluation), then reviewed and lightly edited by the author.';
  return source==='muse'?(zh?'由 Meta muse-spark-1.3 起草（2026 年 10 月 27 日），作者审阅并编辑后收录。':'Drafted by Meta muse-spark-1.3 on October 27, 2026, then reviewed and edited by the author.'):(zh?'作者手写的文字，实验为原有的核验计算。':'Hand-authored text over the existing checked experiments.');
 }
