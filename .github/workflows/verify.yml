@@ -63,7 +63,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run build
       - run: tar -czf explainback-dist.tgz dist
-      - uses: actions/attest-build-provenance@v2
+      - uses: actions/attest-build-provenance@v4
         with:
           subject-path: explainback-dist.tgz
       - uses: actions/upload-artifact@v4
