@@ -26,6 +26,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: npm run scan:secrets
+      - run: npm run audit:prod
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
@@ -34,3 +36,38 @@ jobs:
       - run: npm run build
       - run: npx --no-install playwright install --with-deps chromium
       - run: npm run test:browser
+
+  # SLSA-style build provenance: on every push to main, build the site and sign an
+  # attestation (Sigstore, via GitHub's OIDC identity) over the archived build output.
+  # Verify any download with: gh attestation verify explainback-dist.tgz --repo dorangao/explainbackapp
+  # This attests the build that CI produced from the commit; the Vercel deployment is
+  # built separately from the same commit and is not covered by this attestation.
+  provenance:
+    name: Build provenance attestation
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: migration
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: tar -czf explainback-dist.tgz dist
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: explainback-dist.tgz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: explainback-dist-${{ github.sha }}
+          path: explainback-dist.tgz
+          retention-days: 30

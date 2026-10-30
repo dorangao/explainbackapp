@@ -426,7 +426,8 @@ body {
 }
 .lesson-number {
   font-variant-numeric: tabular-nums;
-  color: #718d7d;
+  /* The same grey as the kind label: 5.5:1 on the card, where the lighter green was 3.3:1. */
+  color: var(--muted);
 }
 .lesson-card h3 {
   font-size: 1.2rem;
@@ -1344,7 +1345,8 @@ body {
 .show-player .text-button {
   color: #d7e6dc;
 }
-.show-credits {
+/* Outranks `.app-shell .fine`: light sage reads at 9:1 on the dark frame, the page grey at 2.3:1. */
+.app-shell .show-credits {
   color: #a9c6b4;
   margin: 0;
 }

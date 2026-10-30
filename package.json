@@ -26,7 +26,9 @@
     "format:check": "prettier --check frontend e2e *.ts",
     "test:unit": "vitest run",
     "check": "npm run typecheck && npm run lint && npm test && npm run test:unit",
-    "typecheck:app": "tsc --noEmit -p tsconfig.json"
+    "typecheck:app": "tsc --noEmit -p tsconfig.json",
+    "scan:secrets": "node scripts/scan-secrets.mjs",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.2",
@@ -39,6 +41,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "1.64.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
@@ -52,5 +55,8 @@
     "typescript": "7.0.2",
     "vite": "8.3.5",
     "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
   }
 }

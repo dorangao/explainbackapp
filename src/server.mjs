@@ -34,6 +34,8 @@ export const safeHeaders = {
   'Referrer-Policy': 'no-referrer',
   'Cross-Origin-Resource-Policy': 'same-origin',
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://*.public.blob.vercel-storage.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+  // The microphone is the only powerful feature the app uses (spoken explain-back).
+  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self), payment=(), usb=()',
 };
 
 function localOrigin(req){
@@ -58,6 +60,9 @@ export function createHandler({
   // The visitor address that failed sign-ins are counted against. Locally it is the
   // socket peer; the cloud handler reads the platform's own header instead.
   clientAddress=req=>req.socket?.remoteAddress??'',
+  // One JSON line per API request on stdout (method, path without query, status, duration,
+  // platform request id): the operator log on Vercel. Never bodies, cookies or query strings.
+  requestLog=process.env.EXPLAINBACK_REQUEST_LOG==='1'||(Boolean(process.env.VERCEL)&&process.env.EXPLAINBACK_REQUEST_LOG!=='0'),
 } = {}) {
   const codes=accessCodes.codes??accessCodes;
   // Local development only: EXPLAINBACK_OPEN_ACCESS=1 treats every request as one shared
@@ -124,6 +129,12 @@ export function createHandler({
     if (req.body !== undefined) return validate();
     return express.json({limit, strict:true, inflate:false})(req,res,validate);
   };
+  if(requestLog)app.use((req,res,next)=>{
+    if(!req.path.startsWith('/api/'))return next();
+    const started=performance.now();
+    res.once('finish',()=>console.log(JSON.stringify({at:new Date().toISOString(),method:req.method,path:req.path,status:res.statusCode,ms:Math.round(performance.now()-started),id:req.headers['x-vercel-id']??null})));
+    next();
+  });
   app.use(tracked(async (req, res, next) => {
     res.set(safeHeaders);
     const origin = getOrigin(req);
@@ -133,6 +144,9 @@ export function createHandler({
     res.locals.tester = await access.authenticate(req.headers.cookie);
     next();
   }));
+  // Liveness for uptime monitors: no sign-in, no state access, nothing about configuration
+  // beyond the deployed commit, which the public repository shows anyway.
+  app.get('/api/health', (req,res) => reply(res,200,{status:'ok',build:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)??null}));
   app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester)}));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}

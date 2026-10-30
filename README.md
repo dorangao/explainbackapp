@@ -41,13 +41,13 @@ npx playwright install chromium  # once, for browser tests
 npm run test:browser
 ```
 
-The browser tests use a synthetic local provider fixture. Some HTTP and browser tests need localhost socket access. Test results describe the checked revision and do not establish scientific or teaching correctness.
+The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
 
 ## Architecture and hosting
 
 See the maintained [architecture diagram and technology stack](docs/architecture.md). Update that document with changes to system components, integrations, model roles, storage or deployment.
 
-The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`.
+Operating the hosted app (health route, request log, common situations, rollback) is described in the [operations runbook](docs/operations.md). The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`.
 
 ## Source and assets
 

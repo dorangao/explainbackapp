@@ -212,7 +212,7 @@ export function App() {
           href="#studio"
           onClick={() => setLibraryVisit((n) => n + 1)}
           className="brand-link"
-          aria-label="ExplainBack home"
+          title={t(language, "App.home")}
         >
           <Brand />
         </a>
