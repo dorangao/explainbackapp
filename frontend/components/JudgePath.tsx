@@ -4,16 +4,42 @@ import type { Language } from "../lib/types";
 
 import type { JudgeStep, JudgeStepId } from "../lib/judge-path";
 export type { JudgeStep, JudgeStepId } from "../lib/judge-path";
-const labels: Record<JudgeStepId, { title: MessageKey; detail: MessageKey }> = {
-  draft: { title: "JudgePath.draft", detail: "JudgePath.draftDetail" },
-  tryout: { title: "JudgePath.tryout", detail: "JudgePath.tryoutDetail" },
-  show: { title: "JudgePath.show", detail: "JudgePath.showDetail" },
+// `proves` names the competency a reviewer can take away from the step: what the app did
+// that a plain model call would not, stated so it can be checked on screen.
+const labels: Record<
+  JudgeStepId,
+  { title: MessageKey; detail: MessageKey; proves: MessageKey }
+> = {
+  draft: {
+    title: "JudgePath.draft",
+    detail: "JudgePath.draftDetail",
+    proves: "JudgePath.draftProves",
+  },
+  tryout: {
+    title: "JudgePath.tryout",
+    detail: "JudgePath.tryoutDetail",
+    proves: "JudgePath.tryoutProves",
+  },
+  show: {
+    title: "JudgePath.show",
+    detail: "JudgePath.showDetail",
+    proves: "JudgePath.showProves",
+  },
   illustrate: {
     title: "JudgePath.illustrate",
     detail: "JudgePath.illustrateDetail",
+    proves: "JudgePath.illustrateProves",
   },
-  save: { title: "JudgePath.save", detail: "JudgePath.saveDetail" },
-  share: { title: "JudgePath.share", detail: "JudgePath.shareDetail" },
+  save: {
+    title: "JudgePath.save",
+    detail: "JudgePath.saveDetail",
+    proves: "JudgePath.saveProves",
+  },
+  share: {
+    title: "JudgePath.share",
+    detail: "JudgePath.shareDetail",
+    proves: "JudgePath.shareProves",
+  },
 };
 // The canonical six-step tour for a reviewer: draft, learner tryout, narrated show, one
 // slide illustration, save, share. Each step reuses a cached result when its inputs are
@@ -85,6 +111,10 @@ export function JudgePath({
             <div>
               <strong>{t(language, labels[step.id].title)}</strong>
               <small>{t(language, labels[step.id].detail)}</small>
+              <small className="judge-proves">
+                <b>{t(language, "JudgePath.proves")}:</b>{" "}
+                {t(language, labels[step.id].proves)}
+              </small>
             </div>
             <span className="judge-cost">
               {step.state === "done"

@@ -2696,6 +2696,14 @@ body {
   font-size: 0.74rem;
   color: var(--muted);
 }
+.judge-steps .judge-proves {
+  margin-top: 2px;
+  color: var(--ink);
+}
+.judge-steps .judge-proves b {
+  font-weight: 600;
+  color: var(--accent);
+}
 .judge-mark {
   width: 24px;
   height: 24px;
