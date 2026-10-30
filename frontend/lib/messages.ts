@@ -58,6 +58,7 @@ export const messages = {
     en: "Local development · open access",
     zh: "本地开发 · 开放访问",
   },
+  "App.home": { en: "Home", zh: "首页" },
   "App.mainNavigation": { en: "Main navigation", zh: "主导航" },
   "App.openingTheExperimentBench": {
     en: "Opening the experiment bench…",
