@@ -6,6 +6,20 @@ ExplainBack 把问题或草图变成可审阅的中英双语互动课程。学�
 
 ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays in local notes is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md).
 
+## What to look at
+
+Each claim below names where to see it in the app and the check in this repository that backs it. Nothing here establishes scientific or teaching correctness; that still needs human review.
+
+| Claim | Where to see it | What backs it |
+|---|---|---|
+| The model writes a lesson contract, never code. The app compiles and range-checks every formula before anything runs, and rejects malformed contracts instead of repairing them. | Create a lesson, or run step 1 of the reviewer tour; review the assumptions and definition before presenting. | `test/lesson-structured.test.mjs`, `test/formula-plot.test.mjs`, `test/lesson-http.test.mjs` (generated code is refused) |
+| A learner's answer is marked by code, not by the model. The explain-back grade is made against the checked result, and a wrong explanation is told so with one follow-up question. | Run the test learner (tour step 2); then on a lesson, disagree with the claim, test it, and explain the result wrongly. | `test/lesson-tester.test.mjs`, `test/lesson-http.test.mjs` (guide), `e2e/judge-path.spec.ts` |
+| The learner's feedback goes back to the author in the same conversation, and every changed field is shown old against new. | *Use these suggestions in a revision*, then *What Muse changed*; the request summary says *chained*. | `test/lesson-http.test.mjs` (chaining), `frontend/components/Studio.test.tsx` (what a revision changed) |
+| A hand-drawn sketch becomes a lesson. SAM 3.1 locates what the creator names on the sketch; it does not read or judge the lesson. | Attach a sketch on Create and *Find with SAM 3.1*; library card 06 came from one. | `test/meta.test.mjs` (SAM), `test/lesson-structured.test.mjs` (image attachment) |
+| The writer flags which slides deserve a picture; Muse Image draws only those, inside the request budget. The browser narrates in English or Chinese. | *Make a narrated show* (tour step 3), then *Illustrate one slide* (step 4); switch EN / 中 on the show. | `test/lesson-show.test.mjs`, `e2e/app.spec.ts` |
+| Every request reports its cost: model, time, tokens, cache hits and reasoning effort, with the model's own account of itself labelled unverified. | The request summary under any Studio result; the tour foot shows requests used and remaining. | `test/reasoning-effort.test.mjs`, `test/lesson-http.test.mjs` (metrics) |
+| The hosted app is checkable: a health route reports the deployed build, security headers are tested against the hosting config, and each build on `main` carries a signed provenance attestation. | `https://explainback.app/api/health`; [docs/security.md](docs/security.md); the *Build provenance attestation* job on a `main` run. | `test/operations.test.mjs`, `.github/workflows/verify.yml`, `e2e/accessibility.spec.ts` |
+
 ## Experience
 
 - Open a reviewed gallery lesson or narrated show without signing in. Gallery playback uses included lesson data and generated cover assets and does not make a model request.

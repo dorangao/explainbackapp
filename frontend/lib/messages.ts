@@ -795,6 +795,31 @@ export const messages = {
     en: "Anyone with the link can open it, signed out.",
     zh: "任何人无需登录即可通过链接打开。",
   },
+  "JudgePath.proves": { en: "Shows", zh: "证明" },
+  "JudgePath.draftProves": {
+    en: "Muse returns a lesson contract, never code; the app compiles and range-checks every formula before anything runs.",
+    zh: "Muse 返回的是课程契约而非代码；应用先编译并校验每个公式的取值范围，然后才运行。",
+  },
+  "JudgePath.tryoutProves": {
+    en: "Code marks the learner's transfer answer; the model's account of its own reasoning is shown, labelled unverified.",
+    zh: "代码核对学习者的迁移答案；模型对自身推理的描述会显示，并标注为未经核实。",
+  },
+  "JudgePath.showProves": {
+    en: "The writer flags which slides deserve a picture; Muse Image draws them inside the same request budget.",
+    zh: "脚本作者标出哪些页值得配图；Muse Image 在同一请求预算内绘制。",
+  },
+  "JudgePath.illustrateProves": {
+    en: "One image request, aimed by the writer's flag, instead of illustrating every slide.",
+    zh: "只发一次图片请求，由作者的标记决定画哪一页，而不是为每页配图。",
+  },
+  "JudgePath.saveProves": {
+    en: "Lesson, show and images are kept together and can be updated in place.",
+    zh: "课程、讲解秀和图片一起保存，并可原地更新。",
+  },
+  "JudgePath.shareProves": {
+    en: "A visitor opens the lesson without sign-in and without a model request.",
+    zh: "访客无需登录、不触发模型请求即可打开课程。",
+  },
   "JudgePath.runNext": { en: "Run next", zh: "执行下一步" },
   "JudgePath.runAll": { en: "Run all remaining", zh: "执行全部剩余步骤" },
   "JudgePath.running": { en: "Running…", zh: "执行中…" },
