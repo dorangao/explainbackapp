@@ -600,6 +600,96 @@ export const galleryShows=Object.freeze({
   "model": "muse-wonder-1.0",
   "coverModel": "muse-image-1.0",
   "createdAt": "2026-10-29"
+ },
+ "explainback": {
+  "show": {
+   "version": 1,
+   "slides": [
+    {
+     "kind": "cover",
+     "chapter": 0,
+     "heading": {
+      "en": "How a question becomes a lesson",
+      "zh": "一个问题如何变成一堂课"
+     },
+     "narration": {
+      "en": "You type a question, and soon you open a lesson made just for you. Before trusting what it shows and judges, it is worth asking who actually did each part of the work.",
+      "zh": "你输入一个问题，不久便能打开一堂为你生成的课。在相信它呈现和评判的内容之前，值得先问一句：每一步工作究竟是谁完成的？"
+     }
+    },
+    {
+     "kind": "claim",
+     "chapter": 0,
+     "heading": {
+      "en": "Who runs and marks the work?",
+      "zh": "谁来运行，谁来批改？"
+     },
+     "narration": {
+      "en": "Here is the claim to test: the model never runs the experiment or marks the answer. Instead, it writes the lesson and the narration, while application code validates, computes, and checks what you see.",
+      "zh": "这是我们要检验的说法：模型从不运行实验，也不批改答案。它只负责撰写课程和讲解，而校验、计算与核对都由应用代码完成。"
+     },
+     "illustrate": true
+    },
+    {
+     "kind": "experiment",
+     "chapter": 0,
+     "heading": {
+      "en": "Watch the handoff between stages",
+      "zh": "观察各阶段如何交接"
+     },
+     "narration": {
+      "en": "Watch the process move from asking to drafting, checking, trying, learning, and sharing. Notice which stages are busy writing, and which ones pause for code to validate, compute, or mark.",
+      "zh": "请观察流程如何从提问依次走向起草、核验、试学、学习与分享。留意哪些阶段在撰写文字，哪些阶段会停下来让代码校验、计算或批改。"
+     }
+    },
+    {
+     "kind": "evidence",
+     "chapter": 0,
+     "heading": {
+      "en": "A clear boundary appears",
+      "zh": "一条清晰的界线出现了"
+     },
+     "narration": {
+      "en": "The sequence shows the boundary clearly: each result you see comes from a compiled formula or a fixed simulation, and each answer is checked against that result. The model proposes the words, but it never grades its own work.",
+      "zh": "这段流程清楚地显示了分工：每个呈现的结果都来自编译后的公式或固定的模拟，每个答案也都据此核对。模型提出文字，却从不给自己的工作打分。"
+     }
+    },
+    {
+     "kind": "transfer",
+     "chapter": 0,
+     "heading": {
+      "en": "Try a fresh case yourself",
+      "zh": "亲自试试这个新情境"
+     },
+     "narration": {
+      "en": "Imagine a learner's explanation is judged as supported by the evidence. Can you name what produced the result that this judgment was checked against?",
+      "zh": "设想一位学习者的解释被评为有证据支持。你能说出这次评判所对照的结果是由什么产生的吗？"
+     },
+     "illustrate": true
+    },
+    {
+     "kind": "takeaway",
+     "chapter": 0,
+     "heading": {
+      "en": "Writing is not checking",
+      "zh": "撰写不等于核对"
+     },
+     "narration": {
+      "en": "The model writes and narrates, while code validates, computes, and marks, so every result you see has a source beyond the model's own words. Next time a lesson surprises you, which will you question first: the writing, or the check behind it?",
+      "zh": "模型负责撰写与讲述，代码负责校验、计算与批改，因此你看到的每个结果都有模型文字之外的来源。下次某堂课让你意外时，你会先质疑文字，还是它背后的核对？"
+     }
+    }
+   ],
+   "coverPrompt": "A calm flat editorial drawing of a desk with a blank question card, a neat stack of lesson pages, and an open laptop ready to share, muted green and paper tones, no text, no numbers, no diagrams, no people's faces"
+  },
+  "cover": "/gallery/explainback-cover.webp",
+  "illustrations": {
+   "1": "/gallery/explainback-slide-1.webp",
+   "4": "/gallery/explainback-slide-4.webp"
+  },
+  "model": "muse-wonder-1.0",
+  "coverModel": "muse-image-1.0",
+  "createdAt": "2026-10-30"
  }
 });
 export function galleryShow(id){return galleryShows[id]??null;}

@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { galleryShows } from "../public/gallery-shows.mjs";
 export const brandFiles = new Map([
   ["/favicon.svg", "image/svg+xml"],
   ["/favicon.ico", "image/x-icon"],
@@ -11,8 +12,12 @@ export const brandFiles = new Map([
   ["/icons/icon-512.png", "image/png"],
   ["/icons/maskable-512.png", "image/png"],
   ["/gallery/pendulum-sketch.png", "image/png"],
-  ...["cooling","pendulum","web-cache","vehicle","quantum","sketch-pendulum"].map(
-    (id) => [`/gallery/${id}-cover.webp`, "image/webp"],
+  // Every gallery show's cover and slide illustrations, so the build copies and the local
+  // server answers exactly the files the shows reference.
+  ...Object.values(galleryShows).flatMap((entry) =>
+    [entry.cover, ...Object.values(entry.illustrations ?? {})]
+      .filter(Boolean)
+      .map((path) => [path, "image/webp"]),
   ),
 ]);
 // Crawler files are generated, not stored: the build writes them into dist and the
