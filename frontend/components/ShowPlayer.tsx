@@ -6,17 +6,42 @@ import { chapterExperiment, formatDemoNumber as fmt } from "../lib/shared";
 import { ExperimentView } from "./ExperimentView";
 import { paceFactor } from "../lib/studio-cache";
 import type { Pace } from "../lib/studio-cache";
+import {
+  narrationLocale,
+  pickVoice,
+  rankVoices,
+  rememberVoiceKey,
+  rememberedVoiceKey,
+  voiceKey,
+  voiceLabel,
+} from "../lib/voices";
 
 const speechAvailable = () =>
   typeof window !== "undefined" &&
   "speechSynthesis" in window &&
   typeof SpeechSynthesisUtterance !== "undefined";
+// The platform's voice list, which some browsers fill in only after `voiceschanged`.
+const useVoices = () => {
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>(() =>
+    speechAvailable() ? window.speechSynthesis.getVoices() : [],
+  );
+  useEffect(() => {
+    if (!speechAvailable()) return;
+    const synth = window.speechSynthesis;
+    const refresh = () => setVoices(synth.getVoices());
+    refresh();
+    synth.addEventListener?.("voiceschanged", refresh);
+    return () => synth.removeEventListener?.("voiceschanged", refresh);
+  }, []);
+  return voices;
+};
 // Reading time when no voice is available: about 55 ms per character, 4–14 s.
 const readingMs = (text: string) =>
   Math.min(14000, Math.max(4000, text.length * 55));
 
 // A narrated slide show. Slides are rendered from the checked lesson; the narration was
-// written by the creator model; the voice is the browser's own speech synthesis.
+// written by the creator model; the voice is the browser's own speech synthesis, ranked so
+// the best voice for the narration's locale is used, with a picker to override it.
 export function ShowPlayer({
   lesson,
   show,
@@ -53,6 +78,10 @@ export function ShowPlayer({
   const [index, setIndex] = useState(0),
     [playing, setPlaying] = useState(false),
     [voice, setVoice] = useState(() => speechAvailable()),
+    // The remembered voice choice per language; null means the best available.
+    [chosenKey, setChosenKey] = useState<string | null>(() =>
+      rememberedVoiceKey(language),
+    ),
     [progress, setProgress] = useState(0),
     [ownPace, setOwnPace] = useState<Pace>("normal"),
     // An optional note for the illustrator, sent with the next drawing request.
@@ -60,6 +89,20 @@ export function ShowPlayer({
     // How far the current slide's narration time has run while playing.
     [bar, setBar] = useState(0);
   const pace = paceProp && paceProp !== "off" ? paceProp : ownPace;
+  const voices = useVoices();
+  const ranked = useMemo(
+    () => rankVoices(voices, language),
+    [voices, language],
+  );
+  const selected = useMemo(
+    () => pickVoice(voices, language, chosenKey),
+    [voices, language, chosenKey],
+  );
+  useEffect(() => setChosenKey(rememberedVoiceKey(language)), [language]);
+  const chooseVoice = (key: string | null) => {
+    setChosenKey(key);
+    rememberVoiceKey(language, key);
+  };
   const factor = paceFactor(pace);
   const setPace = (next: Pace) => {
     setOwnPace(next);
@@ -100,13 +143,8 @@ export function ShowPlayer({
     };
     if (voice && speechAvailable()) {
       const utterance = new SpeechSynthesisUtterance(narration);
-      utterance.lang = language === "zh" ? "zh-CN" : "en-US";
-      const match = window.speechSynthesis
-        .getVoices()
-        .find((v) =>
-          v.lang.toLowerCase().startsWith(language === "zh" ? "zh" : "en"),
-        );
-      if (match) utterance.voice = match;
+      utterance.lang = narrationLocale(language);
+      if (selected) utterance.voice = selected;
       utterance.rate = Math.min(2, Math.max(0.5, 0.95 / factor));
       utterance.onend = advance;
       utterance.onerror = () => {
@@ -124,6 +162,7 @@ export function ShowPlayer({
     playing,
     index,
     voice,
+    selected,
     narration,
     language,
     last,
@@ -325,6 +364,26 @@ export function ShowPlayer({
           />
           {t(language, "ShowPlayer.browserVoice")}
         </label>
+        {ranked.length > 1 && (
+          <label className="show-voice-pick">
+            <span className="visually-hidden">
+              {t(language, "ShowPlayer.voice")}
+            </span>
+            <select
+              value={selected ? voiceKey(selected) : ""}
+              disabled={!voice}
+              aria-label={t(language, "ShowPlayer.voice")}
+              onChange={(event) => chooseVoice(event.target.value || null)}
+            >
+              {ranked.map((v, i) => (
+                <option key={voiceKey(v)} value={voiceKey(v)}>
+                  {voiceLabel(v, language)}
+                  {i === 0 ? t(language, "ShowPlayer.voiceBest") : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <button type="button" className="text-button" onClick={onClose}>
           {t(language, "ShowPlayer.closeShow")}
         </button>

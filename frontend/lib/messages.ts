@@ -498,6 +498,8 @@ export const messages = {
   },
   "ShowPlayer.aFreshCase": { en: "A FRESH CASE", zh: "新情境" },
   "ShowPlayer.browserVoice": { en: "Browser voice", zh: "浏览器朗读" },
+  "ShowPlayer.voice": { en: "Narration voice", zh: "朗读声音" },
+  "ShowPlayer.voiceBest": { en: " · best available", zh: " · 推荐" },
   "ShowPlayer.calculatedEvidence": {
     en: "CALCULATED EVIDENCE",
     zh: "计算证据",
