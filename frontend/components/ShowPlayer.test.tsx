@@ -48,7 +48,19 @@ const show: Show = {
     },
   ],
 };
-type Utterance = { text: string; lang: string; onend: (() => void) | null };
+type Utterance = {
+  text: string;
+  lang: string;
+  voice: { name: string } | null;
+  onend: (() => void) | null;
+};
+const fakeVoices = [
+  { name: "Sinji", lang: "zh-HK", voiceURI: "sinji" },
+  { name: "Tingting", lang: "zh-CN", voiceURI: "tingting" },
+  { name: "Tingting (Enhanced)", lang: "zh-CN", voiceURI: "tingting-e" },
+  { name: "Fred", lang: "en-US", voiceURI: "fred" },
+  { name: "Samantha", lang: "en-US", voiceURI: "samantha" },
+];
 let spoken: Utterance[] = [];
 beforeEach(() => {
   spoken = [];
@@ -67,8 +79,9 @@ beforeEach(() => {
   vi.stubGlobal("speechSynthesis", {
     speak: (u: Utterance) => spoken.push(u),
     cancel: () => {},
-    getVoices: () => [{ lang: "zh-CN" }],
+    getVoices: () => fakeVoices,
   });
+  window.localStorage.clear();
 });
 afterEach(() => vi.unstubAllGlobals());
 
@@ -184,6 +197,8 @@ describe("ShowPlayer", () => {
     expect(spoken).toHaveLength(1);
     expect(spoken[0].text).toBe("封面旁白。");
     expect(spoken[0].lang).toBe("zh-CN");
+    // The best Mainland voice, not the first zh voice the platform lists.
+    expect(spoken[0].voice?.name).toBe("Tingting (Enhanced)");
     act(() => spoken[0].onend?.());
     expect(screen.getByText("观点旁白。")).toBeTruthy();
     expect(spoken).toHaveLength(2);
@@ -192,6 +207,46 @@ describe("ShowPlayer", () => {
     fireEvent.click(screen.getByLabelText(/浏览器朗读/));
     fireEvent.click(screen.getByRole("button", { name: /播放/ }));
     expect(spoken).toHaveLength(2);
+  });
+  it("lets the presenter pick another voice and remembers it per language", () => {
+    const { unmount } = render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        language="zh"
+        scriptModel={null}
+        coverModel={null}
+        onClose={() => {}}
+      />,
+    );
+    const picker = screen.getByLabelText("朗读声音") as HTMLSelectElement;
+    expect(picker.options[0].textContent).toBe("Tingting (Enhanced) · 推荐");
+    expect(Array.from(picker.options).map((o) => o.textContent)).toContain(
+      "Sinji (zh-HK)",
+    );
+    fireEvent.change(picker, { target: { value: "tingting" } });
+    fireEvent.click(screen.getByRole("button", { name: /播放/ }));
+    expect(spoken[0].voice?.name).toBe("Tingting");
+    expect(window.localStorage.getItem("explainback.show-voice.zh")).toBe(
+      "tingting",
+    );
+    unmount();
+    render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        language="en"
+        scriptModel={null}
+        coverModel={null}
+        onClose={() => {}}
+      />,
+    );
+    const en = screen.getByLabelText("Narration voice") as HTMLSelectElement;
+    expect(en.options[0].textContent).toBe("Samantha · best available");
+    fireEvent.click(screen.getByRole("button", { name: /Play/ }));
+    expect(spoken.at(-1)?.voice?.name).toBe("Samantha");
   });
 });
 

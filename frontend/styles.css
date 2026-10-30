@@ -1342,6 +1342,12 @@ body {
   font-size: 0.9rem;
   margin-left: auto;
 }
+.show-controls .show-voice-pick select {
+  width: auto;
+  max-width: 14rem;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
 .show-player .text-button {
   color: #d7e6dc;
 }
