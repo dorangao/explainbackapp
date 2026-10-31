@@ -91,6 +91,25 @@ export function scoreStudioCase(item,result){
  return score;
 }
 
+// A reply to an open question (no frozen expectations), as the Studio compare route checks
+// it: the contract, and for a ready model lesson at most two chapters and a unit-labelled
+// output. A declined request is a valid outcome, not a failure.
+export function scoreOpenReply(result){
+ const score={scorerVersion:studioScorerVersion,contractValid:false,automatedPass:false,checks:{}};
+ let response;
+ try{response=readLessonAuthor(result,'compose','generated');}catch(error){return {...score,failure:'contract-rejected',reason:String(error?.message??'').slice(0,160)};}
+ score.contractValid=true;score.status=response.status;score.response=response;
+ if(response.status==='ready'){
+  const demo=response.lesson.chapters[0].demo;score.kind=demo?.kind??null;
+  score.checks.renderer=['model','process'].includes(demo?.kind);
+  score.checks.chapters=response.lesson.chapters.length<=2;
+  if(demo?.kind==='model')score.checks.outputUnit=demo.outputs.some(o=>{const u=o.unit.trim();return u&&u!=='1';});
+ }
+ score.automatedPass=Object.values(score.checks).every(Boolean);
+ if(!score.automatedPass)score.failure='expectation-failed';
+ return score;
+}
+
 // `samples` repeats every case N times (rows are suffixed #n) so one-off variance is visible.
 export async function runStudioEvaluation({cases,call,onUpdate=async()=>{},metadata={},suite='studio-v1',samples=1}){
  if(!Number.isInteger(samples)||samples<1||samples>5)throw new Error('Choose 1–5 samples per case.');

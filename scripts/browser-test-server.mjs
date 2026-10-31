@@ -91,6 +91,23 @@ const server = createApp({
           }),
         },
       };
+    if (name === "judge_lesson")
+      return {
+        structured: {
+          name,
+          value: {
+            scores: {
+              neutralFraming: 2,
+              quantityNames: 2,
+              transferClarity: 2,
+              bilingualParity: 2,
+              assumptions: 2,
+            },
+            issues: [],
+            summary: "Fixture judge: consistent and neutral.",
+          },
+        },
+      };
     if (name === "try_lesson")
       return {
         toolCall: {

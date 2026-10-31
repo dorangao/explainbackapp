@@ -22,6 +22,7 @@ Each claim below names where to see it in the app and the check in this reposito
 
 ## Experience
 
+- Signed-in creators can **Compare two models**: one question drafted by Muse Wonder and Muse Spark at once, both replies checked by the app and scored by the rubric judge, side by side, with a button to carry the preferred draft into review.
 - Browse **From the evaluation** in the library: fourteen unedited lessons the Muse models drafted during the frozen breadth evaluation, with their judge scores, and three questions where both models' replies sit side by side.
 - Open a reviewed gallery lesson or narrated show without signing in. Gallery playback uses included lesson data and generated cover assets and does not make a model request.
 - In Lesson Studio, request a new lesson or revision, review its assumptions and definition, and explicitly present it. Structured, bounded lesson data is interpreted by the app; generated JavaScript is not executed.

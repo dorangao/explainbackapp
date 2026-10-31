@@ -21,6 +21,7 @@ export function RequestSummary({
     illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
     detect: t(language, "RevisionSummary.lookedForAnObjectIn"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
+    compare: t(language, "RevisionSummary.comparedTwoModels"),
   }[metrics.mode];
   const tokens =
     metrics.usage && (metrics.usage.input ?? metrics.usage.output) !== null

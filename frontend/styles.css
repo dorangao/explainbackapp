@@ -2979,3 +2979,49 @@ li[data-state="done"] .judge-mark {
     align-items: start;
   }
 }
+
+/* Live comparison in Studio. */
+.compare-panel {
+  margin-top: 36px;
+  padding-top: 28px;
+  border-top: 1px solid var(--line);
+}
+.compare-panel .section-title h2 {
+  font-size: 1.35rem;
+}
+.compare-status {
+  display: inline-block;
+  margin: 10px 0 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  letter-spacing: 0.6px;
+  font-weight: 650;
+  background: #e2efe6;
+  color: var(--accent);
+}
+.compare-status[data-state="unsupported"],
+.compare-status[data-state="rejected"],
+.compare-status[data-state="failed"],
+.compare-status[data-state="checks-failed"] {
+  background: #f3e6e0;
+  color: #8a4a2f;
+}
+.compare-reason {
+  margin-top: 10px !important;
+  color: var(--muted);
+}
+.compare-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.app-shell .compare-actions > button {
+  border-radius: 999px;
+  padding-inline: 1.2rem;
+}
+.compare-cost-note {
+  margin: 10px 0 0;
+}
