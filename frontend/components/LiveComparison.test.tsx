@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Studio } from "./Studio";
-import type { CompareReply, Post, Status } from "../lib/types";
+import type { CompareReply, Lesson, Post, Status } from "../lib/types";
 import {
   coolingLesson,
   processLesson,
@@ -51,7 +51,7 @@ const reply: CompareReply = {
       llm: "meta:muse-wonder-1.0",
       status: "ready",
       message: { en: "Ready", zh: "已就绪" },
-      lesson: coolingLesson(),
+      lesson: coolingLesson() as Lesson,
       kind: "model",
       checks: { renderer: true, chapters: true, outputUnit: true },
       automatedPass: true,
@@ -71,7 +71,7 @@ const reply: CompareReply = {
       llm: "meta:muse-spark-1.3",
       status: "ready",
       message: { en: "Ready", zh: "已就绪" },
-      lesson: processLesson(),
+      lesson: processLesson() as Lesson,
       kind: "process",
       checks: { renderer: true, chapters: true },
       automatedPass: true,
