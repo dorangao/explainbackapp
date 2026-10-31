@@ -18,7 +18,10 @@ test("authored edits survive navigation through the library, a gallery lesson an
   await expect(
     page.getByRole("heading", { name: "Unsaved review changes", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Library", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", {
       name: "The library",
@@ -84,7 +87,11 @@ test("language change rejects a late manual physics response and clears busy sta
     await route.fulfill({ json: reply });
   });
   await page.goto("/#invite:BROWSER-TEST-CODE");
-  await page.getByRole("link", { name: "Physics", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Physics/ }).click();
   await page.locator("#mode-manual").click();
   await page.locator("#topic").selectOption("crossing");
   await page.locator("#start").click();
@@ -120,12 +127,19 @@ test("quantum navigation stops diagnostic polling while a provider response is p
     });
   });
   await page.goto("/#invite:BROWSER-TEST-CODE");
-  await page.getByRole("link", { name: "Quantum", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Quantum/ }).click();
   await page.locator("#q-showcase").click();
   await page.locator("#q-next").click();
   await page.locator("#q-ask").click();
   await expect.poll(() => waiting).toBe(true);
-  await page.getByRole("link", { name: "Library", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await page.waitForTimeout(100);
   const before = traces;
   await page.waitForTimeout(1250);
@@ -194,7 +208,11 @@ test("logging out disconnects lab resize observers", async ({ page }) => {
     };
   });
   await page.goto("/#invite:BROWSER-TEST-CODE");
-  await page.getByRole("link", { name: "Physics", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Physics/ }).click();
   await page.locator("#mode-manual").waitFor();
   await expect
     .poll(() => page.evaluate(() => (window as any).activeObservers))
@@ -230,7 +248,10 @@ test("an authored animation pauses in the library and resumes only on request", 
   await expect
     .poll(() => page.locator(".lesson-player").getAttribute("data-progress"))
     .not.toBe("0");
-  await page.getByRole("link", { name: "Library", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", {
       name: "The library",
@@ -277,9 +298,10 @@ test("expired access clears the private draft and returns to the public library"
     }),
   ).toBeVisible();
   await expect(page.locator(".draft-review")).toHaveCount(0);
+  // Signed out again: the account control is Sign in (the benches stay listed for everyone).
   await expect(
-    page.getByRole("link", { name: "Physics", exact: true }),
-  ).toHaveCount(0);
+    page.locator(".site-header").getByRole("button", { name: "Sign in" }),
+  ).toBeVisible();
 });
 
 test("a remembered draft survives a reload, reopens with no provider request and can be forgotten", async ({
@@ -335,7 +357,10 @@ test("a remembered draft survives a reload, reopens with no provider request and
     "Keep this prompt for later.",
   );
   expect(studioRequests).toEqual([]);
-  await page.getByRole("link", { name: "Library", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await page.getByRole("link", { name: "Create", exact: true }).click();
   await expect(
     page.getByRole("heading", {

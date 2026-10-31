@@ -44,16 +44,16 @@ describe("EvaluationPage", () => {
     );
     expect(
       screen
-        .getByRole("link", { name: "Back to library" })
-        .getAttribute("href"),
-    ).toBe("#studio");
+        .getByRole("navigation", { name: "Breadcrumb" })
+        .querySelector('a[href="#studio"]')?.textContent,
+    ).toBe("Library");
     // The reproduce command is shown as code, not run or linked.
     expect(
       screen.getByText(/npm run eval:studio -- --suite=studio-breadth-v1/),
     ).toBeTruthy();
     cleanup();
     render(<EvaluationPage language="zh" />);
-    expect(screen.getByText("评估卡")).toBeTruthy();
+    expect(screen.getAllByText("评估卡").length).toBeGreaterThan(0);
     expect(screen.getByText(/正文为英文/)).toBeTruthy();
   });
 });

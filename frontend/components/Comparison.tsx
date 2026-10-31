@@ -19,6 +19,7 @@ import type {
 import { EVALUATION_CARD_HASH, RUBRIC_ITEMS } from "../lib/evaluation";
 import type { RubricItem } from "../lib/evaluation";
 import { kindLabel } from "./Library";
+import { PageHeader } from "./PageHeader";
 
 const rubricKey: Record<RubricItem, MessageKey> = {
   neutralFraming: "Compare.neutralFraming",
@@ -298,23 +299,24 @@ export function Comparison({
   const [first] = items;
   return (
     <section className="comparison" aria-labelledby={headingId}>
-      <div className="section-title">
-        <div>
-          <p className="eyebrow">
-            {t(language, "Compare.sameQuestionTwoModels")}
-          </p>
-          <h2 id={headingId}>{first.question[language]}</h2>
-          <p className="fine">
+      <PageHeader
+        language={language}
+        crumbs={[
+          { label: t(language, "App.library"), href: "#studio" },
+          { label: t(language, "Gallery.compareTheTwoModels") },
+        ]}
+        eyebrow={t(language, "Compare.sameQuestionTwoModels")}
+        title={first.question[language]}
+        titleId={headingId}
+        meta={
+          <>
             {t(language, "Compare.note")} {first.suite} · {first.caseId} ·{" "}
             <a href={EVALUATION_CARD_HASH}>
               {t(language, "Gallery.evaluationCard")}
             </a>
-          </p>
-        </div>
-        <a className="text-link" href="#studio">
-          {t(language, "LessonPlayer.backToLibrary")}
-        </a>
-      </div>
+          </>
+        }
+      />
       <div className="compare-grid">
         {items.map((item) => (
           <ModelColumn

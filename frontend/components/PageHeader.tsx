@@ -4,7 +4,7 @@ import type { Language } from "../lib/types";
 
 // The one page header every sub-page shares: a crumb trail (the only back navigation),
 // an optional eyebrow, the page's single h1, one meta line and the actions on the right.
-export type Crumb = { label: string; href?: string };
+export type Crumb = { label: string; href?: string; onClick?: () => void };
 export function PageHeader({
   language,
   crumbs,
@@ -33,7 +33,9 @@ export function PageHeader({
             {crumbs.map((crumb, index) => (
               <li key={`${crumb.label}-${index}`}>
                 {crumb.href ? (
-                  <a href={crumb.href}>{crumb.label}</a>
+                  <a href={crumb.href} onClick={crumb.onClick}>
+                    {crumb.label}
+                  </a>
                 ) : (
                   <span aria-current="page">{crumb.label}</span>
                 )}

@@ -20,6 +20,7 @@ import {
 import { Comparison } from "./components/Comparison";
 import { EvaluationPage } from "./components/EvaluationPage";
 import { About } from "./components/About";
+import { PageHeader } from "./components/PageHeader";
 import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
@@ -267,23 +268,6 @@ export function App() {
           <a href="#about" aria-current={route.about ? "page" : undefined}>
             {t(language, "App.about")}
           </a>
-          {/* The benches stay here until phase 3 lists them in the library grid. */}
-          {auth.info.authenticated && (
-            <>
-              <a
-                href="#physics"
-                aria-current={area === "physics" ? "page" : undefined}
-              >
-                {t(language, "App.physics")}
-              </a>
-              <a
-                href="#quantum"
-                aria-current={area === "quantum" ? "page" : undefined}
-              >
-                {t(language, "App.quantum")}
-              </a>
-            </>
-          )}
         </nav>
         <div className="header-tools">
           <label className="language-switch">
@@ -346,21 +330,38 @@ export function App() {
           </p>
         )}
         {galleryShowItem?.lesson && galleryShowItem.show && (
-          <Suspense fallback={<p role="status">…</p>}>
-            <ShowPlayer
-              key={`show-${route.showId}`}
-              lesson={galleryShowItem.lesson.lesson}
-              show={galleryShowItem.show.show}
-              cover={galleryShowItem.show.cover}
-              illustrations={galleryShowItem.show.illustrations ?? null}
+          <section className="show-page">
+            <PageHeader
               language={language}
-              scriptModel={galleryShowItem.show.model}
-              coverModel={galleryShowItem.show.coverModel}
-              onClose={() => {
-                location.hash = `#lesson:${route.showId}`;
-              }}
+              crumbs={[
+                { label: t(language, "App.library"), href: "#studio" },
+                { label: galleryShowItem.lesson.lesson.title[language] },
+              ]}
+              eyebrow={t(language, "ShowPlayer.lessonShow2")}
+              title={galleryShowItem.lesson.lesson.title[language]}
+              meta={galleryShowItem.lesson.lesson.intro[language]}
+              actions={
+                <a className="text-link" href={`#lesson:${route.showId}`}>
+                  {t(language, "Gallery.openLesson")}
+                </a>
+              }
             />
-          </Suspense>
+            <Suspense fallback={<p role="status">…</p>}>
+              <ShowPlayer
+                key={`show-${route.showId}`}
+                lesson={galleryShowItem.lesson.lesson}
+                show={galleryShowItem.show.show}
+                cover={galleryShowItem.show.cover}
+                illustrations={galleryShowItem.show.illustrations ?? null}
+                language={language}
+                scriptModel={galleryShowItem.show.model}
+                coverModel={galleryShowItem.show.coverModel}
+                onClose={() => {
+                  location.hash = `#lesson:${route.showId}`;
+                }}
+              />
+            </Suspense>
+          </section>
         )}
         <Studio
           key={auth.identity}

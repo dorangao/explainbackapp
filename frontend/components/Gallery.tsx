@@ -156,11 +156,15 @@ function LessonArt({ id }: { id: string }) {
 // One library, three sources. Every lesson becomes the same entry so one card can show
 // it; only the source badge, the meta line and the provenance note differ.
 type Source = "reviewed" | "evaluation" | "shared";
+type Depth = "self" | "coached";
 type Entry = {
   id: string;
   href: string;
   kind: GalleryItem["kind"];
+  kindKey?: MessageKey;
+  openKey?: MessageKey;
   source: Source;
+  depth: Depth;
   title: Bilingual;
   line: Bilingual;
   lineLead?: MessageKey;
@@ -179,6 +183,7 @@ const fromReviewed = (item: GalleryItem): Entry => ({
   href: `#lesson:${item.id}`,
   kind: item.kind,
   source: "reviewed",
+  depth: "self",
   title: item.lesson.title,
   line: item.summary,
   artId: item.id,
@@ -201,6 +206,7 @@ const fromEvaluation = (item: EvaluationItem): Entry => ({
   href: `#lesson:${item.id}`,
   kind: item.kind,
   source: "evaluation",
+  depth: "self",
   title: item.lesson.title,
   line: item.question,
   lineLead: "Gallery.theLearnerAsked",
@@ -224,6 +230,7 @@ const fromShared = (item: SavedSummary): Entry => ({
   href: `#shared:${item.id}`,
   kind: item.kind,
   source: "shared",
+  depth: "self",
   title: item.title,
   line: item.intro,
   artId: item.kind === "process" ? "shared-process" : "shared-model",
@@ -235,7 +242,69 @@ const fromShared = (item: SavedSummary): Entry => ({
   shared: item,
 });
 
+// The two hand-built benches: Muse coaches every stage, so they sit at the top of the
+// ladder and need sign-in for the coached steps. Listed with the lessons, not apart.
+const benches: Entry[] = [
+  {
+    id: "bench:physics",
+    href: "#physics",
+    kind: "catalog",
+    kindKey: "Gallery.bench",
+    openKey: "Gallery.openTheBench",
+    source: "reviewed",
+    depth: "coached",
+    title: { en: "Physics & math", zh: "物理与数学" },
+    line: {
+      en: "State a claim about motion, test it on a checked simulation and explain it back; Muse confirms your claim and asks the next question.",
+      zh: "提出一个关于运动的说法，在经核验的模拟上检验并讲回来；Muse 会确认你的说法并提出下一个问题。",
+    },
+    artId: "vehicle",
+    image: null,
+    sketch: false,
+    show: null,
+    compare: null,
+    search: [
+      "Physics & math",
+      "物理与数学",
+      "motion claim simulation bench coach",
+      "运动 说法 模拟 工作台",
+    ],
+  },
+  {
+    id: "bench:quantum",
+    href: "#quantum",
+    kind: "catalog",
+    kindKey: "Gallery.bench",
+    openKey: "Gallery.openTheBench",
+    source: "reviewed",
+    depth: "coached",
+    title: { en: "Quantum computing", zh: "量子计算" },
+    line: {
+      en: "Interference, Bell correlations and a four-item search on a simulated circuit, with Muse explaining the checked result at each stage.",
+      zh: "在模拟电路上体验干涉、贝尔关联和四项搜索，每个阶段由 Muse 解释经核验的结果。",
+    },
+    artId: "quantum",
+    image: null,
+    sketch: false,
+    show: null,
+    compare: null,
+    search: [
+      "Quantum computing",
+      "量子计算",
+      "interference entanglement search circuit bench coach",
+      "干涉 纠缠 搜索 电路 工作台",
+    ],
+  },
+];
+
 type TypeFilter = "all" | GalleryItem["kind"];
+type DepthFilter = "any" | Depth;
+const depthFilters: DepthFilter[] = ["any", "self", "coached"];
+const depthKey: Record<DepthFilter, MessageKey> = {
+  any: "Gallery.any",
+  self: "Gallery.selfChecked",
+  coached: "Gallery.coachedByMuse",
+};
 type SourceFilter = "any" | Source;
 const typeFilters: TypeFilter[] = ["all", "model", "process", "catalog"];
 const sourceFilters: SourceFilter[] = [
@@ -270,6 +339,7 @@ const matches = (query: string, fields: string[]) => {
 
 // The meta line names who made the lesson and what checked it, in a few words.
 function metaLine(entry: Entry, language: Language): string {
+  if (entry.depth === "coached") return t(language, "Gallery.metaBench");
   if (entry.evaluation) {
     const item = entry.evaluation;
     const issues =
@@ -305,6 +375,7 @@ function metaLine(entry: Entry, language: Language): string {
   );
 }
 function provenance(entry: Entry, language: Language): string {
+  if (entry.depth === "coached") return t(language, "Gallery.benchProvenance");
   if (entry.evaluation) return evaluationNote(entry.evaluation, language);
   if (entry.shared) return t(language, "Gallery.sharedProvenance");
   return gallerySourceNote(entry.reviewed?.source ?? "muse", language);
@@ -341,10 +412,17 @@ function LibraryCard({
       </a>
       <div className="lesson-card-body">
         <span className="lesson-kind">
-          {kindLabel(language, entry.kind)}
+          {entry.kindKey
+            ? t(language, entry.kindKey)
+            : kindLabel(language, entry.kind)}
           <span className={`lesson-badge lesson-badge-${entry.source}`}>
             {t(language, sourceBadgeKey[entry.source])}
           </span>
+          {entry.depth === "coached" && (
+            <span className="lesson-badge lesson-badge-coached">
+              {t(language, "Gallery.coachedByMuse")}
+            </span>
+          )}
           {entry.sketch && (
             <span className="lesson-badge lesson-badge-sketch">
               {t(language, "Gallery.fromASketch")}
@@ -364,9 +442,9 @@ function LibraryCard({
           <a
             className="lesson-link"
             href={entry.href}
-            aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
+            aria-label={`${t(language, entry.openKey ?? "Gallery.openLesson")}: ${title}`}
           >
-            {t(language, "Gallery.openLesson")}{" "}
+            {t(language, entry.openKey ?? "Gallery.openLesson")}{" "}
             <span aria-hidden="true">↗</span>
           </a>
           {entry.show && (
@@ -462,6 +540,7 @@ export function Gallery({ language }: { language: Language }) {
   const [query, setQuery] = useState(""),
     [type, setType] = useState<TypeFilter>("all"),
     [source, setSource] = useState<SourceFilter>("any"),
+    [depth, setDepth] = useState<DepthFilter>("any"),
     [withShow, setWithShow] = useState(false),
     [fromSketch, setFromSketch] = useState(false),
     [shared, setShared] = useState<SavedSummary[]>([]);
@@ -480,6 +559,7 @@ export function Gallery({ language }: { language: Language }) {
   const entries = useMemo(
     () => [
       ...galleryLessons.map(fromReviewed),
+      ...benches,
       ...evaluationLessons.map(fromEvaluation),
       ...shared.map(fromShared),
     ],
@@ -491,11 +571,12 @@ export function Gallery({ language }: { language: Language }) {
         (entry) =>
           (type === "all" || entry.kind === type) &&
           (source === "any" || entry.source === source) &&
+          (depth === "any" || entry.depth === depth) &&
           (!withShow || Boolean(entry.show || entry.shared?.hasShow)) &&
           (!fromSketch || entry.sketch) &&
           matches(query, entry.search),
       ),
-    [entries, type, source, withShow, fromSketch, query],
+    [entries, type, source, depth, withShow, fromSketch, query],
   );
   const counts = {
     shows: entries.filter((entry) => entry.show || entry.shared?.hasShow)
@@ -566,6 +647,24 @@ export function Gallery({ language }: { language: Language }) {
                 onClick={() => setSource(value)}
               >
                 {t(language, sourceKey[value])}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="facet">
+          <legend className="facet-legend">
+            {t(language, "Gallery.depth")}
+          </legend>
+          <div className="catalog-filters">
+            {depthFilters.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={depth === value ? "chip on" : "chip"}
+                aria-pressed={depth === value}
+                onClick={() => setDepth(value)}
+              >
+                {t(language, depthKey[value])}
               </button>
             ))}
           </div>

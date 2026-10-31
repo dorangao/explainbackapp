@@ -99,7 +99,7 @@ describe("ShowPlayer", () => {
         onClose={onClose}
       />,
     );
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe(
       "Cooling coffee",
     );
     expect(document.querySelector(".show-cover img")?.getAttribute("src")).toBe(

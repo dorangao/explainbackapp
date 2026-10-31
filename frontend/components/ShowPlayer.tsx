@@ -235,7 +235,7 @@ export function ShowPlayer({
             )}
             <div>
               <p className="eyebrow">{t(language, "ShowPlayer.lessonShow2")}</p>
-              <h1>{lesson.title[language]}</h1>
+              <h2>{lesson.title[language]}</h2>
               <p className="lead-small">{lesson.intro[language]}</p>
             </div>
           </div>

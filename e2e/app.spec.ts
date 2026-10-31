@@ -47,7 +47,10 @@ test("public gallery opens a lesson, preserves progress across language changes 
   ).toBeEnabled();
   await page.getByRole("button", { name: "解释结果 →", exact: true }).click();
   await expect(page.getByText("计算证据", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "返回课程库", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "当前位置" })
+    .getByRole("link", { name: "课程库", exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: "课程库" })).toBeVisible();
   expect(requests).toEqual([]);
 });
@@ -128,7 +131,8 @@ test("process lesson completes locally and changing a model input resets the pre
     page.getByRole("heading", { name: "A clearer explanation." }),
   ).toBeVisible();
   await page
-    .getByRole("link", { name: "Back to library", exact: true })
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Library", exact: true })
     .click();
   await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
   await page.getByRole("button", { name: "Agree", exact: true }).click();
@@ -161,14 +165,22 @@ test("both retained labs mount, switch language, navigate and remount without er
   await expect(
     page.getByRole("button", { name: "Sign out", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Physics", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Physics/ }).click();
   await expect(
     page.getByRole("heading", { name: "Physics & math", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Start demo", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Quantum", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Quantum/ }).click();
   await expect(
     page.getByRole("heading", { name: "Quantum computing", exact: true }),
   ).toBeVisible();
@@ -176,7 +188,11 @@ test("both retained labs mount, switch language, navigate and remount without er
   await expect(
     page.getByRole("heading", { name: "量子计算", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "物理", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "主导航" })
+    .getByRole("link", { name: "课程库", exact: true })
+    .click();
+  await page.getByRole("link", { name: /打开工作台: 物理/ }).click();
   await expect(
     page.getByRole("heading", { name: "物理与数学", exact: true }),
   ).toBeVisible();
@@ -196,7 +212,11 @@ test("the guided demo starts when the server has tracing off", async ({
     await route.fulfill({ response, json: { ...body, traceEnabled: false } });
   });
   await page.goto("/#invite:BROWSER-TEST-CODE");
-  await page.getByRole("link", { name: "Physics", exact: true }).click();
+  await page
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Open the bench: Physics/ }).click();
   const start = page.getByRole("button", { name: "Start demo", exact: true });
   await expect(start).toBeEnabled();
   await expect(page.locator("#auto-demo-note")).toContainText(
@@ -439,7 +459,10 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
   await expect(
     card.getByRole("link", { name: "Source on GitHub" }),
   ).toHaveAttribute("href", /docs\/evaluation\.md$/);
-  await page.getByRole("link", { name: "Back to library" }).click();
+  await page
+    .getByRole("navigation", { name: "Breadcrumb" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await expect(
     page.getByRole("heading", {
       name: "The library",

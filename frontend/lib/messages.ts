@@ -1057,6 +1057,23 @@ export const messages = {
   "Gallery.reviewed": { en: "Reviewed", zh: "已审阅" },
   "Gallery.shared": { en: "Shared", zh: "创作者分享" },
   "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
+  "Gallery.depth": { en: "Depth", zh: "深度" },
+  "Gallery.selfChecked": { en: "Self-checked", zh: "代码自检" },
+  "Gallery.coachedByMuse": { en: "Coached by Muse", zh: "Muse 辅导" },
+  "Gallery.bench": { en: "EXPERIMENT BENCH", zh: "实验工作台" },
+  "Gallery.openTheBench": { en: "Open the bench", zh: "打开工作台" },
+  "Gallery.metaBench": {
+    en: "Built by hand · coached stages need sign-in",
+    zh: "手工构建 · 辅导阶段需登录",
+  },
+  "Gallery.benchProvenance": {
+    en: "A hand-built bench with its own checked simulation. Muse confirms your claim, reads your reasoning and asks the next question at each stage, and evidence can be replayed. Those coached stages need preview access; browsing does not.",
+    zh: "手工构建的工作台，带有自己的经核验模拟。Muse 在每个阶段确认你的说法、阅读你的推理并提出下一个问题，证据可以回放。这些辅导阶段需要预览权限；浏览不需要。",
+  },
+  "Labs.coachedMeta": {
+    en: "Coached by Muse at every stage · preview access",
+    zh: "每个阶段都由 Muse 辅导 · 预览权限",
+  },
   "Gallery.startWithTheShow": {
     en: "Start with the show",
     zh: "先看讲解秀",

@@ -21,6 +21,7 @@ import type { Feedback, Language, Player } from "../lib/types";
 import { say } from "../lib/types";
 import { formatDemoNumber } from "../lib/shared";
 import { guideKey, paceFactor, paces } from "../lib/studio-cache";
+import { PageHeader } from "./PageHeader";
 import type { Cached, Pace } from "../lib/studio-cache";
 import { CacheNote, actionLabel } from "./CacheNote";
 import { measureQuantum, sampleQuantum } from "../../public/quantum.mjs";
@@ -389,35 +390,48 @@ export function LessonPlayer({
       data-progress={state.progress}
       aria-labelledby={`${formId}-title`}
     >
-      <div className="player-toolbar">
-        <a className="back-link" href="#studio" onClick={onLibrary}>
-          <span aria-hidden="true">← </span>
-          {t(language, "LessonPlayer.backToLibrary")}
-        </a>
-        <button className="text-button" onClick={onBack} disabled={busy}>
-          {t(language, "LessonPlayer.lessonOverview")}
-        </button>
-      </div>
-      <div className="replay-bar-row" data-pace={pace}>
-        <label className="replay-pace">
-          {t(language, "Replay.guidedReplay")}
-          <select
-            value={pace}
-            disabled={busy}
-            onChange={(event) => {
-              const next = event.target.value as Pace;
-              setPaused(false);
-              onPace?.(next);
-            }}
-          >
-            {paces.map((value) => (
-              <option key={value} value={value}>
-                {t(language, `Replay.${value}` as const)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {pace !== "off" && (
+      <PageHeader
+        language={language}
+        crumbs={[
+          {
+            label: t(language, "App.library"),
+            href: "#studio",
+            onClick: onLibrary,
+          },
+          { label: player.lesson.title[language] },
+        ]}
+        eyebrow={`${t(language, "LessonPlayer.chapter")} ${state.chapter + 1} / ${player.lesson.chapters.length} · ${e.title}`}
+        title={player.lesson.title[language]}
+        titleId={`${formId}-title`}
+        actions={
+          <>
+            <button className="text-button" onClick={onBack} disabled={busy}>
+              {t(language, "LessonPlayer.lessonOverview")}
+            </button>
+            <label className="replay-pace">
+              {t(language, "Replay.guidedReplay")}
+              <select
+                value={pace}
+                disabled={busy}
+                onChange={(event) => {
+                  const next = event.target.value as Pace;
+                  setPaused(false);
+                  onPace?.(next);
+                }}
+              >
+                {paces.map((value) => (
+                  <option key={value} value={value}>
+                    {t(language, `Replay.${value}` as const)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
+      />
+      <p className="player-framing">{chapter.framing[language]}</p>
+      {pace !== "off" && (
+        <div className="replay-bar-row" data-pace={pace}>
           <>
             <button
               type="button"
@@ -448,16 +462,8 @@ export function LessonPlayer({
                   : t(language, "Replay.running")}
             </span>
           </>
-        )}
-      </div>
-      <div className="player-heading">
-        <p className="eyebrow">
-          {t(language, "LessonPlayer.chapter")} {state.chapter + 1} /{" "}
-          {player.lesson.chapters.length} · {e.title}
-        </p>
-        <h2 id={`${formId}-title`}>{player.lesson.title[language]}</h2>
-        <p>{chapter.framing[language]}</p>
-      </div>
+        </div>
+      )}
       <ol
         className="learning-steps"
         aria-label={t(language, "LessonPlayer.learningProgress")}
