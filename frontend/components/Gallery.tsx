@@ -10,7 +10,7 @@ import {
   evaluationNote,
 } from "../lib/shared";
 import type { EvaluationItem, GalleryItem, Language } from "../lib/types";
-import { EVALUATION_CARD_URL } from "../lib/evaluation";
+import { EVALUATION_CARD_HASH } from "../lib/evaluation";
 import { listShared } from "../lib/library";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
@@ -530,7 +530,7 @@ export function Gallery({ language }: { language: Language }) {
               <h2>{t(language, "Gallery.whatMuseMadeFromAQuestion")}</h2>
               <p className="fine">
                 {t(language, "Gallery.evaluationSectionNote")}{" "}
-                <a href={EVALUATION_CARD_URL} target="_blank" rel="noreferrer">
+                <a href={EVALUATION_CARD_HASH}>
                   {t(language, "Gallery.evaluationCard")}
                 </a>
               </p>

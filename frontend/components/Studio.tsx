@@ -73,7 +73,7 @@ import { DraftReview } from "./DraftReview";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
-import { EVALUATION_CARD_URL } from "../lib/evaluation";
+import { EVALUATION_CARD_HASH } from "../lib/evaluation";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -1717,11 +1717,7 @@ export function Studio({
                 </p>
                 {source === "evaluation" && evaluationItem && (
                   <p className="evaluation-links fine">
-                    <a
-                      href={EVALUATION_CARD_URL}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
+                    <a href={EVALUATION_CARD_HASH}>
                       {t(language, "Gallery.evaluationCard")}
                     </a>
                     {evaluationComparison(evaluationItem.caseId) && (

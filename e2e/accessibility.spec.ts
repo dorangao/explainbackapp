@@ -5,6 +5,10 @@ import AxeBuilder from "@axe-core/playwright";
 // machine can check: contrast, names, roles, landmarks, labels. It does not replace a
 // manual audit with a screen reader and keyboard, which the repo does not claim.
 const audit = async (page: import("@playwright/test").Page, screen: string) => {
+  // Sections fade in; let that finish so axe measures the settled colours.
+  await page.evaluate(() =>
+    Promise.all(document.getAnimations().map((a) => a.finished)),
+  );
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
@@ -31,6 +35,12 @@ test("the library, a lesson and its show pass the automated WCAG audit", async (
     page.getByRole("navigation", { name: "Main navigation" }),
   ).toBeVisible();
   await audit(page, "library");
+  await page.goto("/#evaluation");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Evaluation card" }),
+  ).toBeVisible();
+  await audit(page, "evaluation card");
+  await page.goto("/");
   await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
   await expect(
     page.getByRole("button", { name: "Disagree", exact: true }),

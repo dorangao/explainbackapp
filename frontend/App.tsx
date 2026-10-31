@@ -18,6 +18,8 @@ import {
   comparisonIdFromHash,
 } from "./lib/shared";
 import { Comparison } from "./components/Comparison";
+import { EvaluationPage } from "./components/EvaluationPage";
+import { EVALUATION_CARD_HASH } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
@@ -47,6 +49,7 @@ function readRoute() {
     showId: showIdFromHash(hash) as string | null,
     sharedId: sharedIdFromHash(hash),
     compareId: comparisonIdFromHash(hash),
+    evaluation: hash === "#evaluation",
   };
 }
 export function App() {
@@ -159,6 +162,7 @@ export function App() {
         showId: null,
         sharedId: null,
         compareId: null,
+        evaluation: false,
       });
       history.replaceState(null, "", "#studio");
       firstAuth.current = false;
@@ -178,6 +182,7 @@ export function App() {
         showId: null,
         sharedId: null,
         compareId: null,
+        evaluation: false,
       });
       history.replaceState(null, "", "#create");
       setStarter((n) => n + 1);
@@ -194,10 +199,10 @@ export function App() {
       setVisited((previous) => ({ ...previous, [route.area]: true }));
   }, [auth.info.authenticated, route.area]);
   const focusRoute = useRef(
-    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${libraryVisit}`,
+    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${libraryVisit}`,
   );
   useEffect(() => {
-    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${libraryVisit}`;
+    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${libraryVisit}`;
     if (key === focusRoute.current) return;
     focusRoute.current = key;
     main.current?.focus({ preventScroll: true });
@@ -208,6 +213,7 @@ export function App() {
     route.showId,
     route.sharedId,
     route.compareId,
+    route.evaluation,
     libraryVisit,
   ]);
   const area = route.area;
@@ -351,6 +357,7 @@ export function App() {
             !route.showId &&
             !route.sharedId &&
             !route.compareId &&
+            !route.evaluation &&
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
@@ -367,6 +374,7 @@ export function App() {
             language={language}
           />
         )}
+        {route.evaluation && <EvaluationPage language={language} />}
         {route.sharedId && shared?.record && (
           <Studio
             key={`shared-${auth.identity}-${route.sharedId}`}
@@ -489,6 +497,10 @@ export function App() {
           {t(language, "App.independentLearningPrototype")}
           <br />
           {t(language, "App.syntheticExamplesTemporarySessions")}
+          <br />
+          <a href={EVALUATION_CARD_HASH}>
+            {t(language, "Gallery.evaluationCard")}
+          </a>
         </span>
       </footer>
     </div>
