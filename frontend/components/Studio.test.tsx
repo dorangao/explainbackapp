@@ -1355,3 +1355,49 @@ describe("Failure states", () => {
     );
   });
 });
+
+describe("Sketch provenance notes", () => {
+  const sketch = "data:image/png;base64,iVBORw0KGgo=";
+  it("keeps the gallery note for the library's sketch lesson", async () => {
+    mount({ lessonId: "sketch-pendulum" });
+    expect(
+      await screen.findByText(
+        /Drafted by Meta muse-spark-1.3 from this hand-drawn sketch/,
+      ),
+    ).toBeTruthy();
+    expect(document.querySelector(".spotlight img")).toBeTruthy();
+  });
+  it("does not describe a shared lesson's sketch as the gallery's pendulum", async () => {
+    const lesson = coolingLesson() as unknown as Lesson;
+    mount({
+      lessonId: "0123456789abcdef",
+      external: {
+        id: "0123456789abcdef",
+        title: lesson.title,
+        intro: lesson.intro,
+        kind: "model",
+        hasShow: false,
+        hasTryout: false,
+        graded: 0,
+        model: "muse-wonder-1.0",
+        cover: null,
+        sketch,
+        shared: true,
+        createdAt: 1,
+        updatedAt: 2,
+        lesson,
+        show: null,
+        coverModel: null,
+        illustrations: {},
+        tryout: null,
+        grades: {},
+      },
+    });
+    expect(await screen.findByText(/Shared by its creator/)).toBeTruthy();
+    expect(screen.queryByText(/October 28, 2026/)).toBeNull();
+    expect(
+      (document.querySelector(".spotlight img") as HTMLImageElement | null)
+        ?.src,
+    ).toBe(sketch);
+  });
+});
