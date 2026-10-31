@@ -5,7 +5,7 @@ import {lessonAuthorRequest,readLessonAuthor} from '../lesson-author.mjs';
 import {chapterExperiment} from '../../public/generated-demo.mjs';
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const near=(a,b)=>Number.isFinite(a)&&Math.abs(a-b)<=Math.max(1e-8,Math.abs(b)*1e-6);
-export const studioScorerVersion='studio-score-v2';
+export const studioScorerVersion='studio-score-v3';
 // Post-baseline supplement: vary each previously untested cooling control.
 // Keep studio-v1 fixtures and original reports unchanged.
 const coolingSensitivity=[
@@ -78,10 +78,12 @@ export function scoreStudioCase(item,result){
     score.checks.transfer=demo.transfer.output===expected.output&&near(e.transfer.answer,answer);
    }catch{score.checks.transfer=false;}
   }
-  // Image cases check loosely: the sketch must become a model with at least one unit-labelled output.
+  // Unspecified cases (image and breadth) check loosely: the lesson must be a model with at least one
+  // unit-labelled output. Units are compared trimmed but case-sensitive (mV and MV differ).
   if(expected.kind==='model'&&demo?.kind==='model'&&!expected.inputIds){
-   score.checks.outputUnit=demo.outputs.some(o=>o.unit.trim()&&o.unit!=='1');
-   if(expected.outputUnit)score.checks.expectedUnit=demo.outputs.some(o=>expected.outputUnit.includes(o.unit));
+   const units=demo.outputs.map(o=>o.unit.trim());
+   score.checks.outputUnit=units.some(u=>u&&u!=='1');
+   if(expected.outputUnit)score.checks.expectedUnit=units.some(u=>expected.outputUnit.includes(u));
   }
  }
  score.automatedPass=Object.values(score.checks).every(Boolean);

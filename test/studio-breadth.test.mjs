@@ -46,9 +46,17 @@ test('model cases pass on contract, renderer kind and a unit-labelled output, an
   const dimensionless = coolingLesson();
   dimensionless.chapters[0].demo.outputs[0].unit = '1';
   assert.equal(scoreStudioCase(byId(suite, 'half-life-en'), ready(dimensionless)).checks.outputUnit, false);
+  // Units are matched after trimming, so ' m ' counts as a distance for projectile.
+  const padded = coolingLesson();
+  padded.chapters[0].demo.outputs[0].unit = ' m ';
+  assert.equal(scoreStudioCase(byId(suite, 'projectile-en'), ready(padded)).checks.expectedUnit, true);
   // Two chapters are tolerated; three are not.
   const two = coolingLesson(); two.chapters.push(structuredClone(two.chapters[0]));
   assert.equal(scoreStudioCase(byId(suite, 'half-life-en'), ready(two)).checks.chapters, true);
+  const three = coolingLesson(); three.chapters.push(structuredClone(three.chapters[0]), structuredClone(three.chapters[0]));
+  const tooMany = scoreStudioCase(byId(suite, 'half-life-en'), ready(three));
+  assert.equal(tooMany.checks.chapters, false);
+  assert.equal(tooMany.automatedPass, false);
 });
 
 test('process and declined cases are scored by renderer kind and status, never by content', () => {

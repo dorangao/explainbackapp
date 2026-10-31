@@ -40,7 +40,7 @@ Same frozen cases, one attempt per case per model, run sequentially. Differences
 
 ## muse-wonder-1.0
 
-Attempted 24/24 · contracts valid 20 · automated checks passed 20 · judge mean 9.89/10 (18 scored, 6 declined cases skipped).
+Attempted 24/24 · contracts valid 20 · automated checks passed 20 · judge mean 9.89/10 (18 scored; 6 skipped: the 2 declined requests and the 4 rejected contracts, since only ready lessons are judged).
 
 ### Rejections (validator message)
 
@@ -61,7 +61,7 @@ Attempted 24/24 · contracts valid 20 · automated checks passed 20 · judge mea
 
 ## muse-spark-1.3
 
-Attempted 24/24 · contracts valid 21 · automated checks passed 21 · judge mean 9.63/10 (19 scored, 5 declined cases skipped).
+Attempted 24/24 · contracts valid 21 · automated checks passed 21 · judge mean 9.63/10 (19 scored; 5 skipped: the 2 declined requests and the 3 rejected contracts, since only ready lessons are judged).
 
 ### Rejections (validator message)
 
