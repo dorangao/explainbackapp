@@ -388,6 +388,7 @@ export function App() {
                 scriptModel={galleryShowItem.show.model}
                 coverModel={galleryShowItem.show.coverModel}
                 autoplay={route.showAutoplay}
+                titleShown
                 onClose={() => {
                   location.hash = `#lesson:${route.showId}`;
                 }}

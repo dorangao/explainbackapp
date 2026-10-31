@@ -23,7 +23,7 @@ Each claim below names where to see it in the app and the check in this reposito
 ## Experience
 
 - Signed-in creators can **Compare two models**: one question drafted by Muse Wonder and Muse Spark at once, both replies checked by the app and scored by the rubric judge the creator picks (Spark or Wonder), side by side, with a button to carry the preferred draft into review.
-- Browse **From the evaluation** in the library: fourteen unedited lessons the Muse models drafted during the frozen breadth evaluation, with their judge scores, and three questions where both models' replies sit side by side. The [evaluation card](docs/evaluation.md) is also a page of the app (`/#evaluation`), rendered from that file at build time, and **About** (`/#about`) explains how a lesson is checked, what has been measured, the limits and where the source lives.
+- Browse **From the evaluation** in the library: fourteen unedited lessons the Muse models drafted during the frozen breadth evaluation, with their judge scores, and three questions where both models' replies sit side by side. The [evaluation card](docs/evaluation.md) is also a page of the app (`/#evaluation`), rendered from that file at build time, and **About** (`/#about`) explains how a lesson is checked, how evaluation works, the limits and where the source lives.
 - Open a reviewed gallery lesson or narrated show without signing in. Gallery playback uses included lesson data and generated cover assets and does not make a model request.
 - In Lesson Studio, request a new lesson or revision, review its assumptions and definition, and explicitly present it. Structured, bounded lesson data is interpreted by the app; generated JavaScript is not executed.
 - Where configured, Muse can draft and revise lessons, try them as a learner, evaluate an explanation, write a show script, generate its cover and slide illustrations, or transcribe spoken explanations; SAM 3.1 can find the object a creator names in their sketch. Voice playback for shows uses the browser's speech synthesis. See the model table in [docs/architecture.md](docs/architecture.md).
@@ -57,7 +57,7 @@ npx playwright install chromium  # once, for browser tests
 npm run test:browser
 ```
 
-The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). What has been measured about the Muse-backed pipeline itself, on frozen suites with checksums and a separate rubric judge, is in the [evaluation card](docs/evaluation.md). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
+The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). The frozen suites, checksums, deterministic checks and separate AI wording rubric are described in the [evaluation card](docs/evaluation.md). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
 
 ## Architecture and hosting
 

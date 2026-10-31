@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { Comparison } from "./Comparison";
 import { evaluationComparisons, evaluationLesson } from "../lib/shared";
 
@@ -13,10 +13,13 @@ describe("Comparison", () => {
     const [wonder, spark] = pair.ids.map((id) => evaluationLesson(id)!);
     render(<Comparison caseId="logistic-growth-en" language="en" />);
     expect(
-      screen.getByRole("heading", { name: wonder.question.en }),
+      screen.getByRole("heading", { name: "Compare the two models" }),
     ).toBeTruthy();
-    expect(screen.getByText("Muse Wonder")).toBeTruthy();
-    expect(screen.getByText("Muse Spark")).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "Muse Wonder" })).toBeTruthy();
+    expect(screen.getByRole("rowheader", { name: "Muse Spark" })).toBeTruthy();
+    expect(screen.getByText(wonder.question.en)).toBeTruthy();
+    for (const summary of screen.getAllByText("Lesson and rubric details"))
+      fireEvent.click(summary);
     expect(
       screen.getByRole("heading", { name: wonder.lesson.title.en }),
     ).toBeTruthy();
@@ -24,10 +27,10 @@ describe("Comparison", () => {
       screen.getByRole("heading", { name: spark.lesson.title.en }),
     ).toBeTruthy();
     expect(
-      screen.getByText(`Rubric judge · ${wonder.judge.total}/10`),
+      screen.getByText(`AI wording rubric · ${wonder.judge.total}/10`),
     ).toBeTruthy();
     expect(
-      screen.getByText(`Rubric judge · ${spark.judge.total}/10`),
+      screen.getByText(`AI wording rubric · ${spark.judge.total}/10`),
     ).toBeTruthy();
     for (const issue of spark.judge.issues)
       expect(screen.getByText(issue)).toBeTruthy();
@@ -44,9 +47,7 @@ describe("Comparison", () => {
     ).toBe("#evaluation");
     cleanup();
     render(<Comparison caseId="logistic-growth-en" language="zh" />);
-    expect(
-      screen.getByRole("heading", { name: wonder.question.zh }),
-    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "比较两个模型" })).toBeTruthy();
     expect(screen.getByText("同一问题，两个模型")).toBeTruthy();
   });
   it("renders nothing for an unknown case", () => {

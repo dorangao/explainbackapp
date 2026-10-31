@@ -8,7 +8,7 @@ import { Markdown } from "./Markdown";
 import { PageHeader } from "./PageHeader";
 
 // The evaluation card, read from `docs/evaluation.md` at build time so the page and the
-// repository file cannot drift. Its sibling reports stay on GitHub and are linked there.
+// repository file cannot drift. This public document contains methods and limits only.
 export function EvaluationPage({ language }: { language: Language }) {
   const blocks = useMemo(() => parseMarkdown(source, EVALUATION_DOCS_URL), []);
   const [first, ...rest] = blocks;

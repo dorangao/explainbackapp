@@ -475,6 +475,11 @@ function LibraryCard({
           )}
         </div>
         <p className="lesson-meta fine">{metaLine(entry, language)}</p>
+        {entry.evaluation && (
+          <p className="lesson-review-note fine">
+            {t(language, "Gallery.humanReviewRequired")}
+          </p>
+        )}
         <details className="lesson-source">
           <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
           <p>

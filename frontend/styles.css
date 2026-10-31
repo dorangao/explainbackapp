@@ -1640,6 +1640,13 @@ body {
   border-radius: 10px;
   display: block;
 }
+.show-cover-art-only {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
+.show-cover-art-only img {
+  max-width: 640px;
+}
 .show-cover h1 {
   font-size: 1.9rem;
   margin: 6px 0 10px;
@@ -3624,11 +3631,24 @@ li[data-state="done"] .judge-mark {
   .intro-studio h1 {
     font-size: 1.75rem;
   }
-  .intro-studio > div:first-child > p:not(.eyebrow) {
+  .featured-card {
+    display: block;
+    flex: none;
+    width: 100%;
+  }
+  .featured-card .lesson-art-link,
+  .featured-card .lesson-line {
     display: none;
   }
-  .featured-card {
-    display: none;
+  .featured-card .lesson-card-body {
+    padding: 14px 16px;
+  }
+  .featured-card h2 {
+    font-size: 1rem;
+    margin: 8px 0 0;
+  }
+  .featured-card .lesson-actions {
+    margin-top: 6px;
   }
   .app-shell button.menu-button,
   .app-shell button.menu-button:hover,
@@ -3716,5 +3736,69 @@ li[data-state="done"] .judge-mark {
   .studio-stepper li,
   .learning-steps li {
     min-height: 44px;
+  }
+}
+
+/* Keep the fresh case distinct from the experiment that preceded it. */
+.previous-experiment {
+  margin-top: 24px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+.previous-experiment summary,
+.compare-details summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  padding: 12px 0;
+}
+.previous-experiment[open] .experiment-caption {
+  margin-bottom: 0;
+}
+.lesson-player[data-stage="complete"] .player-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app-shell .lesson-review-note {
+  color: var(--accent);
+  margin: 8px 0;
+}
+.comparison > .compare-overview {
+  display: block;
+  margin: 24px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.compare-overview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.compare-overview caption {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+}
+.compare-overview th,
+.compare-overview td {
+  text-align: left;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.compare-overview .compare-status {
+  margin: 0;
+}
+.compare-details {
+  margin: 14px 0;
+  border-block: 1px solid var(--line);
+}
+@media (max-width: 720px) {
+  .compare-overview th,
+  .compare-overview td {
+    padding: 8px;
+  }
+  .show-player[data-kind="cover"] .show-stage {
+    min-height: 0;
   }
 }

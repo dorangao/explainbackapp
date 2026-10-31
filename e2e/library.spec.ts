@@ -95,14 +95,16 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await visitor.close();
 });
 
-test("on a phone the header folds into a menu, a lesson is on the first screen and the facets fold behind More filters", async ({
+test("on a phone the header folds into a menu, the introductory tour stays visible and the facets fold behind More filters", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await expect(nav).toBeHidden();
-  await expect(page.locator(".gallery .lesson-card").first()).toBeInViewport();
+  await expect(
+    page.getByRole("link", { name: /Play the tour:/ }),
+  ).toBeInViewport();
   await expect(page.getByRole("button", { name: "Source" })).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "From the evaluation" }),
