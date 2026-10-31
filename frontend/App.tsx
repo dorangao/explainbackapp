@@ -43,12 +43,16 @@ const ShowPlayer = lazy(() =>
 const noop = () => {};
 function readRoute() {
   const hash = location.hash;
+  // "#show:<id>/play" opens the show and starts narrating at once.
+  const play = hash.endsWith("/play");
+  const showHash = play ? hash.slice(0, -"/play".length) : hash;
   return {
+    showAutoplay: play && showIdFromHash(showHash) !== null,
     area: (["#physics", "#quantum", "#create"].includes(hash)
       ? hash.slice(1)
       : "studio") as Area,
     lessonId: galleryIdFromHash(hash) as string | null,
-    showId: showIdFromHash(hash) as string | null,
+    showId: showIdFromHash(showHash) as string | null,
     sharedId: sharedIdFromHash(hash),
     compareId: comparisonIdFromHash(hash),
     evaluation: hash === "#evaluation",
@@ -169,6 +173,7 @@ export function App() {
         compareId: null,
         evaluation: false,
         about: false,
+        showAutoplay: false,
       });
       history.replaceState(null, "", "#studio");
       firstAuth.current = false;
@@ -190,6 +195,7 @@ export function App() {
         compareId: null,
         evaluation: false,
         about: false,
+        showAutoplay: false,
       });
       history.replaceState(null, "", "#create");
       setStarter((n) => n + 1);
@@ -381,6 +387,7 @@ export function App() {
                 language={language}
                 scriptModel={galleryShowItem.show.model}
                 coverModel={galleryShowItem.show.coverModel}
+                autoplay={route.showAutoplay}
                 onClose={() => {
                   location.hash = `#lesson:${route.showId}`;
                 }}

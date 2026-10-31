@@ -56,6 +56,7 @@ export function ShowPlayer({
   onIllustrate,
   illustrating = false,
   canIllustrate = true,
+  autoplay = false,
 }: {
   lesson: Lesson;
   show: Show;
@@ -74,9 +75,11 @@ export function ShowPlayer({
   onIllustrate?: (slide: number | null, direction: string) => void;
   illustrating?: boolean;
   canIllustrate?: boolean;
+  // Start narrating at once: used when the show is opened from a Play link.
+  autoplay?: boolean;
 }) {
   const [index, setIndex] = useState(0),
-    [playing, setPlaying] = useState(false),
+    [playing, setPlaying] = useState(autoplay),
     [voice, setVoice] = useState(() => speechAvailable()),
     // The remembered voice choice per language; null means the best available.
     [chosenKey, setChosenKey] = useState<string | null>(() =>

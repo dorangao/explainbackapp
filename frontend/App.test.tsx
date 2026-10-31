@@ -114,3 +114,19 @@ describe("phone menu", () => {
     ).toBeTruthy();
   });
 });
+
+describe("the tour's play link", () => {
+  it("opens the gallery show already playing when the hash ends in /play", async () => {
+    location.hash = "#show:explainback/play";
+    render(<App />);
+    expect(
+      await screen.findByRole("button", { name: "Pause" }, { timeout: 5000 }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "How ExplainBack makes a lesson",
+      }),
+    ).toBeTruthy();
+  });
+});

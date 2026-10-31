@@ -9,6 +9,7 @@ import {
   evaluationComparison,
   evaluationModelLabel,
   evaluationNote,
+  lessonCover,
 } from "../lib/shared";
 import type {
   Bilingual,
@@ -389,6 +390,11 @@ function LibraryCard({
   entry: Entry;
 }) {
   const title = entry.title[language];
+  const cover = lessonCover(entry.id);
+  const art =
+    entry.image ??
+    cover?.src ??
+    (entry.reviewed ? (galleryShow(entry.id)?.cover ?? null) : null);
   return (
     <article className={`lesson-card lesson-card-${entry.source}`}>
       <a
@@ -397,10 +403,10 @@ function LibraryCard({
         tabIndex={-1}
         aria-hidden="true"
       >
-        {entry.image ? (
+        {art ? (
           <img
             className="lesson-art lesson-art-image"
-            src={entry.image}
+            src={art}
             alt=""
             width={360}
             height={158}
@@ -471,15 +477,19 @@ function LibraryCard({
         <p className="lesson-meta fine">{metaLine(entry, language)}</p>
         <details className="lesson-source">
           <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
-          <p>{provenance(entry, language)}</p>
+          <p>
+            {provenance(entry, language)}
+            {cover &&
+              ` ${t(language, "Gallery.coverNote").replace("{date}", cover.createdAt)}`}
+          </p>
         </details>
       </div>
     </article>
   );
 }
 
-// The hero's "start here" card: one reviewed lesson with a show, so a first visit has
-// one obvious thing to open before the grid.
+// The hero's card: the how-to lesson as the 6-step tour, with its narrated show played
+// through from a Play link, and the lesson itself as the second action.
 export function FeaturedLesson({
   language,
   id,
@@ -491,6 +501,7 @@ export function FeaturedLesson({
   if (!item) return null;
   const entry = fromReviewed(item);
   const title = entry.title[language];
+  const cover = galleryShow(id)?.cover ?? lessonCover(id)?.src ?? null;
   return (
     <article className="lesson-card featured-card">
       <a
@@ -499,18 +510,39 @@ export function FeaturedLesson({
         tabIndex={-1}
         aria-hidden="true"
       >
-        <LessonArt id={entry.artId} />
+        {cover ? (
+          <img
+            className="lesson-art lesson-art-image"
+            src={cover}
+            alt=""
+            width={360}
+            height={158}
+            loading="eager"
+          />
+        ) : (
+          <LessonArt id={entry.artId} />
+        )}
       </a>
       <div className="lesson-card-body">
         <span className="lesson-kind">
           <span className="lesson-badge lesson-badge-start">
             {t(language, "Gallery.startHere")}
           </span>
-          {kindLabel(language, entry.kind)}
+          {t(language, "Gallery.theSixStepTour")}
         </span>
         <h2>{title}</h2>
         <p className="lesson-line">{entry.line[language]}</p>
         <div className="lesson-actions">
+          {entry.show && (
+            <a
+              className="lesson-link lesson-link-show"
+              href={`${entry.show}/play`}
+              aria-label={`${t(language, "Gallery.playTheTour")}: ${title}`}
+            >
+              {t(language, "Gallery.playTheTour")}{" "}
+              <span aria-hidden="true">▶</span>
+            </a>
+          )}
           <a
             className="lesson-link"
             href={entry.href}
@@ -518,16 +550,6 @@ export function FeaturedLesson({
           >
             {t(language, "Gallery.startHere")} <span aria-hidden="true">↗</span>
           </a>
-          {entry.show && (
-            <a
-              className="lesson-link lesson-link-show"
-              href={entry.show}
-              aria-label={`${t(language, "Gallery.startWithTheShow")}: ${title}`}
-            >
-              {t(language, "Gallery.startWithTheShow")}{" "}
-              <span aria-hidden="true">▶</span>
-            </a>
-          )}
         </div>
       </div>
     </article>

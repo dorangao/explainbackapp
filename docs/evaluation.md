@@ -62,6 +62,8 @@ Fourteen of the passing breadth lessons are shown in the library under **From th
 
 A signed-in creator can also run the same comparison on their own question from Studio (**Compare two models**): both models draft it, the open-question scorer checks each reply and the judge the creator picks (Spark by default, or Wonder) scores the ready lessons, with the result shown side by side. Those runs are not part of the frozen suites and are not recorded here.
 
+The showcase cards carry cover illustrations drawn by Muse Image from each lesson's title and introduction (`scripts/lesson-covers.mjs`); they are decorative, were not reviewed, and play no part in the evaluation.
+
 This card itself is a page of the app (`/#evaluation`, linked from every showcase lesson, comparison and the footer), rendered from this file when the app is built, so the two cannot drift. The per-case reports linked above stay in the repository.
 
 ## How to reproduce

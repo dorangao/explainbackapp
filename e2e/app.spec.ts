@@ -473,3 +473,32 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
   ).toBeVisible();
   expect(requests).toEqual([]);
 });
+
+test("the hero's Play the tour link opens the how-to show already narrating, without a model request", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST") requests.push(r.url());
+  });
+  await page.goto("/");
+  await page
+    .getByRole("link", {
+      name: "Play the tour: How ExplainBack makes a lesson",
+    })
+    .click();
+  await expect(page).toHaveURL(/#show:explainback\/play$/);
+  await expect(page.locator(".show-player")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Pause" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "How ExplainBack makes a lesson",
+    }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Pause" }).click();
+  await expect(
+    page.getByRole("button", { name: "Play", exact: true }),
+  ).toBeVisible();
+  expect(requests).toEqual([]);
+});

@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { galleryShows } from "../public/gallery-shows.mjs";
+import { lessonCovers } from "../public/lesson-covers.mjs";
 export const brandFiles = new Map([
   ["/favicon.svg", "image/svg+xml"],
   ["/favicon.ico", "image/x-icon"],
@@ -12,6 +13,8 @@ export const brandFiles = new Map([
   ["/icons/icon-512.png", "image/png"],
   ["/icons/maskable-512.png", "image/png"],
   ["/gallery/pendulum-sketch.png", "image/png"],
+  // Library covers drawn by Muse Image (scripts/lesson-covers.mjs).
+  ...Object.values(lessonCovers).map((cover) => [cover.src, "image/webp"]),
   // Every gallery show's cover and slide illustrations, so the build copies and the local
   // server answers exactly the files the shows reference.
   ...Object.values(galleryShows).flatMap((entry) =>
