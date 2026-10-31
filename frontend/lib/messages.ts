@@ -44,6 +44,75 @@ export const messages = {
     zh: "ExplainBack 讲给我听 · 在实验中理解",
   },
   "App.explore": { en: "Explore", zh: "探索" },
+  "App.library": { en: "Library", zh: "课程库" },
+  "App.about": { en: "About", zh: "关于" },
+  "App.sourceOnGitHub": { en: "Source on GitHub", zh: "GitHub 源码" },
+  "PageHeader.breadcrumb": { en: "Breadcrumb", zh: "当前位置" },
+  "About.title": { en: "About ExplainBack", zh: "关于 ExplainBack" },
+  "About.meta": {
+    en: "An independent learning prototype: interactive lessons in English and Chinese, drafted by Muse models and checked by code.",
+    zh: "一个独立的学习原型：由 Muse 模型起草、由代码检验的中英双语互动课程。",
+  },
+  "About.howItWorks": { en: "How it works", zh: "工作原理" },
+  "About.step1Title": {
+    en: "A question becomes a lesson contract.",
+    zh: "一个问题变成一份课程契约。",
+  },
+  "About.step1Body": {
+    en: "Muse drafts a title, an introduction, one or two chapters and either an adjustable model or an ordered process. The app never runs model-written code.",
+    zh: "Muse 起草标题、引言、一到两个章节，以及一个可调模型或一个有序过程。应用从不运行模型写的代码。",
+  },
+  "About.step2Title": {
+    en: "Code checks every number.",
+    zh: "每个数字都由代码检验。",
+  },
+  "About.step2Body": {
+    en: "Formulas are compiled and checked for finiteness across every input range, and the transfer answer is computed independently before a lesson can be played.",
+    zh: "公式会被编译，并在所有输入范围内检查有限性；迁移题的答案在课程可播放前独立计算。",
+  },
+  "About.step3Title": {
+    en: "You predict, test and explain it back.",
+    zh: "你先预测、再检验，然后讲回来。",
+  },
+  "About.step3Body": {
+    en: "Every lesson runs through Predict, Experiment, Explain and Transfer. A learner's answer is marked by code; a model only comments on the wording.",
+    zh: "每节课都经过预测、实验、解释和迁移四步。学习者的答案由代码判定；模型只对表述给出评语。",
+  },
+  "About.whatHasBeenMeasured": {
+    en: "What has been measured",
+    zh: "已测量的内容",
+  },
+  "About.measuredBody": {
+    en: "Frozen suites with checksums, one attempt per case, deterministic checks kept apart from a rubric judge. The evaluation card states the numbers and what they do not establish.",
+    zh: "带校验和的冻结测试集、每例一次尝试、与评分模型分开的确定性检查。评估卡列出了数字，以及它们不能说明的事。",
+  },
+  "About.limitsAndPrivacy": { en: "Limits and privacy", zh: "限制与隐私" },
+  "About.limit1": {
+    en: "Model output and a working calculation do not establish scientific correctness or teaching effectiveness. Lessons need human review before they are presented.",
+    zh: "模型输出和可运行的计算并不能证明科学上正确或教学上有效。课程在演示前需要人工审阅。",
+  },
+  "About.limit2": {
+    en: "Browsing never needs an account. Creating needs preview access, and every model request counts against an hourly budget shown in the header.",
+    zh: "浏览无需账号。创建需要预览权限，每次模型请求都计入页眉显示的每小时额度。",
+  },
+  "About.limit3": {
+    en: "Lesson requests and responses, including any attached image, are sent to Meta's Muse models and stored there. Use synthetic examples.",
+    zh: "课程请求与回复（含附带图片）会发送给 Meta 的 Muse 模型并存储在那里。请使用合成示例。",
+  },
+  "About.limit4": {
+    en: "Sessions are temporary. Saved lessons belong to the access label that created them, and a shared link stays open after its code is revoked.",
+    zh: "会话是临时的。已保存的课程归创建它的访问标签所有；分享链接在访问码撤销后仍可打开。",
+  },
+  "About.source": { en: "Source", zh: "源码" },
+  "About.sourceBody": {
+    en: "The code, the evaluation suites and the documentation are public.",
+    zh: "代码、评估测试集和文档都是公开的。",
+  },
+  "About.architectureNotes": { en: "Architecture notes", zh: "架构说明" },
+  "About.securityNotes": {
+    en: "Security notes and standards alignment",
+    zh: "安全说明与标准对照",
+  },
   "App.exploreLessons": { en: "Explore lessons", zh: "探索课程" },
   "App.installApp": { en: "Install app", zh: "安装应用" },
   "App.independentLearningPrototype": {

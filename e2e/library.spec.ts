@@ -60,7 +60,7 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(guest.locator(".lesson-player")).toBeVisible();
   await expect(guest.getByText(/Shared by its creator/)).toBeVisible();
   await guest.getByRole("button", { name: "Disagree", exact: true }).click();
-  await guest.getByRole("link", { name: "Explore", exact: true }).click();
+  await guest.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
     guest.getByRole("heading", { name: "Fresh from the Studio." }),
   ).toBeVisible();
@@ -82,9 +82,7 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(guest.locator(".show-illustration img")).toBeVisible();
   await expect(guest.getByLabel("Note for the illustrator")).toHaveCount(0);
   await guest.getByRole("button", { name: "Close show" }).click();
-  await expect(
-    guest.getByRole("button", { name: "Preview access" }),
-  ).toBeVisible();
+  await expect(guest.getByRole("button", { name: "Sign in" })).toBeVisible();
 
   // Turning the link off hides the lesson from the visitor.
   await page.getByRole("switch", { name: "Shared by link" }).click();
