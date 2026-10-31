@@ -16,7 +16,7 @@ export const galleryLessons=Object.freeze([
     inputs:[{id:'initial',label:bi('Initial temperature','初始温度'),unit:'°C',min:60,max:100,step:1,value:80},{id:'ambient',label:bi('Room temperature','室温'),unit:'°C',min:10,max:30,step:1,value:20},{id:'rate',label:bi('Cooling coefficient','冷却系数'),unit:'1/min',min:.01,max:.2,step:.01,value:.1}],
     axis:{label:bi('Time','时间'),unit:'min',min:0,max:30},
     outputs:[{id:'temp',label:bi('Temperature','温度'),unit:'°C',expression:'ambient+(initial-ambient)*exp(-rate*x)'}],
-    transfer:{question:bi('With the new settings shown, what is the temperature at the marked time? Answer in °C.','在所示新设置下，标记时刻的温度是多少？以 °C 作答。'),values:[{id:'initial',value:90},{id:'ambient',value:15},{id:'rate',value:.05}],at:10,output:'temp'}}}]}},
+    transfer:{question:bi('With the new settings shown, what is the temperature at the marked time? Answer in the unit shown.','在所示新设置下，标记时刻的温度是多少？按所示单位作答。'),values:[{id:'initial',value:90},{id:'ambient',value:15},{id:'rate',value:.05}],at:10,output:'temp'}}}]}},
  {id:'pendulum',kind:'model',source:'muse',
   summary:bi('Does a heavier bob swing more slowly? Compare the small-angle period against length, gravity and mass.','更重的摆锤摆得更慢吗？比较小角度周期随摆长、重力和质量的变化。'),
   lesson:{version:2,title:bi('Ideal pendulum timing','理想单摆计时'),intro:bi('How does a simple pendulum keep time as its length changes, and does the mass matter?','单摆的计时如何随摆长变化？质量有影响吗？'),chapters:[{experiment:'generated',

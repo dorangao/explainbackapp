@@ -402,6 +402,24 @@ export const messages = {
     en: "Try a fresh case →",
     zh: "尝试新情境 →",
   },
+  "LessonPlayer.units": { en: "Units", zh: "单位" },
+  "LessonPlayer.unitsMetric": {
+    en: "Metric (°C, m, kg)",
+    zh: "公制（°C、m、kg）",
+  },
+  "LessonPlayer.unitsUs": { en: "US (°F, ft, lb)", zh: "美制（°F、ft、lb）" },
+  "LessonPlayer.unitsNote": {
+    en: "Numbers are converted for display; the lesson is computed in its own units.",
+    zh: "数值仅为显示而换算；课程仍按原单位计算。",
+  },
+  "DraftReview.defaultUnits": {
+    en: "Default units for viewers",
+    zh: "学习者默认看到的单位",
+  },
+  "DraftReview.defaultUnitsNote": {
+    en: "Viewers can switch at any time; code converts the numbers. If the text names a unit, ask Muse to reword it.",
+    zh: "学习者可随时切换，数值由代码换算。若正文写明了单位，可让 Muse 改写。",
+  },
   "LessonPlayer.useAValueWithinThe": {
     en: "Use a value within the reviewed range and step.",
     zh: "请输入符合已审阅范围与步长的值。",

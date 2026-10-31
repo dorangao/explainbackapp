@@ -21,10 +21,15 @@ function bilingual(value,max,field='text'){
  if(!shape(value,['en','zh'])||Object.values(value).some(s=>typeof s!=='string'||!s.trim()||s.length>max))throw new Error(`${field} needs both languages, each 1–${max} characters.`);
  return {en:value.en.trim(),zh:value.zh.trim()};
 }
+// A creator may set the unit system viewers see first ('metric' as authored, or 'us'); the
+// browser converts numbers for display and the computation stays in the authored units.
+export const unitSystems=Object.freeze(['metric','us']);
 export function validateLesson(value){
- if(!shape(value,['version','title','intro','chapters'])||![1,2].includes(value.version)||!Array.isArray(value.chapters)||value.chapters.length<1||value.chapters.length>3)throw new Error('Use a version 1 or 2 lesson with 1–3 chapters.');
+ const withUnits=shape(value,['version','title','intro','chapters','units']);
+ if(!(withUnits||shape(value,['version','title','intro','chapters']))||![1,2].includes(value.version)||!Array.isArray(value.chapters)||value.chapters.length<1||value.chapters.length>3)throw new Error('Use a version 1 or 2 lesson with 1–3 chapters.');
+ if(withUnits&&!unitSystems.includes(value.units))throw new Error('units must be metric or us.');
  const ids=new Set();
- const lesson={version:value.version,title:bilingual(value.title,80,'title'),intro:bilingual(value.intro,200,'intro'),chapters:value.chapters.map((c,i)=>{
+ const lesson={version:value.version,...(withUnits?{units:value.units}:{}),title:bilingual(value.title,80,'title'),intro:bilingual(value.intro,200,'intro'),chapters:value.chapters.map((c,i)=>{
   if(value.version===2&&c?.experiment==='generated'){
    if(!shape(c,['experiment','framing','explanation','demo']))throw new Error('Invalid generated chapter.');
    return {experiment:'generated',framing:bilingual(c.framing,180,`chapter ${i+1} framing`),explanation:bilingual(c.explanation,260,`chapter ${i+1} explanation`),demo:validateDemo(c.demo)};

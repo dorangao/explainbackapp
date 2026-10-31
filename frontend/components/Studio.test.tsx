@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
@@ -1399,5 +1399,58 @@ describe("Sketch provenance notes", () => {
       (document.querySelector(".spotlight img") as HTMLImageElement | null)
         ?.src,
     ).toBe(sketch);
+  });
+});
+
+describe("Display units", () => {
+  beforeEach(() => localStorage.clear());
+  it("shows the cooling lesson in °F on request, checks the answer in the authored unit and remembers the choice", async () => {
+    mount({ lessonId: "cooling" });
+    expect(
+      await screen.findByRole("heading", { name: /Newton cooling/ }),
+    ).toBeTruthy();
+    expect(screen.getByText(/Initial temperature/).textContent).toContain("°C");
+    fireEvent.click(screen.getByRole("button", { name: /US \(°F, ft, lb\)/ }));
+    expect(screen.getByText(/Initial temperature/).textContent).toContain("°F");
+    expect(screen.getByText(/140 → 212/)).toBeTruthy();
+    expect(
+      (screen.getByLabelText(/Initial temperature \(°F\)/) as HTMLInputElement)
+        .value,
+    ).toBe("176");
+    // Typing a Fahrenheit value moves the authored slider to the nearest whole degree Celsius.
+    const field = screen.getByLabelText(
+      /Initial temperature \(°F\)/,
+    ) as HTMLInputElement;
+    fireEvent.change(field, { target: { value: "185" } });
+    fireEvent.blur(field);
+    expect(
+      (screen.getByLabelText(/Initial temperature slider/) as HTMLInputElement)
+        .value,
+    ).toBe("85");
+    fireEvent.click(screen.getByRole("button", { name: /^Disagree$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Show final state/ }));
+    expect(screen.getByText(/Temperature/, { selector: "dt" })).toBeTruthy();
+    expect(
+      document.querySelector(".experiment-metrics dd")?.textContent,
+    ).toContain("°F");
+    fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Try a fresh case/ }));
+    expect(
+      screen.getByText(
+        /Initial temperature = 194 °F · Room temperature = 59 °F/,
+      ),
+    ).toBeTruthy();
+    // The transfer answer: 15 + 75·e^(−0.5) °C, typed in °F.
+    const celsius = 15 + 75 * Math.exp(-0.5);
+    const fahrenheit = (celsius * 9) / 5 + 32;
+    fireEvent.change(screen.getByLabelText(/Your answer \(°F\)/), {
+      target: { value: fahrenheit.toFixed(1) },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Check answer locally/ }),
+    );
+    expect(await screen.findByText(/That matches this model/)).toBeTruthy();
+    expect(localStorage.getItem("explainback.units")).toBe("us");
   });
 });

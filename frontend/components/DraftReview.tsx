@@ -583,6 +583,29 @@ export function DraftReview({
           <CacheNote cache={caches.revise} language={language} />
         </section>
       )}
+      {generated && draft.version === 2 && (
+        <label className="units-default">
+          {t(language, "DraftReview.defaultUnits")}
+          <select
+            value={draft.units ?? "metric"}
+            disabled={busy}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                units: e.target.value === "us" ? "us" : "metric",
+              })
+            }
+          >
+            <option value="metric">
+              {t(language, "LessonPlayer.unitsMetric")}
+            </option>
+            <option value="us">{t(language, "LessonPlayer.unitsUs")}</option>
+          </select>
+          <small className="fine">
+            {t(language, "DraftReview.defaultUnitsNote")}
+          </small>
+        </label>
+      )}
       {generated && (
         <label className="review-check">
           <input

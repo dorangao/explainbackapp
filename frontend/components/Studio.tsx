@@ -65,6 +65,7 @@ import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
 import { Spotlight } from "./Spotlight";
+import { withoutUnits } from "../lib/units";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -347,7 +348,7 @@ export function Studio({
           model: external.model ?? undefined,
         } as ShowReply,
         at: external.updatedAt,
-        key: fingerprint({ lesson }),
+        key: fingerprint({ lesson: withoutUnits(lesson) }),
       });
   }, [lessonId, external, invalidate, loadLesson]);
   // An invite or the Create link seeds the editable starter topic.
@@ -436,7 +437,10 @@ export function Studio({
               creation,
               ...(!revisionText && attached ? { image: attached.dataUrl } : {}),
               ...(revisionText
-                ? { draft: validateLesson(draft), revision: revisionText }
+                ? {
+                    draft: validateLesson(draft ? withoutUnits(draft) : draft),
+                    revision: revisionText,
+                  }
                 : {}),
             }
           : {
@@ -555,12 +559,20 @@ export function Studio({
     if (mode === "compose") {
       const composed = result.reply as ComposeReply;
       if (composed.status === "ready" && composed.lesson) {
-        const next = loadLesson(composed.lesson);
+        // A revision rewrites content; the creator's default unit system stays with the lesson.
+        const next = loadLesson(
+          before?.units
+            ? { ...composed.lesson, units: before.units }
+            : composed.lesson,
+        );
         setRevision(before ? { before, after: next } : null);
         if (before)
           setReviseStamp({
             at: Date.now(),
-            key: fingerprint({ draft: next, revision: revisionText?.trim() }),
+            key: fingerprint({
+              draft: withoutUnits(next),
+              revision: revisionText?.trim(),
+            }),
           });
         else setComposeStamp({ at: Date.now(), key: requestKey });
         setMessage(
@@ -937,7 +949,9 @@ export function Studio({
     setSaving(true);
     try {
       const current =
-        show?.key === fingerprint({ lesson: valid }) ? show.reply : null;
+        show?.key === fingerprint({ lesson: withoutUnits(valid) })
+          ? show.reply
+          : null;
       const hadImages = Boolean(
         current?.cover ||
         Object.keys(current?.illustrations ?? {}).length ||
@@ -1042,7 +1056,7 @@ export function Studio({
               model: summary.model ?? undefined,
             } as ShowReply,
             at: summary.updatedAt,
-            key: fingerprint({ lesson }),
+            key: fingerprint({ lesson: withoutUnits(lesson) }),
           }
         : null,
     );
@@ -1065,9 +1079,13 @@ export function Studio({
       creation,
       image: image.image ? fingerprint(image.image.dataUrl) : null,
     }),
-    tryoutKey = fingerprint({ lesson: draft, language }),
-    showKey = fingerprint({ lesson: draft }),
-    reviseKey = fingerprint({ draft, revision: revisionPrompt.trim() });
+    cacheDraft = draft && withoutUnits(draft),
+    tryoutKey = fingerprint({ lesson: cacheDraft, language }),
+    showKey = fingerprint({ lesson: cacheDraft }),
+    reviseKey = fingerprint({
+      draft: cacheDraft,
+      revision: revisionPrompt.trim(),
+    });
   const judgeSteps: JudgeStep[] = judgeStepStates({
     hasDraft: Boolean(draft),
     tryoutFresh: tryout?.key === tryoutKey,
