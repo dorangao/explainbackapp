@@ -25,10 +25,15 @@ docs/claim-smoke-results.json
 # Downloaded reference documents; authored notes and baseline source stay tracked
 docs/*.pdf
 
-# Local-only notes: demo scripts, provenance deliberations, readiness reviews, work logs.
+# Private-repository notes: demo scripts, provenance deliberations, readiness reviews, work logs.
 # See docs/repo-guidelines.md. Keep them in ~/app/explainback-private instead.
 private/
 notes/
+/access/
+/reviews/
+/plans/
+/demo/
+/provenance/
 *.private.md
 docs/demo/
 docs/provenance/

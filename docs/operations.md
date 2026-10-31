@@ -35,9 +35,9 @@ every minute without spending anything.
 
 | Symptom | Likely cause | What to do |
 |---|---|---|
-| Reviewers see "The hourly request budget for this access is used up" | The code's hourly budget (the number after the date in `EXPLAINBACK_ACCESS_CODES`) is spent; one full tour is 3 requests, one hand-driven demo 6 to 8 | Wait for the fixed hour to roll over, or raise the budget for that code and redeploy. Saved and gallery lessons keep working. |
+| Reviewers see "The hourly request budget for this access is used up" | The code's hourly action budget (the number after the date in `EXPLAINBACK_ACCESS_CODES`) is spent; an action can make multiple provider calls | Wait for the fixed window to reset. If changing the quota, redeploy and sign in again to receive it. Saved and gallery lessons keep working. |
 | "Sign in to tester access" right after signing in | The session cookie was replaced by a newer sign-in from the same browser, or the code was removed | Sign in again. Removing or rotating a code invalidates its sessions on their next request. |
-| Draft or show times out | Wonder requests take 20 to 35 s; the function budget is 55 s | Retry once. Background creation (the default for Wonder) survives a slow first request by polling. If every request fails, check the provider status page and the key. |
+| Draft or show times out | Provider work exceeded the configured request or job deadline | For background creation, keep the page open and let polling finish before starting another request. If it fails, check provider availability and configuration before retrying. |
 | Images missing from saved lessons | `BLOB_READ_WRITE_TOKEN` missing, or the store is unreachable | The app says images were not kept and saves the lesson without them. Set the token in the Vercel project and redeploy. |
 | SAM Spotlight or the microphone control is hidden | The feature is disabled when its model call is not configured | Both need `MODEL_API_KEY`; the microphone also needs a secure context and the user's permission. |
 | Orphaned images on Blob | Test runs or deleted shelves before the delete-on-remove rule | Run `node scripts/prune-blobs.mjs` with the token and Redis variables in the environment; it lists first and deletes only with `--live` (default: images older than 7 days that no saved lesson uses). |
@@ -46,8 +46,9 @@ every minute without spending anything.
 
 Environment variables apply to new deployments only. After changing a variable in the
 Vercel project (production and preview are separate), create a deployment to activate it.
-Reviewer codes, their labels, quotas and who received them belong in private notes, never
-in the repository (`docs/repo-guidelines.md`).
+Reviewer labels, quota plans and distribution records belong in the separate private
+repository. Code values and live invite links stay out of both repositories; see
+`docs/repo-guidelines.md`.
 
 ## Rolling back
 

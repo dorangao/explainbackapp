@@ -4,7 +4,7 @@ ExplainBack turns a question or sketch into a bilingual, reviewable interactive 
 
 ExplainBack 把问题或草图变成可审阅的中英双语互动课程。学习者先预测，再操作实验、解释结果，并尝试新的情境。
 
-ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays in local notes is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md). What existed before the event is stated in [Pre-existing work](#pre-existing-work) below.
+ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays private is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md). What existed before the event is stated in [Pre-existing work](#pre-existing-work) below.
 
 ## What to look at
 
@@ -80,4 +80,4 @@ The dated snapshot, its manifest and the comparison script are kept privately wi
 
 ## Source and assets
 
-Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The seven gallery show covers and their slide illustrations were generated with Muse Image (narration by Muse Wonder; six regenerated October 29, 2026, the ExplainBack lesson's made October 30), and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. The lesson *How ExplainBack makes a lesson* is hand-authored and describes this repository's own pipeline. The repository includes synthetic test fixtures and excludes local environment files and generated evaluation output. The author keeps the detailed provenance record locally and will provide it on request.
+Application source is licensed under [MIT](LICENSE); third-party packages retain their own licenses. The seven gallery show covers and their slide illustrations were generated with Muse Image (narration by Muse Wonder; six regenerated October 29, 2026, the ExplainBack lesson's made October 30), and the sketch-pendulum lesson uses a hand-drawn sketch according to the source project. The lesson *How ExplainBack makes a lesson* is hand-authored and describes this repository's own pipeline. The repository includes synthetic test fixtures and excludes local environment files and generated evaluation output. The author keeps the detailed provenance record privately and will provide it on request.
