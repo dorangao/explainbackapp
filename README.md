@@ -55,7 +55,7 @@ npx playwright install chromium  # once, for browser tests
 npm run test:browser
 ```
 
-The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
+The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). What has been measured about the Muse-backed pipeline itself, on frozen suites with checksums and a separate rubric judge, is in the [evaluation card](docs/evaluation.md). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
 
 ## Architecture and hosting
 
