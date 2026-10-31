@@ -19,7 +19,8 @@ import {
 } from "./lib/shared";
 import { Comparison } from "./components/Comparison";
 import { EvaluationPage } from "./components/EvaluationPage";
-import { EVALUATION_CARD_HASH } from "./lib/evaluation";
+import { About } from "./components/About";
+import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
@@ -50,6 +51,7 @@ function readRoute() {
     sharedId: sharedIdFromHash(hash),
     compareId: comparisonIdFromHash(hash),
     evaluation: hash === "#evaluation",
+    about: hash === "#about",
   };
 }
 export function App() {
@@ -163,6 +165,7 @@ export function App() {
         sharedId: null,
         compareId: null,
         evaluation: false,
+        about: false,
       });
       history.replaceState(null, "", "#studio");
       firstAuth.current = false;
@@ -183,6 +186,7 @@ export function App() {
         sharedId: null,
         compareId: null,
         evaluation: false,
+        about: false,
       });
       history.replaceState(null, "", "#create");
       setStarter((n) => n + 1);
@@ -199,10 +203,10 @@ export function App() {
       setVisited((previous) => ({ ...previous, [route.area]: true }));
   }, [auth.info.authenticated, route.area]);
   const focusRoute = useRef(
-    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${libraryVisit}`,
+    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${route.about}/${libraryVisit}`,
   );
   useEffect(() => {
-    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${libraryVisit}`;
+    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${route.evaluation}/${route.about}/${libraryVisit}`;
     if (key === focusRoute.current) return;
     focusRoute.current = key;
     main.current?.focus({ preventScroll: true });
@@ -214,6 +218,7 @@ export function App() {
     route.sharedId,
     route.compareId,
     route.evaluation,
+    route.about,
     libraryVisit,
   ]);
   const area = route.area;
@@ -234,6 +239,11 @@ export function App() {
         >
           <Brand />
         </a>
+        {auth.info.open && (
+          <span className="dev-badge">
+            {t(language, "App.localDevelopmentOpenAccess")}
+          </span>
+        )}
         <nav
           aria-label={t(language, "App.mainNavigation")}
           className="main-nav"
@@ -241,9 +251,11 @@ export function App() {
           <a
             href="#studio"
             onClick={() => setLibraryVisit((n) => n + 1)}
-            aria-current={area === "studio" ? "page" : undefined}
+            aria-current={
+              area === "studio" && !route.about ? "page" : undefined
+            }
           >
-            {t(language, "App.explore")}
+            {t(language, "App.library")}
           </a>
           <a
             href="#create"
@@ -252,6 +264,10 @@ export function App() {
           >
             {t(language, "App.create")}
           </a>
+          <a href="#about" aria-current={route.about ? "page" : undefined}>
+            {t(language, "App.about")}
+          </a>
+          {/* The benches stay here until phase 3 lists them in the library grid. */}
           {auth.info.authenticated && (
             <>
               <a
@@ -287,42 +303,42 @@ export function App() {
             </button>
           )}
           {auth.info.authenticated && !auth.info.open ? (
-            <button
-              className="text-button"
-              disabled={auth.working}
-              onClick={() => void auth.logout()}
-            >
-              {t(language, "App.signOut")}
-            </button>
+            <>
+              {auth.status?.access && (
+                <span
+                  className="account-pill"
+                  role="status"
+                  title={
+                    auth.status.access.expiresAt
+                      ? `${auth.status.access.label} · ${t(language, "App.expires")} ${new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium" }).format(auth.status.access.expiresAt)}`
+                      : auth.status.access.label
+                  }
+                >
+                  {auth.status.access.remaining}/{auth.status.access.quota}{" "}
+                  {t(language, "App.liveRequestsLeftThisHour")}
+                </span>
+              )}
+              <button
+                className="text-button"
+                disabled={auth.working}
+                onClick={() => void auth.logout()}
+              >
+                {t(language, "App.signOut")}
+              </button>
+            </>
           ) : (
             !auth.info.authenticated && (
               <button
-                className="text-button"
+                className="account-button"
                 onClick={openAccess}
                 disabled={auth.loading}
               >
-                {t(language, "App.previewAccess")}
+                {t(language, "App.signIn")}
               </button>
             )
           )}
         </div>
       </header>
-      {auth.info.authenticated && (auth.status?.access || auth.info.open) && (
-        <div className="access-strip" role="status">
-          {auth.info.open
-            ? t(language, "App.localDevelopmentOpenAccess")
-            : `${auth.status?.access?.label} · ${auth.status?.access?.remaining}/${auth.status?.access?.quota} ${t(language, "App.liveRequestsLeftThisHour")}`}
-          {auth.status?.access?.expiresAt && (
-            <span>
-              {" "}
-              · {t(language, "App.expires")}{" "}
-              {new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
-                dateStyle: "medium",
-              }).format(auth.status.access.expiresAt)}
-            </span>
-          )}
-        </div>
-      )}
       <main id="main-content" ref={main} tabIndex={-1}>
         {auth.loading && (
           <p className="connection-note" role="status">
@@ -358,6 +374,7 @@ export function App() {
             !route.sharedId &&
             !route.compareId &&
             !route.evaluation &&
+            !route.about &&
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
@@ -375,6 +392,7 @@ export function App() {
           />
         )}
         {route.evaluation && <EvaluationPage language={language} />}
+        {route.about && <About language={language} />}
         {route.sharedId && shared?.record && (
           <Studio
             key={`shared-${auth.identity}-${route.sharedId}`}
@@ -491,16 +509,23 @@ export function App() {
         )}
       </main>
       <footer className="site-footer">
-        <Brand compact />
-        <p>{t(language, "App.aLittleCuriosityAClearer")}</p>
+        <div className="footer-brand">
+          <Brand compact />
+          <p>{t(language, "App.aLittleCuriosityAClearer")}</p>
+        </div>
+        <nav aria-label={t(language, "App.about")} className="footer-links">
+          <a href="#about">{t(language, "App.about")}</a>
+          <a href={EVALUATION_CARD_HASH}>
+            {t(language, "Gallery.evaluationCard")}
+          </a>
+          <a href={REPO_URL} target="_blank" rel="noreferrer">
+            {t(language, "App.sourceOnGitHub")}
+          </a>
+        </nav>
         <span>
           {t(language, "App.independentLearningPrototype")}
           <br />
           {t(language, "App.syntheticExamplesTemporarySessions")}
-          <br />
-          <a href={EVALUATION_CARD_HASH}>
-            {t(language, "Gallery.evaluationCard")}
-          </a>
         </span>
       </footer>
     </div>

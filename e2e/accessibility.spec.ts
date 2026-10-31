@@ -40,6 +40,11 @@ test("the library, a lesson and its show pass the automated WCAG audit", async (
     page.getByRole("heading", { level: 1, name: "Evaluation card" }),
   ).toBeVisible();
   await audit(page, "evaluation card");
+  await page.goto("/#about");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "About ExplainBack" }),
+  ).toBeVisible();
+  await audit(page, "about page");
   await page.goto("/");
   await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
   await expect(

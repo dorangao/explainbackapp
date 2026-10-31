@@ -1,5 +1,8 @@
 /* ExplainBack — warm paper, deep ink, one clear action color. */
 :root {
+  /* The one content column and its side gutter, shared by header, main and footer. */
+  --column: 1120px;
+  --gutter: clamp(16px, 4vw, 32px);
   --paper: #f6f5ef;
   --ink: #20332f;
   --muted: #5d6c67;
@@ -154,13 +157,23 @@ body {
   top: 10px;
 }
 .site-header {
-  max-width: 1400px;
+  max-width: var(--column);
   margin: 0 auto;
-  padding: 24px 4vw;
+  padding: 18px var(--gutter);
   display: flex;
   align-items: center;
-  gap: 3rem;
+  gap: 2.2rem;
   border-bottom: 1px solid var(--line);
+}
+.dev-badge {
+  font-size: 0.66rem;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 9px;
+  margin-left: -1.4rem;
+  white-space: nowrap;
 }
 .brand-link {
   text-decoration: none;
@@ -198,9 +211,9 @@ body {
   flex: 1;
 }
 .main-nav a {
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   text-decoration: none;
-  color: var(--muted);
+  color: var(--ink);
   padding: 12px 0;
   position: relative;
   white-space: nowrap;
@@ -221,8 +234,26 @@ body {
 }
 .header-tools {
   display: flex;
-  gap: 1.2rem;
+  gap: 0.8rem;
   align-items: center;
+}
+.app-shell .account-button {
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.account-pill {
+  font-size: 0.74rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  white-space: nowrap;
 }
 .language-switch select {
   padding: 0.6rem 0.65rem;
@@ -233,18 +264,115 @@ body {
   max-width: 135px;
 }
 .app-shell main {
-  max-width: 1290px;
-  padding: 44px 4vw 72px;
+  max-width: var(--column);
+  padding: 40px var(--gutter) 72px;
   margin: auto;
   outline: none;
 }
-.access-strip {
-  max-width: 1290px;
-  padding: 9px 4vw 0;
-  margin: auto;
-  text-align: right;
+/* The shared page header: crumb trail, single h1, meta line, actions on the right. */
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 28px;
+}
+.breadcrumb ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.85rem;
   color: var(--muted);
-  font-size: 0.7rem;
+}
+.breadcrumb li + li::before {
+  content: "›";
+  margin-right: 8px;
+}
+.breadcrumb a {
+  color: var(--accent);
+}
+.page-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px 32px;
+}
+.page-header-title {
+  flex: 1 1 520px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.page-header-title .eyebrow {
+  margin: 0;
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 2.25rem;
+  line-height: 1.12;
+  letter-spacing: -0.8px;
+}
+.page-meta {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+/* The About page: four plain sections in two columns. */
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 36px 48px;
+}
+.about-grid h2 {
+  font-size: 1.375rem;
+  letter-spacing: -0.3px;
+  margin: 0 0 12px;
+}
+.about-grid p {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+.about-steps,
+.about-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.about-steps li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-top: 3px solid var(--accent);
+  padding-top: 10px;
+}
+.about-steps span,
+.about-list li {
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+.about-list li {
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.about-list li:first-child {
+  border-top: 0;
+  padding-top: 0;
 }
 .connection-note {
   font-size: 0.8rem;
@@ -306,8 +434,8 @@ body {
   margin-bottom: 0.6rem;
 }
 .section-title h2 {
-  font-size: 1.65rem;
-  letter-spacing: -0.65px;
+  font-size: 1.375rem;
+  letter-spacing: -0.3px;
   margin: 0;
 }
 .quiet-label {
@@ -512,14 +640,29 @@ body {
   background: #0d554a;
 }
 .site-footer {
-  max-width: 1400px;
+  max-width: var(--column);
   margin: auto;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 2rem;
-  padding: 30px 4vw;
+  gap: 14px 2rem;
+  padding: 26px var(--gutter);
   border-top: 1px solid var(--line);
+}
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 0.8rem;
+}
+.footer-links a {
+  color: var(--muted);
 }
 .brand-compact .brand-mark {
   width: 28px;
@@ -532,7 +675,7 @@ body {
 .brand-compact .brand-chinese {
   display: none;
 }
-.site-footer > p {
+.footer-brand > p {
   font-family: Georgia, "Songti SC", serif;
   font-style: italic;
   color: var(--muted);
@@ -540,10 +683,10 @@ body {
   margin: 0;
 }
 .site-footer > span {
+  flex: 1 1 100%;
   font-size: 0.65rem;
   color: var(--muted);
   line-height: 1.7;
-  text-align: right;
 }
 .workspace-heading {
   display: flex;
@@ -1802,6 +1945,12 @@ body {
   .site-header {
     gap: 8px 12px;
   }
+  .about-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header h1 {
+    font-size: 1.75rem;
+  }
   .intro-studio h1 {
     font-size: 2.15rem;
     letter-spacing: -1px;
@@ -1823,7 +1972,7 @@ body {
     margin-bottom: 20px;
   }
   .section-title h2 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
   }
   .quiet-label {
     max-width: none;

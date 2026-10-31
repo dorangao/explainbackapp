@@ -18,7 +18,7 @@ test("authored edits survive navigation through the library, a gallery lesson an
   await expect(
     page.getByRole("heading", { name: "Unsaved review changes", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: "Find a question. Try it for yourself.",
@@ -125,7 +125,7 @@ test("quantum navigation stops diagnostic polling while a provider response is p
   await page.locator("#q-next").click();
   await page.locator("#q-ask").click();
   await expect.poll(() => waiting).toBe(true);
-  await page.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.getByRole("link", { name: "Library", exact: true }).click();
   await page.waitForTimeout(100);
   const before = traces;
   await page.waitForTimeout(1250);
@@ -230,7 +230,7 @@ test("an authored animation pauses in the library and resumes only on request", 
   await expect
     .poll(() => page.locator(".lesson-player").getAttribute("data-progress"))
     .not.toBe("0");
-  await page.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: "Find a question. Try it for yourself.",
@@ -335,7 +335,7 @@ test("a remembered draft survives a reload, reopens with no provider request and
     "Keep this prompt for later.",
   );
   expect(studioRequests).toEqual([]);
-  await page.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.getByRole("link", { name: "Library", exact: true }).click();
   await page.getByRole("link", { name: "Create", exact: true }).click();
   await expect(
     page.getByRole("heading", {
