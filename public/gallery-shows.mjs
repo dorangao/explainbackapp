@@ -650,8 +650,8 @@ export const galleryShows=Object.freeze({
       "zh": "一条清晰的界线出现了"
      },
      "narration": {
-      "en": "The sequence shows the boundary clearly: each result you see comes from a compiled formula or a fixed simulation, and each answer is checked against that result. The model proposes the words, but it never grades its own work.",
-      "zh": "这段流程清楚地显示了分工：每个呈现的结果都来自编译后的公式或固定的模拟，每个答案也都据此核对。模型提出文字，却从不给自己的工作打分。"
+      "en": "The sequence shows the boundary clearly: each result you see comes from a compiled formula or a fixed simulation, and each answer is checked against that result. The model proposes the words; a model may judge wording too, but only in a separate request, and preferably a different model.",
+      "zh": "这段流程清楚地显示了分工：每个呈现的结果都来自编译后的公式或固定的模拟，每个答案也都据此核对。模型提出文字；模型也可以评价表述，但只在另一次请求中进行，而且最好由另一个模型来评。"
      }
     },
     {
