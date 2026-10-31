@@ -1026,6 +1026,10 @@ export const messages = {
     en: "Opened your saved lesson. Changes are kept in this browser until you save them.",
     zh: "已打开你保存的课程。更改会先留在此浏览器中，直到你再次保存。",
   },
+  "Studio.sketchLessonNote": {
+    en: "Drafted by Muse from your sketch in Lesson Studio. The sketch is kept with the lesson; review the model and assumptions before presenting.",
+    zh: "由 Muse 根据你在课程工作室上传的草图起草。草图随课程保存；演示前请审阅模型与假设。",
+  },
   "Library.sharedLessonNote": {
     en: "Shared by its creator from Lesson Studio. Drafted with Muse and reviewed by that creator, not by the author of the library.",
     zh: "由创作者从课程工作室分享。使用 Muse 起草并由该创作者审阅，未经课程库作者审阅。",

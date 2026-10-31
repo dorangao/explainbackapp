@@ -334,10 +334,8 @@ export function Studio({
     setPresenting(true);
     setSource(item.source);
     setSourceImage(item.image ?? null);
-    if (external?.sketch) {
-      setSource("muse-sketch");
-      setSourceImage(external.sketch);
-    }
+    // A shared lesson keeps its "shared" note; its sketch only feeds the Spotlight.
+    if (external?.sketch) setSourceImage(external.sketch);
     if (external) restoreRef.current(lesson, external, external.updatedAt);
     if (external?.show)
       setShow({
@@ -581,7 +579,9 @@ export function Studio({
         );
         if (!revisionText) {
           if (attached) {
-            setSource("muse-sketch");
+            // "studio-sketch": drafted here from the creator's own image. The gallery's
+            // "muse-sketch" lessons carry a different, dated provenance note.
+            setSource("studio-sketch");
             setSourceImage(attached.dataUrl);
           }
           image.clear();
@@ -958,7 +958,7 @@ export function Studio({
         cover: current?.cover ?? null,
         coverModel: current?.coverModel ?? null,
         illustrations: current?.illustrations ?? null,
-        sketch: source === "muse-sketch" ? sourceImage : null,
+        sketch: source === "studio-sketch" ? sourceImage : null,
         tryout:
           tryout && tryout.key === tryoutKey
             ? {
@@ -1029,7 +1029,7 @@ export function Studio({
     setReviseStamp(null);
     setSavedId(summary.id);
     setSavedItem(summary);
-    setSource(summary.sketch ? "muse-sketch" : null);
+    setSource(summary.sketch ? "studio-sketch" : null);
     setSourceImage(summary.sketch);
     setShow(
       script
@@ -1557,7 +1557,9 @@ export function Studio({
                 <p>
                   {source === "shared"
                     ? t(language, "Library.sharedLessonNote")
-                    : gallerySourceNote(source, language)}
+                    : source === "studio-sketch"
+                      ? t(language, "Studio.sketchLessonNote")
+                      : gallerySourceNote(source, language)}
                   {external?.model &&
                     source === "shared" &&
                     ` · ${external.model}`}
