@@ -66,7 +66,7 @@ jobs:
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: explainback-dist.tgz
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: explainback-dist-${{ github.sha }}
           path: explainback-dist.tgz
