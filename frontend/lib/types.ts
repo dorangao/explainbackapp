@@ -311,5 +311,39 @@ export type ComposeReply = ReplyMetrics & {
   attemptsRemaining: number;
 };
 export type StudioSession = { sessionId: string };
+// One model's reply when the same question is drafted with both Muse text models.
+export type CompareDraft = {
+  model: string;
+  llm: string;
+  status: "ready" | "unsupported" | "rejected" | "failed";
+  message?: Bilingual;
+  reason?: string;
+  lesson: Lesson | null;
+  kind: "model" | "process" | null;
+  checks: Record<string, boolean>;
+  automatedPass: boolean;
+  judge:
+    | {
+        model: string;
+        version?: string;
+        total: number;
+        max: number;
+        scores: Record<string, number>;
+        issues: string[];
+        summary: string;
+      }
+    | { failure: string; reason?: string }
+    | null;
+  elapsedMs: number;
+  usage: Usage | null;
+};
+export type CompareReply = ReplyMetrics & {
+  question: string;
+  promptVersion: string;
+  judgeVersion: string;
+  judge: string | null;
+  replies: CompareDraft[];
+  attemptsRemaining: number;
+};
 export const say = (lang: Language, en: string, zh: string) =>
   lang === "zh" ? zh : en;

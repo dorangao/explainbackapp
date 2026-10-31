@@ -60,6 +60,8 @@ Here the checks are strict: for the cooling and pendulum lessons the scorer eval
 
 Fourteen of the passing breadth lessons are shown in the library under **From the evaluation**, unedited, each with its model, question, judge score and a provenance note; three questions have both models' replies and a side-by-side view (`/#compare:logistic-growth-en`, `rc-charging-zh`, `dns-lookup-zh`) with the judge's scores and issues under each. `scripts/eval-showcase.mjs` builds that fixture from a run's local reports; see [lesson-library.md](lesson-library.md#evaluation-showcase-added-october-31-2026-pacific).
 
+A signed-in creator can also run the same comparison on their own question from Studio (**Compare two models**): both models draft it, the open-question scorer checks each reply and the judge scores the ready lessons, with the result shown side by side. Those runs are not part of the frozen suites and are not recorded here.
+
 ## How to reproduce
 
 ```sh

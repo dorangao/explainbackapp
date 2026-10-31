@@ -973,6 +973,43 @@ export const messages = {
   },
   "Gallery.sharedBadge": { en: "SHARED LESSON", zh: "分享课程" },
   "Gallery.lessonCount": { en: "lessons", zh: "节课程" },
+  "RevisionSummary.comparedTwoModels": {
+    en: "drafted this question with both models",
+    zh: "用两个模型起草了这个问题",
+  },
+  "Studio.compareTwoModels": { en: "Compare two models", zh: "比较两个模型" },
+  "Studio.comparing": { en: "Comparing…", zh: "比较中…" },
+  "Studio.compareNote": {
+    en: "Compare sends your question to Muse Wonder and Muse Spark at once, checks both replies and has the judge score them: up to four requests. Pick the draft you prefer to continue.",
+    zh: "“比较”会把你的问题同时发给 Muse Wonder 和 Muse Spark，检查两份回答并由评分模型打分：最多四次请求。选择你喜欢的草稿继续。",
+  },
+  "Studio.comparisonReady": {
+    en: "Both replies are in. Compare them below and pick one to review.",
+    zh: "两份回答都已返回。在下方比较，并选一份进行审阅。",
+  },
+  "Compare.liveEyebrow": {
+    en: "YOUR QUESTION, TWO MODELS",
+    zh: "你的问题，两个模型",
+  },
+  "Compare.liveNote": {
+    en: "Both replies came from this one request, unedited. Code checked each contract; the judge scored only the wording of the ready lessons.",
+    zh: "两份回答来自这一次请求，未经编辑。契约由代码检查；评分模型只评价已就绪课程的表述。",
+  },
+  "Compare.useThisDraft": { en: "Review this draft", zh: "审阅这份草稿" },
+  "Compare.discard": { en: "Discard comparison", zh: "放弃比较" },
+  "Compare.checksPassed": { en: "Passed the app's checks", zh: "通过应用检查" },
+  "Compare.checksFailed": { en: "Failed a check", zh: "未通过检查" },
+  "Compare.declined": { en: "Declined the request", zh: "拒绝了请求" },
+  "Compare.rejected": {
+    en: "Rejected by the validator",
+    zh: "被校验器拒绝",
+  },
+  "Compare.failed": { en: "No reply", zh: "没有回答" },
+  "Compare.judgeSkipped": { en: "Not judged", zh: "未评分" },
+  "Compare.footnoteLive": {
+    en: "One attempt each, on your question alone: a view of these two replies, not a ranking of the models. Review the science before presenting either.",
+    zh: "各一次尝试，只针对你的问题：这是对两份回答的观察，不是对模型的排名。演示前请先审阅科学内容。",
+  },
   "Gallery.fromTheEvaluation": { en: "From the evaluation", zh: "来自评估" },
   "Gallery.fromTheEvaluationEyebrow": {
     en: "FROM THE EVALUATION",

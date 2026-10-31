@@ -11,6 +11,8 @@ import {
 } from "react";
 import type {
   ComposeReply,
+  CompareDraft,
+  CompareReply,
   Feedback,
   Language,
   Lesson,
@@ -67,6 +69,7 @@ import type {
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
+import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
 import { EVALUATION_CARD_URL } from "../lib/evaluation";
@@ -139,6 +142,8 @@ export function Studio({
     [playerTick, setPlayerTick] = useState(0),
     [showing, setShowing] = useState(false),
     [backgroundRunning, setBackgroundRunning] = useState(false),
+    // Both models' replies to the typed question, until one is chosen or discarded.
+    [comparison, setComparison] = useState<CompareReply | null>(null),
     [source, setSource] = useState<string | null>(null),
     [sourceImage, setSourceImage] = useState<string | null>(null),
     // What SAM 3.1 found in the source image, kept with the image it was found in.
@@ -191,6 +196,14 @@ export function Studio({
     targets[0];
   const tester =
     targets.find((m) => m.id === providerStatus?.roles?.tester) ?? null;
+  // Comparing needs both roles configured and different (Wonder and Spark).
+  const creatorRole =
+    targets.find((m) => m.id === providerStatus?.roles?.creator) ?? null;
+  const canCompare = Boolean(
+    creatorRole?.configured &&
+    tester?.configured &&
+    creatorRole.id !== tester.id,
+  );
   const { invalidate } = provider;
   const stopHidden = (!visible || (!lessonId && view === "studio")) && busy;
   useEffect(() => {
@@ -613,6 +626,64 @@ export function Studio({
       }));
     }
     return true;
+  }
+  // The same question goes to both Muse text models at once; the app checks both replies
+  // and the tester role judges the ready ones. The creator then picks a draft to review.
+  async function compareModels() {
+    const asked = topic.trim();
+    if (
+      busyRef.current ||
+      !authenticated ||
+      !canCompare ||
+      !creatorRole ||
+      remaining === 0 ||
+      image.loading
+    )
+      return false;
+    if (!asked) {
+      setMessage(t(language, "Studio.enterAQuestionOrAttach"));
+      return false;
+    }
+    setMessage("");
+    setFeedback(null);
+    const result = await run<CompareReply>(
+      creatorRole,
+      "compare",
+      (id, options) =>
+        post<CompareReply>(
+          "/api/studio/compare",
+          { sessionId: id, topic: asked },
+          { ...options, timeoutMs: options.timeoutMs + 60_000 },
+        ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return false;
+    }
+    setComparison(result.reply);
+    setMessage(t(language, "Studio.comparisonReady"));
+    return true;
+  }
+  // The chosen reply becomes the draft, exactly as a single Create would have.
+  function useComparedDraft(chosen: CompareDraft) {
+    if (!chosen.lesson) return;
+    try {
+      loadLesson(structuredClone(chosen.lesson));
+    } catch {
+      setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
+      return;
+    }
+    setRevision(null);
+    setComposeStamp({ at: Date.now(), key: composeKey });
+    setComparison(null);
+    image.clear();
+    setMessage(
+      say(
+        language,
+        `Draft from ${chosen.model} ready. Review the model and assumptions before presenting.`,
+        `来自 ${chosen.model} 的草稿已就绪，演示前请审阅模型与假设。`,
+      ),
+    );
   }
   // The test learner (tester role) tries the validated draft; its answers are checked by code.
   async function tryLesson() {
@@ -1395,6 +1466,19 @@ export function Studio({
                     )}{" "}
                     <span aria-hidden="true">↗</span>
                   </button>
+                  {canCompare && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy || image.loading || !canRequest}
+                      onClick={() => void compareModels()}
+                    >
+                      {busy
+                        ? t(language, "Studio.comparing")
+                        : t(language, "Studio.compareTwoModels")}{" "}
+                      <span aria-hidden="true">⇄</span>
+                    </button>
+                  )}
                   <label className="file-action import-action">
                     {t(language, "Studio.importLessonJson")}
                     <input
@@ -1410,8 +1494,21 @@ export function Studio({
                 </div>
                 <p className="fine author-privacy">
                   {t(language, "Studio.oneModelRequestWhenYou")}
+                  {canCompare && ` ${t(language, "Studio.compareNote")}`}
                 </p>
               </form>
+              {comparison && !draft && (
+                <LiveComparison
+                  reply={comparison}
+                  language={language}
+                  busy={busy}
+                  onUse={useComparedDraft}
+                  onDiscard={() => {
+                    setComparison(null);
+                    setMessage("");
+                  }}
+                />
+              )}
               <LessonShelf
                 key={shelfRefresh}
                 language={language}
