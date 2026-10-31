@@ -1,0 +1,481 @@
+{
+ "version": "studio-breadth-v1",
+ "frozen": "2026-10-31",
+ "purpose": "Breadth across domains and both languages: nine adjustable models (physics, nuclear chemistry, biology, pharmacology, finance, networking, earth science, road safety, electronics), two ordered processes (immunology, networking) and one request that should be declined. Topics are phrased as a learner would ask them, not as specifications; the scorer checks the contract, the renderer kind, a unit-labelled output where one is expected, and the refusal.",
+ "cases": [
+  {
+   "id": "projectile-en",
+   "pair": "projectile",
+   "language": "en",
+   "category": "model",
+   "topic": "Why does a thrown ball travel farthest when launched near 45 degrees? Build an adjustable model of the range of a projectile with launch speed and angle, and a fresh numeric case.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "m",
+     "km",
+     "ft"
+    ],
+    "review": [
+     "Range uses the ideal no-drag formula and says so.",
+     "Angle is in degrees in the labels or the conversion is stated.",
+     "Both languages name speed, angle and range consistently."
+    ]
+   }
+  },
+  {
+   "id": "projectile-zh",
+   "pair": "projectile",
+   "language": "zh",
+   "category": "model",
+   "topic": "为什么抛出的球在接近 45 度时飞得最远？建立一个可调的抛体射程模型，包含出射速度和角度，并给出一个新的数值迁移题。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "m",
+     "km",
+     "ft"
+    ],
+    "review": [
+     "Range uses the ideal no-drag formula and says so.",
+     "Angle is in degrees in the labels or the conversion is stated.",
+     "Both languages name speed, angle and range consistently."
+    ]
+   }
+  },
+  {
+   "id": "half-life-en",
+   "pair": "half-life",
+   "language": "en",
+   "category": "model",
+   "topic": "How much of a radioactive sample is left after several half-lives? Make an adjustable decay model with the half-life and the starting amount, and ask for one number as the fresh case.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Exponential decay with half-life stated explicitly.",
+     "Units of amount and time are consistent.",
+     "No claims about a specific real isotope's safety."
+    ]
+   }
+  },
+  {
+   "id": "half-life-zh",
+   "pair": "half-life",
+   "language": "zh",
+   "category": "model",
+   "topic": "经过几个半衰期后，放射性样品还剩多少？建立可调的衰变模型，包含半衰期和初始量，并以一个数值作为新情境的问题。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Exponential decay with half-life stated explicitly.",
+     "Units of amount and time are consistent.",
+     "No claims about a specific real isotope's safety."
+    ]
+   }
+  },
+  {
+   "id": "logistic-growth-en",
+   "pair": "logistic-growth",
+   "language": "en",
+   "category": "model",
+   "topic": "Why does a bacterial population in a closed dish stop growing exponentially? Model logistic growth with an adjustable carrying capacity, growth rate and starting population.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Logistic curve levels off at the carrying capacity.",
+     "Assumptions name constant conditions and no death-phase effects.",
+     "Population and time units are stated."
+    ]
+   }
+  },
+  {
+   "id": "logistic-growth-zh",
+   "pair": "logistic-growth",
+   "language": "zh",
+   "category": "model",
+   "topic": "封闭培养皿中的细菌为什么不会一直指数增长？建立可调的逻辑斯蒂增长模型，包含环境容纳量、增长率和初始数量。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Logistic curve levels off at the carrying capacity.",
+     "Assumptions name constant conditions and no death-phase effects.",
+     "Population and time units are stated."
+    ]
+   }
+  },
+  {
+   "id": "drug-elimination-en",
+   "pair": "drug-elimination",
+   "language": "en",
+   "category": "model",
+   "topic": "After a single dose of a medicine, how does its concentration in the blood fall over the hours that follow? Model first-order elimination with an adjustable dose, distribution volume and half-life.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "mg/L",
+     "µg/mL",
+     "ug/mL",
+     "mg/mL",
+     "ng/mL"
+    ],
+    "review": [
+     "States that this is an idealised one-compartment model, not dosing advice.",
+     "Concentration unit is a mass per volume.",
+     "No safety or dosing guarantees."
+    ]
+   }
+  },
+  {
+   "id": "drug-elimination-zh",
+   "pair": "drug-elimination",
+   "language": "zh",
+   "category": "model",
+   "topic": "服用一剂药物后，血液中的药物浓度在随后的几小时里如何下降？建立一级消除模型，包含可调的剂量、分布容积和半衰期。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "mg/L",
+     "µg/mL",
+     "ug/mL",
+     "mg/mL",
+     "ng/mL"
+    ],
+    "review": [
+     "States that this is an idealised one-compartment model, not dosing advice.",
+     "Concentration unit is a mass per volume.",
+     "No safety or dosing guarantees."
+    ]
+   }
+  },
+  {
+   "id": "compound-interest-en",
+   "pair": "compound-interest",
+   "language": "en",
+   "category": "model",
+   "topic": "Does money double twice as fast at double the interest rate? Model compound growth of a deposit with an adjustable rate, starting amount and number of years.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Compound growth formula with the compounding convention stated.",
+     "Explanation after the experiment addresses the doubling-time claim.",
+     "No investment advice."
+    ]
+   }
+  },
+  {
+   "id": "compound-interest-zh",
+   "pair": "compound-interest",
+   "language": "zh",
+   "category": "model",
+   "topic": "利率翻倍，钱翻倍的速度是否也翻倍？建立存款复利增长模型，包含可调的利率、本金和年数。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "review": [
+     "Compound growth formula with the compounding convention stated.",
+     "Explanation after the experiment addresses the doubling-time claim.",
+     "No investment advice."
+    ]
+   }
+  },
+  {
+   "id": "download-time-en",
+   "pair": "download-time",
+   "language": "en",
+   "category": "model",
+   "topic": "Why does a web page still feel slow on a fast connection when the latency is high? Model the time to fetch a page from its size, bandwidth, latency and number of round trips.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "s",
+     "ms",
+     "sec",
+     "seconds"
+    ],
+    "review": [
+     "Time output in seconds or milliseconds.",
+     "Latency and bandwidth terms are separated in the formula.",
+     "Assumptions name what is ignored (TCP slow start, caching)."
+    ]
+   }
+  },
+  {
+   "id": "download-time-zh",
+   "pair": "download-time",
+   "language": "zh",
+   "category": "model",
+   "topic": "为什么连接带宽很高、延迟却很大时，网页依然感觉很慢？建立一个从页面大小、带宽、延迟和往返次数计算加载时间的模型。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "s",
+     "ms",
+     "sec",
+     "seconds"
+    ],
+    "review": [
+     "Time output in seconds or milliseconds.",
+     "Latency and bandwidth terms are separated in the formula.",
+     "Assumptions name what is ignored (TCP slow start, caching)."
+    ]
+   }
+  },
+  {
+   "id": "carbon-dating-en",
+   "pair": "carbon-dating",
+   "language": "en",
+   "category": "model",
+   "topic": "How do scientists estimate the age of a bone from its remaining carbon-14? Build an adjustable model that turns the remaining fraction into an age.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "years",
+     "yr",
+     "a",
+     "year",
+     "年"
+    ],
+    "review": [
+     "Uses the carbon-14 half-life of about 5730 years or a stated value.",
+     "Age output in years.",
+     "States calibration and contamination are ignored."
+    ]
+   }
+  },
+  {
+   "id": "carbon-dating-zh",
+   "pair": "carbon-dating",
+   "language": "zh",
+   "category": "model",
+   "topic": "科学家如何根据骨头中剩余的碳-14 估计其年代？建立一个把剩余比例换算成年代的可调模型。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "years",
+     "yr",
+     "a",
+     "year",
+     "年"
+    ],
+    "review": [
+     "Uses the carbon-14 half-life of about 5730 years or a stated value.",
+     "Age output in years.",
+     "States calibration and contamination are ignored."
+    ]
+   }
+  },
+  {
+   "id": "braking-distance-en",
+   "pair": "braking-distance",
+   "language": "en",
+   "category": "model",
+   "topic": "Does doubling a car's speed double its braking distance? Model braking distance from speed and deceleration, with a fresh numeric case.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "m",
+     "ft",
+     "km"
+    ],
+    "review": [
+     "Distance grows with the square of speed and the explanation says so after the test.",
+     "Speed unit conversion (km/h or m/s) is consistent.",
+     "Reaction time, if included, is named as an assumption."
+    ]
+   }
+  },
+  {
+   "id": "braking-distance-zh",
+   "pair": "braking-distance",
+   "language": "zh",
+   "category": "model",
+   "topic": "汽车速度翻倍，刹车距离也翻倍吗？根据速度和减速度建立刹车距离模型，并给出一个新的数值情境。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "m",
+     "ft",
+     "km"
+    ],
+    "review": [
+     "Distance grows with the square of speed and the explanation says so after the test.",
+     "Speed unit conversion (km/h or m/s) is consistent.",
+     "Reaction time, if included, is named as an assumption."
+    ]
+   }
+  },
+  {
+   "id": "rc-charging-en",
+   "pair": "rc-charging",
+   "language": "en",
+   "category": "model",
+   "topic": "How does a capacitor charge through a resistor over time? Make an adjustable RC model with supply voltage, resistance and capacitance.",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "V",
+     "volts",
+     "mV"
+    ],
+    "review": [
+     "Exponential approach to the supply voltage with time constant RC.",
+     "Units of resistance and capacitance give a time constant in seconds.",
+     "Ideal components stated."
+    ]
+   }
+  },
+  {
+   "id": "rc-charging-zh",
+   "pair": "rc-charging",
+   "language": "zh",
+   "category": "model",
+   "topic": "电容器通过电阻充电时，电压随时间如何变化？建立可调的 RC 模型，包含电源电压、电阻和电容。",
+   "expected": {
+    "status": "ready",
+    "kind": "model",
+    "maxChapters": 2,
+    "outputUnit": [
+     "V",
+     "volts",
+     "mV"
+    ],
+    "review": [
+     "Exponential approach to the supply voltage with time constant RC.",
+     "Units of resistance and capacitance give a time constant in seconds.",
+     "Ideal components stated."
+    ]
+   }
+  },
+  {
+   "id": "vaccine-immunity-en",
+   "pair": "vaccine-immunity",
+   "language": "en",
+   "category": "process",
+   "topic": "How does a vaccine train the immune system? Explain it as an ordered process a learner can step through.",
+   "expected": {
+    "status": "ready",
+    "kind": "process",
+    "maxChapters": 2,
+    "review": [
+     "Stages are in causal order and name antigen, antibodies and memory cells.",
+     "No efficacy percentages or safety claims are invented.",
+     "Both languages carry the same stages."
+    ]
+   }
+  },
+  {
+   "id": "vaccine-immunity-zh",
+   "pair": "vaccine-immunity",
+   "language": "zh",
+   "category": "process",
+   "topic": "疫苗是如何训练免疫系统的？请把它讲成学习者可以逐步查看的有序过程。",
+   "expected": {
+    "status": "ready",
+    "kind": "process",
+    "maxChapters": 2,
+    "review": [
+     "Stages are in causal order and name antigen, antibodies and memory cells.",
+     "No efficacy percentages or safety claims are invented.",
+     "Both languages carry the same stages."
+    ]
+   }
+  },
+  {
+   "id": "dns-lookup-en",
+   "pair": "dns-lookup",
+   "language": "en",
+   "category": "process",
+   "topic": "How does a DNS lookup turn a domain name into an IP address? Walk through the steps in order.",
+   "expected": {
+    "status": "ready",
+    "kind": "process",
+    "maxChapters": 2,
+    "review": [
+     "Resolver, root, TLD and authoritative steps appear in order.",
+     "Caching is mentioned as a reason steps can be skipped.",
+     "Terminology is consistent across languages."
+    ]
+   }
+  },
+  {
+   "id": "dns-lookup-zh",
+   "pair": "dns-lookup",
+   "language": "zh",
+   "category": "process",
+   "topic": "DNS 查询是如何把域名变成 IP 地址的？请按顺序讲解各个步骤。",
+   "expected": {
+    "status": "ready",
+    "kind": "process",
+    "maxChapters": 2,
+    "review": [
+     "Resolver, root, TLD and authoritative steps appear in order.",
+     "Caching is mentioned as a reason steps can be skipped.",
+     "Terminology is consistent across languages."
+    ]
+   }
+  },
+  {
+   "id": "stock-pick-en",
+   "pair": "stock-pick",
+   "language": "en",
+   "category": "unsupported",
+   "topic": "Predict next month's price of one specific company's stock and tell me the best day to buy.",
+   "expected": {
+    "status": "unsupported",
+    "review": [
+     "Returns unsupported rather than inventing a predictive model.",
+     "Message explains why a prediction with buy advice is not a teachable bounded model.",
+     "No financial advice."
+    ]
+   }
+  },
+  {
+   "id": "stock-pick-zh",
+   "pair": "stock-pick",
+   "language": "zh",
+   "category": "unsupported",
+   "topic": "预测某一家具体公司下个月的股价，并告诉我哪一天买入最好。",
+   "expected": {
+    "status": "unsupported",
+    "review": [
+     "Returns unsupported rather than inventing a predictive model.",
+     "Message explains why a prediction with buy advice is not a teachable bounded model.",
+     "No financial advice."
+    ]
+   }
+  }
+ ]
+}

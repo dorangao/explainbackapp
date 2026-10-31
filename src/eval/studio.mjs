@@ -13,8 +13,9 @@ const coolingSensitivity=[
  {controls:{initial:90,ambient:20,rate:.1},at:10,value:20+70*Math.exp(-1)}
 ];
 
-// Frozen suites: studio-v1 (12 text cases) and studio-image-v1 (sketch input, image bytes hashed too).
-export const studioSuites=Object.freeze({'studio-v1':{count:12},'studio-image-v1':{count:2}});
+// Frozen suites: studio-v1 (12 text cases), studio-image-v1 (sketch input, image bytes hashed too)
+// and studio-breadth-v1 (24 learner-phrased topics across domains, both languages).
+export const studioSuites=Object.freeze({'studio-v1':{count:12},'studio-image-v1':{count:2},'studio-breadth-v1':{count:24}});
 export function decodeStudioSuite(contents,expectedHash,{readImage}={}){
  if(hash(contents)!==expectedHash)throw new Error('Frozen Studio suite checksum mismatch.');
  const suite=JSON.parse(contents),spec=studioSuites[suite.version];
