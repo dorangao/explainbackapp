@@ -60,6 +60,8 @@ import {
 } from "../lib/library";
 import { judgeBlocker, judgeStepStates } from "../lib/judge-path";
 import { JudgePath } from "./JudgePath";
+import { PageHeader } from "./PageHeader";
+import { StudioStepper } from "./StudioStepper";
 import type { JudgeStep, JudgeStepId } from "./JudgePath";
 import type {
   SavedGrade,
@@ -1278,9 +1280,34 @@ export function Studio({
           </section>
         </>
       )}
+      {view === "create" && !presenting && (
+        <>
+          <PageHeader
+            language={language}
+            crumbs={[
+              { label: t(language, "App.library"), href: "#studio" },
+              { label: t(language, "App.create") },
+            ]}
+            title={t(language, "Studio.startWithALittleCuriosity")}
+            meta={`${t(language, "Studio.aQuestionOrASketch")} ${t(language, "Studio.fiveStepsEachShowsItsCost")}`}
+          />
+          <StudioStepper
+            language={language}
+            current={!draft ? "ask" : showing ? "show" : "review"}
+            done={{
+              ask: Boolean(draft),
+              review: reviewed,
+              try: Boolean(tryout),
+              show: Boolean(show),
+              save: Boolean(savedId),
+            }}
+          />
+        </>
+      )}
       {view === "create" &&
         authenticated &&
         target?.configured &&
+        Boolean(draft) &&
         !presenting && (
           <JudgePath
             language={language}
@@ -1298,16 +1325,6 @@ export function Studio({
         )}
       {!draft && view === "create" && (
         <section className="author-workspace">
-          <div className="workspace-heading">
-            <div>
-              <p className="eyebrow">{t(language, "Studio.01AskAQuestion")}</p>
-              <h1>{t(language, "Studio.startWithALittleCuriosity")}</h1>
-              <p>{t(language, "Studio.aQuestionOrASketch")}</p>
-            </div>
-            <a href="#studio" className="back-link">
-              {t(language, "Studio.exploreTheLibrary")} ↗
-            </a>
-          </div>
           {!authenticated ? (
             <div className="creation-locked">
               <p>{t(language, "Studio.lessonCreationIsAvailableTo")}</p>
@@ -1317,214 +1334,214 @@ export function Studio({
             </div>
           ) : (
             <>
-              <ol className="studio-steps">
-                <li>
-                  <span>01</span>
-                  <strong>{t(language, "Studio.create")}</strong>
-                  <small>{t(language, "Studio.bringAQuestionOrImage")}</small>
-                </li>
-                <li>
-                  <span>02</span>
-                  <strong>{t(language, "Studio.reviewRefine")}</strong>
-                  <small>
-                    {t(language, "Studio.checkTheModelAndAssumptions")}
-                  </small>
-                </li>
-                <li>
-                  <span>03</span>
-                  <strong>{t(language, "Studio.experiment")}</strong>
-                  <small>
-                    {t(language, "Studio.predictOperateAndExplain")}
-                  </small>
-                </li>
-              </ol>
-              <form
-                className="author-form"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void request("compose");
-                }}
-              >
-                <label htmlFor={`${formId}-topic`}>
-                  {t(language, "Studio.whatWouldYouLikeTo2")}
-                </label>
-                <textarea
-                  id={`${formId}-topic`}
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  maxLength={600}
-                  rows={4}
-                  placeholder={t(language, "Studio.whyDoesCoffeeCoolMore")}
-                  disabled={busy}
-                />
-                <div className="topic-starters">
-                  <span>{t(language, "Studio.tryAStartingPoint")}</span>
-                  {[
-                    [
-                      "Cooling coffee",
-                      "咖啡冷却",
-                      studioWalkthrough(language).topic,
-                    ],
-                    [
-                      "Web requests",
-                      "网页请求",
-                      t(language, "Studio.explainHowABrowserLoads"),
-                    ],
-                    [
-                      "Quantum interference",
-                      "量子干涉",
-                      t(language, "Studio.howDoesAQuantumComputer"),
-                    ],
-                  ].map(([en, zh, value]) => (
-                    <button
-                      type="button"
-                      className="text-button"
-                      key={en}
-                      disabled={busy}
-                      onClick={() => setTopic(value)}
-                    >
-                      {say(language, en, zh)} ↗
-                    </button>
-                  ))}
-                </div>
-                <div className="author-settings">
-                  <label>
-                    {t(language, "Studio.creationMode")}
-                    <select
-                      value={creation}
-                      onChange={(event) => setCreation(event.target.value)}
-                      disabled={busy}
-                    >
-                      <option value="generated">
-                        {t(language, "Studio.newTopicDemo")}
-                      </option>
-                      <option value="catalog">
-                        {t(language, "Studio.existingExperiments")}
-                      </option>
-                    </select>
-                  </label>
-                  <label>
-                    {t(language, "Studio.creatorModel")}
-                    <select
-                      value={target?.id ?? ""}
-                      onChange={(event) => {
-                        setModelId(event.target.value);
-                        invalidate();
-                      }}
-                      disabled={busy}
-                    >
-                      {targets.map((m) => (
-                        <option
-                          key={m.id}
-                          value={m.id}
-                          disabled={!m.configured}
-                        >
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <div className="image-attachment">
-                  <label className="file-action">
-                    <span aria-hidden="true">＋</span>
-                    {t(language, "Studio.addAPhotoSketchOr")}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      onChange={(event) => {
-                        if (!busyRef.current && authenticated)
-                          void image.attach(event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
-                      disabled={busy}
-                    />
-                  </label>
-                  <span className="fine">
-                    {t(language, "Studio.optionalUpTo12Mb")}
-                  </span>
-                  {image.loading && (
-                    <p role="status">
-                      {t(language, "Studio.preparingImageLocally")}
-                    </p>
-                  )}
-                  {image.image && (
-                    <div className="image-preview">
-                      <img
-                        src={image.image.dataUrl}
-                        alt={t(language, "Studio.attachedImagePreview")}
-                      />
-                      <span>{image.image.name}</span>
-                      <button
-                        type="button"
-                        className="text-button"
-                        disabled={busy}
-                        onClick={image.clear}
-                      >
-                        {t(language, "Studio.removeImage")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="author-submit">
-                  <button
-                    type="submit"
-                    disabled={busy || image.loading || !canRequest}
+              <div className="create-columns">
+                <div className="create-main">
+                  <form
+                    className="author-form"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void request("compose");
+                    }}
                   >
-                    {say(
-                      language,
-                      busy ? "Muse is working…" : "Create a lesson",
-                      busy ? "Muse 正在处理…" : "创建课程",
-                    )}{" "}
-                    <span aria-hidden="true">↗</span>
-                  </button>
-                  {canCompare && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={busy || image.loading || !canRequest}
-                      onClick={() => void compareModels()}
-                    >
-                      {busy
-                        ? t(language, "Studio.comparing")
-                        : t(language, "Studio.compareTwoModels")}{" "}
-                      <span aria-hidden="true">⇄</span>
-                    </button>
-                  )}
-                  {canCompare && (
-                    <label className="compare-judge-pick">
-                      {t(language, "Compare.judge")}
-                      <select
-                        value={judge?.id ?? ""}
-                        onChange={(event) => setJudgeId(event.target.value)}
-                        disabled={busy}
-                      >
-                        {judgeOptions.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {evaluationModelLabel(m.model)}
-                          </option>
-                        ))}
-                      </select>
+                    <label htmlFor={`${formId}-topic`}>
+                      {t(language, "Studio.whatWouldYouLikeTo2")}
                     </label>
-                  )}
-                  <label className="file-action import-action">
-                    {t(language, "Studio.importLessonJson")}
-                    <input
-                      type="file"
-                      accept=".json,application/json"
+                    <textarea
+                      id={`${formId}-topic`}
+                      value={topic}
+                      onChange={(event) => setTopic(event.target.value)}
+                      maxLength={600}
+                      rows={4}
+                      placeholder={t(language, "Studio.whyDoesCoffeeCoolMore")}
                       disabled={busy}
-                      onChange={(event) => {
-                        void importLesson(event.target.files?.[0]);
-                        event.target.value = "";
-                      }}
                     />
-                  </label>
+                    <div className="topic-starters">
+                      <span>{t(language, "Studio.tryAStartingPoint")}</span>
+                      {[
+                        [
+                          "Cooling coffee",
+                          "咖啡冷却",
+                          studioWalkthrough(language).topic,
+                        ],
+                        [
+                          "Web requests",
+                          "网页请求",
+                          t(language, "Studio.explainHowABrowserLoads"),
+                        ],
+                        [
+                          "Quantum interference",
+                          "量子干涉",
+                          t(language, "Studio.howDoesAQuantumComputer"),
+                        ],
+                      ].map(([en, zh, value]) => (
+                        <button
+                          type="button"
+                          className="text-button"
+                          key={en}
+                          disabled={busy}
+                          onClick={() => setTopic(value)}
+                        >
+                          {say(language, en, zh)} ↗
+                        </button>
+                      ))}
+                    </div>
+                    <div className="author-settings">
+                      <label>
+                        {t(language, "Studio.creationMode")}
+                        <select
+                          value={creation}
+                          onChange={(event) => setCreation(event.target.value)}
+                          disabled={busy}
+                        >
+                          <option value="generated">
+                            {t(language, "Studio.newTopicDemo")}
+                          </option>
+                          <option value="catalog">
+                            {t(language, "Studio.existingExperiments")}
+                          </option>
+                        </select>
+                      </label>
+                      <label>
+                        {t(language, "Studio.creatorModel")}
+                        <select
+                          value={target?.id ?? ""}
+                          onChange={(event) => {
+                            setModelId(event.target.value);
+                            invalidate();
+                          }}
+                          disabled={busy}
+                        >
+                          {targets.map((m) => (
+                            <option
+                              key={m.id}
+                              value={m.id}
+                              disabled={!m.configured}
+                            >
+                              {m.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="image-attachment">
+                      <label className="file-action">
+                        <span aria-hidden="true">＋</span>
+                        {t(language, "Studio.addAPhotoSketchOr")}
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          onChange={(event) => {
+                            if (!busyRef.current && authenticated)
+                              void image.attach(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                          disabled={busy}
+                        />
+                      </label>
+                      <span className="fine">
+                        {t(language, "Studio.optionalUpTo12Mb")}
+                      </span>
+                      {image.loading && (
+                        <p role="status">
+                          {t(language, "Studio.preparingImageLocally")}
+                        </p>
+                      )}
+                      {image.image && (
+                        <div className="image-preview">
+                          <img
+                            src={image.image.dataUrl}
+                            alt={t(language, "Studio.attachedImagePreview")}
+                          />
+                          <span>{image.image.name}</span>
+                          <button
+                            type="button"
+                            className="text-button"
+                            disabled={busy}
+                            onClick={image.clear}
+                          >
+                            {t(language, "Studio.removeImage")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="author-submit">
+                      <button
+                        type="submit"
+                        disabled={busy || image.loading || !canRequest}
+                      >
+                        {say(
+                          language,
+                          busy ? "Muse is working…" : "Create a lesson",
+                          busy ? "Muse 正在处理…" : "创建课程",
+                        )}{" "}
+                        <span aria-hidden="true">↗</span>
+                      </button>
+                      {canCompare && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={busy || image.loading || !canRequest}
+                          onClick={() => void compareModels()}
+                        >
+                          {busy
+                            ? t(language, "Studio.comparing")
+                            : t(language, "Studio.compareTwoModels")}{" "}
+                          <span aria-hidden="true">⇄</span>
+                        </button>
+                      )}
+                      {canCompare && (
+                        <label className="compare-judge-pick">
+                          {t(language, "Compare.judge")}
+                          <select
+                            value={judge?.id ?? ""}
+                            onChange={(event) => setJudgeId(event.target.value)}
+                            disabled={busy}
+                          >
+                            {judgeOptions.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {evaluationModelLabel(m.model)}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <label className="file-action import-action">
+                        {t(language, "Studio.importLessonJson")}
+                        <input
+                          type="file"
+                          accept=".json,application/json"
+                          disabled={busy}
+                          onChange={(event) => {
+                            void importLesson(event.target.files?.[0]);
+                            event.target.value = "";
+                          }}
+                        />
+                      </label>
+                    </div>
+                    <p className="fine author-privacy">
+                      {t(language, "Studio.oneModelRequestWhenYou")}
+                      {canCompare && ` ${t(language, "Studio.compareNote")}`}
+                    </p>
+                  </form>
                 </div>
-                <p className="fine author-privacy">
-                  {t(language, "Studio.oneModelRequestWhenYou")}
-                  {canCompare && ` ${t(language, "Studio.compareNote")}`}
-                </p>
-              </form>
+                {target?.configured && (
+                  <aside className="create-aside">
+                    <JudgePath
+                      language={language}
+                      steps={judgeSteps}
+                      running={judgeRunning || busy}
+                      blocked={judgeBlocker(
+                        judgeSteps,
+                        providerStatus?.access?.remaining ?? null,
+                        remaining,
+                      )}
+                      used={8 - remaining}
+                      onRun={(id) => void runJudgeStep(id)}
+                      onRunAll={() => void runJudgeAll()}
+                    />
+                  </aside>
+                )}
+              </div>
               {comparison && !draft && (
                 <LiveComparison
                   reply={comparison}
