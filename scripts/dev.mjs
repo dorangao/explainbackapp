@@ -2,7 +2,7 @@ import { createServer as createHttpServer } from "node:http";
 import { createServer as createViteServer } from "vite";
 import { createHandler } from "../src/server.mjs";
 import { serveBrand } from "../src/static.mjs";
-const port = Number(process.env.PORT || 4173);
+const port = Number(process.env.PORT ?? 4173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error("Choose a valid PORT.");
 const api = createHandler();

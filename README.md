@@ -4,7 +4,7 @@ ExplainBack turns a question or sketch into a bilingual, reviewable interactive 
 
 ExplainBack 把问题或草图变成可审阅的中英双语互动课程。学习者先预测，再操作实验、解释结果，并尝试新的情境。
 
-ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays in local notes is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md).
+ExplainBack builds on an earlier ExplainBack project by the same author. This repository is the standalone extract prepared for the event: the application as it stands, with its tests and documentation, and without the earlier project's history. [explainback.app](https://explainback.app/) is deployed from it. What goes in this public repository and what stays in local notes is set out in [docs/repo-guidelines.md](docs/repo-guidelines.md). What existed before the event is stated in [Pre-existing work](#pre-existing-work) below.
 
 ## What to look at
 
@@ -62,6 +62,21 @@ The browser tests use a synthetic local provider fixture and include an automate
 See the maintained [architecture diagram and technology stack](docs/architecture.md). Update that document with changes to system components, integrations, model roles, storage or deployment.
 
 Operating the hosted app (health route, request log, common situations, rollback) is described in the [operations runbook](docs/operations.md). The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`.
+
+## Pre-existing work
+
+The hackathon kickoff was October 26, 2026, 12:24 PM Eastern (9:24 AM Pacific). Before it, the author had set up a Muse API key and run two small connection probes; those probe scripts are not in this repository. The author's recollection is that the application itself was started after kickoff.
+
+The evidence does not fully agree with that recollection, and the organizers have been asked to rule on it. A snapshot of the original project taken on the afternoon of October 26 holds an 18-file prototype whose file modification times fall before 9:24 AM Pacific for 17 of the files: a first HTTP server, a Meta Responses adapter, a learning engine for three asymptote problems, a problem catalog, a vanilla-JS page with its stylesheet and graph and formula helpers, three test files and a smoke script. Modification times can be wrong, and the original repository's first commit is from 9:46 PM Pacific that day, but the timestamps are what the record shows.
+
+Following the organizers' guidance to rewrite rather than copy, that prototype's code has been replaced in this repository in two rounds:
+
+- October 28: the HTTP layer was moved to Express, the graph and formula helpers were replaced by a D3 plot and a bounded expression catalog, and the model transport was moved to the OpenAI-compatible SDK against Meta's endpoint. The old page, graph and formula files and the probe scripts were left out.
+- October 30 to 31: the remaining prototype code was rewritten from its behaviour and the current tests, with new structure and wording: the asymptote coach (`src/learning.mjs`), the problem catalog (`src/problems.mjs`), the live smoke script (`scripts/evaluate.mjs`), the pre-kickoff tests in `test/learning.test.mjs`, `test/meta.test.mjs` and `test/server.test.mjs`, the lines the server and Meta adapter still shared with the prototype, and the base block of `public/style.css`, which still carried the prototype's 116 CSS rules verbatim.
+
+Check used: every file in this repository was compared line by line (whitespace-normalised, lines of 20 characters or more) and, for stylesheets, rule by rule, against the prototype snapshot. After the rewrite 32 of 16,218 lines are identical, all of them exported names, `case` labels, function signatures or one-line idioms such as `process.exitCode = 1;`; no CSS rule is identical. Module paths, export names, HTTP routes and the browser-facing data shapes were kept so the event-built code around them did not change. Everything else in this repository, including the React frontend, Lesson Studio, the claim-testing labs, the library, the show pipeline and the hosting code, was written during the event.
+
+The dated snapshot, its manifest and the comparison script are kept privately with the provenance record and will be provided on request. None of this is an eligibility ruling; that is the organizers' to make.
 
 ## Source and assets
 

@@ -1,15 +1,28 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { callMeta, retrieveMetaBackground } from '../src/meta.mjs';
+import { callMeta, retrieveMetaBackground, META_ENDPOINT } from '../src/meta.mjs';
 
-const completed = {
-  id: 'resp_test', status: 'completed', model: 'muse-spark-1.3',
-  output: [
-    { type: 'reasoning', summary: [{ text: 'Do not expose this.' }] },
-    { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: '连接成功' }] },
-  ],
-  usage: { input_tokens: 5, output_tokens: 10 },
-};
+// A finished Responses payload: a reasoning item the adapter must never surface, then the
+// assistant's message. Tests pass overrides to reshape the reply.
+const reasoningItem = { type: 'reasoning', summary: [{ text: 'Do not expose this.' }] };
+const assistantItem = text => ({ type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] });
+const finished = (overrides = {}) => ({
+  id: 'resp_test', status: 'completed', model: 'muse-spark-1.3', usage: { input_tokens: 5, output_tokens: 10 },
+  output: [reasoningItem, assistantItem('连接成功')],
+  ...overrides,
+});
+const completed = finished();
+// A fetch stand-in that remembers the one request it saw and answers with a fixed body.
+function recorder(answer = () => Response.json(completed)) {
+  const seen = { request: null };
+  seen.fetch = async (url, options) => {
+    seen.request = { url, options, body: options?.body ? JSON.parse(options.body) : null };
+    return answer();
+  };
+  return seen;
+}
+const neverFetch = () => assert.fail('a request was made');
+const key = 'test-secret';
 
 test('background creation acknowledges immediately and retrieves a completed response',async()=>{
  const requests=[];
@@ -40,103 +53,81 @@ test('provider trace captures safe HTTP and timeout failures without raw upstrea
  assert.equal(events.at(-1).status,429);assert.doesNotMatch(JSON.stringify(events),/private|test-secret/);
 });
 
-test('sends a non-stored Meta request and extracts only assistant output', async () => {
-  let request;
-  const result = await callMeta({
-    apiKey: 'test-secret', input: 'Synthetic connection check',
-    fetchImpl: async (url, options) => {
-      request = { url, options };
-      return Response.json(completed);
-    },
-  });
-  assert.equal(request.url, 'https://api.meta.ai/v1/responses');
-  assert.equal(request.options.headers.Authorization, 'Bearer test-secret');
-  assert.deepEqual(JSON.parse(request.options.body), {
-    model: 'muse-spark-1.3', input: 'Synthetic connection check', store: false, max_output_tokens: 2048,
-  });
-  assert.equal(result.text, '连接成功');
-  assert.equal(result.model, 'muse-spark-1.3');
-  assert.deepEqual(result.usage, completed.usage);
-  assert.equal(JSON.stringify(result).includes('Do not expose'), false);
+test('a plain request is not stored, carries model, input and token cap only, and yields the assistant text alone', async () => {
+  const seen = recorder();
+  const result = await callMeta({ apiKey: key, input: 'Synthetic connection check', fetchImpl: seen.fetch });
+  assert.equal(seen.request.url, META_ENDPOINT);
+  assert.equal(seen.request.options.headers.Authorization, `Bearer ${key}`);
+  assert.deepEqual(seen.request.body, { model: 'muse-spark-1.3', input: 'Synthetic connection check', store: false, max_output_tokens: 2048 });
+  assert.deepEqual({ text: result.text, model: result.model, usage: result.usage }, { text: '连接成功', model: 'muse-spark-1.3', usage: completed.usage });
+  assert.doesNotMatch(JSON.stringify(result), /Do not expose/);
 });
 
-test('missing credentials fail before any network request', async () => {
-  await assert.rejects(callMeta({ input: 'hello', fetchImpl: () => assert.fail('network called') }), /MODEL_API_KEY is missing/);
+test('without an API key nothing is sent', async () => {
+  await assert.rejects(callMeta({ input: 'hello', fetchImpl: neverFetch }), /MODEL_API_KEY is missing/);
 });
 
-test('developer instructions stay separate from learner input', async () => {
-  await callMeta({ apiKey: 'test-secret', input: 'learner text', instructions: 'trusted coaching rules', reasoningEffort: 'low', maxOutputTokens: 4096,
-    fetchImpl: async (_url, options) => {
-      const payload = JSON.parse(options.body);
-      assert.equal(payload.instructions, 'trusted coaching rules');
-      assert.equal(payload.input, 'learner text');
-      assert.equal(payload.store, false);
-      assert.deepEqual(payload.reasoning, { effort: 'low' });
-      assert.equal(payload.max_output_tokens, 4096);
-      assert.equal(options.redirect, 'error');
-      return Response.json(completed);
-    },
-  });
+test('instructions travel in their own field, apart from the learner text, with the effort and cap requested', async () => {
+  const seen = recorder();
+  await callMeta({ apiKey: key, input: 'learner text', instructions: 'trusted coaching rules', reasoningEffort: 'low', maxOutputTokens: 4096, fetchImpl: seen.fetch });
+  const { body, options } = seen.request;
+  assert.equal(body.instructions, 'trusted coaching rules');
+  assert.equal(body.input, 'learner text');
+  assert.equal(body.store, false);
+  assert.deepEqual(body.reasoning, { effort: 'low' });
+  assert.equal(body.max_output_tokens, 4096);
+  assert.equal(options.redirect, 'error', 'redirects are refused');
 });
 
-test('rejects blank input before any network request', async () => {
-  await assert.rejects(callMeta({ apiKey: 'key', input: ' ', fetchImpl: () => assert.fail('network called') }), /input must be non-empty/);
+test('blank input is refused before any request', async () => {
+  await assert.rejects(callMeta({ apiKey: key, input: '   ', fetchImpl: neverFetch }), /input must be non-empty/);
 });
 
-test('HTTP errors do not echo upstream bodies or credentials', async () => {
-  await assert.rejects(callMeta({ apiKey: 'test-secret', input: 'hello',
-    fetchImpl: async () => new Response('test-secret private response', { status: 401 }),
-  }), error => {
-    assert.match(error.message, /401.*key/);
-    assert.doesNotMatch(error.message, /test-secret|private response/);
+test('an HTTP error names the status and a hint, never the upstream body or the key', async () => {
+  const seen = recorder(() => new Response(`${key} private response`, { status: 401 }));
+  await assert.rejects(callMeta({ apiKey: key, input: 'hello', fetchImpl: seen.fetch }), error => {
+    assert.match(error.message, /HTTP 401\. Check your Meta API key/);
+    assert.doesNotMatch(error.message, new RegExp(`${key}|private response`));
     return true;
   });
 });
 
-test('does not mistake incomplete output for a successful connection', async () => {
-  await assert.rejects(callMeta({ apiKey: 'key', input: 'hello',
-    fetchImpl: async () => Response.json({ ...completed, status: 'incomplete' }),
-  }), /not completed/);
+test('a reply whose status is not completed is not treated as a success', async () => {
+  const seen = recorder(() => Response.json(finished({ status: 'incomplete' })));
+  await assert.rejects(callMeta({ apiKey: key, input: 'hello', fetchImpl: seen.fetch }), /not completed/);
 });
 
-test('rejects a response with no assistant text', async () => {
-  await assert.rejects(callMeta({ apiKey: 'key', input: 'hello',
-    fetchImpl: async () => Response.json({ ...completed, output: [] }),
-  }), /no assistant text/);
+test('a completed reply with no assistant message is an error', async () => {
+  const seen = recorder(() => Response.json(finished({ output: [] })));
+  await assert.rejects(callMeta({ apiKey: key, input: 'hello', fetchImpl: seen.fetch }), /no assistant text/);
 });
 
-test('timeouts fail with a safe error', async () => {
-  await assert.rejects(callMeta({ apiKey: 'test-secret', input: 'hello', timeoutMs: 5,
-    fetchImpl: (_url, { signal }) => new Promise((_resolve, reject) => {
-      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-      // Keep this fake request alive like a real network socket.
-      const timer = setTimeout(() => reject(new Error('test failed to abort')), 1000);
-      signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
-    }),
-  }), /timed out/);
-});
-
-test('native tool calls return an executable decision without exposing reasoning', async () => {
-  const tool = { type: 'function', name: 'ask_clarification', parameters: { type: 'object' } };
-  const result = await callMeta({ apiKey: 'test-secret', input: 'synthetic', tools: [tool],
-    fetchImpl: async (_url, options) => {
-      const body = JSON.parse(options.body);
-      assert.deepEqual(body.tools, [tool]);
-      assert.equal(body.tool_choice, 'auto');
-      assert.equal(body.parallel_tool_calls, false);
-      return Response.json({ ...completed, output: [{ type: 'function_call', name: 'ask_clarification', call_id: 'call_test', arguments: '{"question":"Which end?"}' }] });
-    },
+test('a request that outlives its timeout fails with a safe message', async () => {
+  // Behaves like an open socket: settles only when the adapter aborts it.
+  const hanging = (_url, { signal }) => new Promise((_resolve, reject) => {
+    const guard = setTimeout(() => reject(new Error('the adapter never aborted')), 1000);
+    signal.addEventListener('abort', () => { clearTimeout(guard); reject(signal.reason); }, { once: true });
   });
-  assert.deepEqual(result.toolCall, { name: 'ask_clarification', arguments: '{"question":"Which end?"}' });
-  assert.equal(result.text, '');
+  await assert.rejects(callMeta({ apiKey: key, input: 'hello', timeoutMs: 5, fetchImpl: hanging }), /timed out/);
 });
 
-test('rejects unrequested or multiple native calls rather than executing any', async () => {
-  const call = { type: 'function_call', name: 'ask_clarification', arguments: '{}' };
-  for (const output of [[call, call], [{ ...call, name: 'run_code' }], []]) {
-    await assert.rejects(callMeta({ apiKey: 'key', input: 'synthetic', tools: [{ name: 'ask_clarification' }],
-      fetchImpl: async () => Response.json({ ...completed, output }),
-    }), /one allowed learning action/);
+test('one requested tool call comes back as a decision, with no text and no reasoning', async () => {
+  const tool = { type: 'function', name: 'ask_clarification', parameters: { type: 'object', properties: {} } };
+  const call = { type: 'function_call', name: 'ask_clarification', call_id: 'call_test', arguments: '{"question":"Which end?"}' };
+  const seen = recorder(() => Response.json(finished({ output: [call] })));
+  const result = await callMeta({ apiKey: key, input: 'synthetic', tools: [tool], fetchImpl: seen.fetch });
+  assert.deepEqual(seen.request.body.tools, [tool]);
+  assert.equal(seen.request.body.tool_choice, 'auto');
+  assert.equal(seen.request.body.parallel_tool_calls, false);
+  assert.deepEqual([result.toolCall, result.text], [{ name: 'ask_clarification', arguments: '{"question":"Which end?"}' }, '']);
+  assert.doesNotMatch(JSON.stringify(result), /Do not expose/);
+});
+
+test('zero, duplicate or unrequested tool calls are refused rather than executed', async () => {
+  const call = { type: 'function_call', call_id: 'call_1', name: 'ask_clarification', arguments: '{}' };
+  for (const output of [[], [call, call], [{ ...call, name: 'run_code' }]]) {
+    const seen = recorder(() => Response.json(finished({ output })));
+    await assert.rejects(callMeta({ apiKey: key, input: 'synthetic', tools: [{ name: 'ask_clarification' }], fetchImpl: seen.fetch }), /one allowed learning action/);
   }
 });
 

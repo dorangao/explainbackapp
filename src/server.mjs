@@ -21,22 +21,24 @@ import {readWavBase64} from './wav.mjs';
 import { randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {createProviderRouter} from './llm/index.mjs';
-import { createSession, assess, advance, view } from './learning.mjs';
+import { createSession, assess, advance, view, TURN_LIMIT } from './learning.mjs';
 import { problems } from './problems.mjs';
 import { confirmClaim, replayClaimEvidence } from './claim-testing.mjs';
 import { answerShapeValid } from './claim-domains.mjs';
 import { motionScenario, motionTitle } from '../public/motion.mjs';
 
 // The React build in dist/ is the only page; legacy module serving was removed with the old shell.
-export const safeHeaders = {
-  'Cache-Control': 'no-store',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'no-referrer',
-  'Cross-Origin-Resource-Policy': 'same-origin',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://*.public.blob.vercel-storage.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'",
+export const safeHeaders = Object.fromEntries([
+  ['Cache-Control', 'no-store'],
+  ['X-Content-Type-Options', 'nosniff'],
+  ['Referrer-Policy', 'no-referrer'],
+  ['Cross-Origin-Resource-Policy', 'same-origin'],
+  ['Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: https://*.public.blob.vercel-storage.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"],
   // The microphone is the only powerful feature the app uses (spoken explain-back).
-  'Permissions-Policy': 'camera=(), geolocation=(), microphone=(self), payment=(), usb=()',
-};
+  ['Permissions-Policy', 'camera=(), geolocation=(), microphone=(self), payment=(), usb=()'],
+]);
+// Session ids are 48 hex characters from the CSPRNG; the routes below check that shape.
+const newSessionId = () => randomBytes(24).toString('hex');
 
 function localOrigin(req){
   const port=req.socket.localPort;
@@ -181,12 +183,12 @@ export function createHandler({
       if(path==='/api/quantum/session'||path==='/api/studio/session'){
         if(body.synthetic!==true||!['en','zh'].includes(body.language))throw new RequestError(400,'Choose a language and synthetic quantum demo.');
         const target=selected(body.llm);if(!target.configured)throw new RequestError(503,'Selected provider is not configured.');
-        const sessionId=randomBytes(24).toString('hex');
+        const sessionId=newSessionId();
         const s={workflow:path==='/api/studio/session'?'lesson-studio':'quantum-showcase',language:body.language,llm:target,owner:tester.id,audience:tester.audience?.label??null,createdAt:Date.now(),attempts:0};
         if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached.');
         json(200,{sessionId,llm:target,attemptsRemaining:8});return;
       }
-      if (path === '/api/session') {
+      if (path === '/api/session') { // baseline coach and claim-testing sessions
         if (body.synthetic !== true) throw new RequestError(400, 'Use synthetic examples for this prototype.');
         if ((!Object.hasOwn(problems, body.problemId)&&!['acceleration','flight','suction'].includes(body.problemId)) || !['en', 'zh'].includes(body.language)) throw new RequestError(400, 'Choose a problem and language.');
         const workflow=body.workflow??(['acceleration','flight','suction'].includes(body.problemId)?'claim-testing':'baseline');
@@ -197,7 +199,7 @@ export function createHandler({
         const target=selected(body.llm);
         if(!target.configured)throw new RequestError(503,'Selected provider is not configured. Check the server environment.');
         const s = createSession(body.problemId, body.language, workflow,body.problemId==='suction'?(body.suction??{}):body.problemId==='flight'?(body.flight??{}):body.problemId==='acceleration'?(body.motion??{}):{});
-        const sessionId = randomBytes(24).toString('hex');
+        const sessionId = newSessionId();
         s.llm=target;s.owner=tester.id;s.audience=tester.audience?.label??null;
         s.demoUsed=traceEnabled;
         if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached. Reset an existing session.');
@@ -380,9 +382,10 @@ export function createHandler({
       if(body.answer!==undefined&&!answerShapeValid(s,body.answer))
         throw new RequestError(400,'Enter the two numeric values for this topic, or leave both blank to ask for help.');
       if (!s.llm.configured) throw new RequestError(503, 'Selected provider is not configured.');
-      if (s.phase === 'complete') throw new RequestError(400, 'This session is complete. Start another example.');
-      if (typeof body.explanation !== 'string' || !body.explanation.trim() || body.explanation.length > 1200) throw new RequestError(400, 'Enter 1–1200 characters of synthetic reasoning.');
-      if (s.attempts >= 12 || !await state.consumeTurn(bucket,limit)) throw quotaExceeded();
+      const words = typeof body.explanation === 'string' ? body.explanation : '';
+      if (s.phase === 'complete') throw new RequestError(400, 'This session is complete. Start another example.'); // no further turns
+      if (!words.trim() || words.length > 1200) throw new RequestError(400, 'Enter 1–1200 characters of synthetic reasoning.');
+      if (s.attempts >= TURN_LIMIT || !await state.consumeTurn(bucket,limit)) throw quotaExceeded();
       s.attempts++;
       if(body.demoPreset)s.demoUsed=true;
       await save(); // Count attempts before sending, including rejected upstream output.
@@ -404,11 +407,11 @@ export function createHandler({
         await save(s.trace?.read());json(200, { sessionId: body.sessionId, ...next,llm:s.llm });
       } catch (error) {
         traceCall?.finish(error instanceof RequestError?'discarded':'failed or rejected');
-        if (error instanceof RequestError) throw error;
+        if (error instanceof RequestError) throw error; // client errors pass through unchanged
         if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){traceCall?.event({type:'error',message:error.message});throw new RequestError(409,error.message);}
         // Deliberately do not log or return raw upstream errors, prompts or secrets.
         const failure = new RequestError(502, 'Provider feedback could not be completed or validated. Your text is preserved. Check the selected model and connection, then retry explicitly.');
-        failure.attemptsRemaining = Math.max(0, 12 - s.attempts);
+        failure.attemptsRemaining = Math.max(0, TURN_LIMIT - s.attempts);
         throw failure;
       } finally { try{await s.trace?.flush();}catch{/* Diagnostics cannot override a committed response. */} }
     } finally {
@@ -428,17 +431,22 @@ export function createHandler({
 
 export function createApp(options={}) {
   const server=createServer(createHandler(options));
-  server.requestTimeout = 45_000;
-  server.headersTimeout = 10_000;
+  // Slow clients are cut off well before the hosted platform's own limits.
+  Object.assign(server, { requestTimeout: 45_000, headersTimeout: 10_000 });
   return server;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const port = Number(process.env.PORT || 4173);
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('PORT must be an integer from 1024 to 65535.');
-  const server = createApp();
-  server.on('error', () => { console.error('Could not start the local server. Check whether the port is already in use.'); process.exitCode = 1; });
-  server.listen(port, '127.0.0.1', () => {
+const runAsScript = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (runAsScript) {
+  const port = Number(process.env.PORT ?? 4173);
+  const portOk = Number.isInteger(port) && port >= 1024 && port <= 65535;
+  if (!portOk) throw new Error('PORT must be an integer from 1024 to 65535.');
+  const local = createApp();
+  local.on('error', () => {
+    console.error('Could not start the local server. Check whether the port is already in use.');
+    process.exitCode = 1;
+  });
+  local.listen(port, '127.0.0.1', () => {
     console.log(`ExplainBack local tester prototype: http://127.0.0.1:${port}`);
     if (process.env.EXPLAINBACK_OPEN_ACCESS === '1') console.warn('EXPLAINBACK_OPEN_ACCESS=1: no sign-in required on this local server. Never set this in a hosted environment.');
   });

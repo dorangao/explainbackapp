@@ -18,7 +18,8 @@ const common={
 const tool=(name,description,extra={})=>{const properties={...common,...extra};return {type:'function',name,description,strict:true,parameters:{type:'object',properties,required:Object.keys(properties),additionalProperties:false}};};
 function scopeAmbiguous(s,explanation){
  if(s.problemId!=='crossing')return false;
- const context=[...s.history.slice(-2).map(h=>h.explanation),explanation].join(' ');
+ const recent=s.history.slice(-2).map(h=>h.explanation);
+ const context=[...recent,explanation].join(' ');
  return /\bnever\b.*\b(touch|touches|cross|crosses)\b|永远.*(碰|接触|穿过)/i.test(explanation)
   && !/\b(finite|anywhere|every|infinity|infinite|ends?|because|since)\b|any input|all x|at x|有限|任何|任意|无穷|两端|因为|由于/i.test(context);
 }
@@ -130,9 +131,9 @@ Only server experiment results are checked facts. Language interpretation and re
  })});
  let d;
  try{
-  const args=JSON.parse(response.toolCall.arguments);
+  const {name,arguments:raw}=response.toolCall;const args=JSON.parse(raw);
   if(!args||typeof args!=='object'||Array.isArray(args)||'action'in args||'model'in args)throw new Error();
-  d={...args,action:response.toolCall.name,model:response.model};
+  d={...args,action:name,model:response.model};
  }catch{throw new Error('The provider did not return one valid action.');}
  validate(s,explanation,d,answer);return d;
 }
@@ -158,8 +159,8 @@ export function advanceClaim(s,explanation,d,answer){
  });
  const phase=s.phase,entry={phase,explanation,...d};
  if(!s.before)s.before=explanation;
- s.nextStep={action:d.action,question:d.question,reason:d.reason,focus:d.focus};
- switch(d.action){
+ const {action,question,reason,focus}=d;s.nextStep={action,question,reason,focus};
+ switch(action){
   case 'propose_claim':
    s.claim={id:`claim-${randomUUID()}`,quote:d.evidence,interpretation:d.interpretation,kind:d.kind,scope:d.scope,experimentId:d.experimentId,confirmed:false,initialAssessment:d.assessment};
    s.claimEvents.push({action:'proposed',claimId:s.claim.id,quote:d.evidence,interpretation:d.interpretation,model:d.model??'Selected model',modelCalls:1});s.phase='confirm';
@@ -175,7 +176,7 @@ export function advanceClaim(s,explanation,d,answer){
    s.evidenceRecords.push(record);s.designProposal={candidateId:d.candidateId,nextMeasurement:d.nextMeasurement,validationStatus:d.validationStatus,ceilingReactionDirection:d.ceilingReactionDirection,explanation,evidenceIds:[...d.evidenceIds],comparisonEvidenceId:record.id};
    entry.toolResult={evidenceId:record.id,result:record.result};s.phase='design-review';
    s.nextStep.question=pair('Compare the checked candidates: which meets the 30 kW and doubled-gap ceiling reserve target? Explain the tradeoff and what remains unvalidated.','比较已核验的方案：哪种满足 30 kW 和间隙翻倍后的天花板余量目标？解释取舍与尚未验证的部分。')[s.language];break;
-  case 'select_transfer':
+  case 'select_transfer': // verified fresh problem, unlocked by checked evidence
    s.revision=explanation;s.revisionEvidenceIds=[...d.evidenceIds];s.transferId=d.variantId;s.suctionFocus=null;s.phase='transfer';s.showGraph=false;s.graphTarget=null;
    s.nextStep.question=domainPart(s).prompt[s.language];break;
   case 'compare_reasoning':{
