@@ -32,6 +32,7 @@ import {
   gallerySourceNote,
   evaluationLesson,
   evaluationComparison,
+  evaluationModelLabel,
   evaluationNote,
   studioWalkthrough,
   validateLesson,
@@ -144,6 +145,8 @@ export function Studio({
     [backgroundRunning, setBackgroundRunning] = useState(false),
     // Both models' replies to the typed question, until one is chosen or discarded.
     [comparison, setComparison] = useState<CompareReply | null>(null),
+    // Which of the two compared models judges the drafts; the tester role until changed.
+    [judgeId, setJudgeId] = useState<string | null>(null),
     [source, setSource] = useState<string | null>(null),
     [sourceImage, setSourceImage] = useState<string | null>(null),
     // What SAM 3.1 found in the source image, kept with the image it was found in.
@@ -204,6 +207,9 @@ export function Studio({
     tester?.configured &&
     creatorRole.id !== tester.id,
   );
+  const judgeOptions =
+    canCompare && creatorRole && tester ? [creatorRole, tester] : [];
+  const judge = judgeOptions.find((m) => m.id === judgeId) ?? tester;
   const { invalidate } = provider;
   const stopHidden = (!visible || (!lessonId && view === "studio")) && busy;
   useEffect(() => {
@@ -628,7 +634,8 @@ export function Studio({
     return true;
   }
   // The same question goes to both Muse text models at once; the app checks both replies
-  // and the tester role judges the ready ones. The creator then picks a draft to review.
+  // and the chosen judge (Spark unless the creator picks Wonder) scores the ready ones.
+  // The creator then picks a draft to review.
   async function compareModels() {
     const asked = topic.trim();
     if (
@@ -652,7 +659,7 @@ export function Studio({
       (id, options) =>
         post<CompareReply>(
           "/api/studio/compare",
-          { sessionId: id, topic: asked },
+          { sessionId: id, topic: asked, judge: judge?.id },
           { ...options, timeoutMs: options.timeoutMs + 60_000 },
         ),
     );
@@ -1478,6 +1485,22 @@ export function Studio({
                         : t(language, "Studio.compareTwoModels")}{" "}
                       <span aria-hidden="true">⇄</span>
                     </button>
+                  )}
+                  {canCompare && (
+                    <label className="compare-judge-pick">
+                      {t(language, "Compare.judge")}
+                      <select
+                        value={judge?.id ?? ""}
+                        onChange={(event) => setJudgeId(event.target.value)}
+                        disabled={busy}
+                      >
+                        {judgeOptions.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {evaluationModelLabel(m.model)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   )}
                   <label className="file-action import-action">
                     {t(language, "Studio.importLessonJson")}

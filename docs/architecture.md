@@ -40,7 +40,7 @@ flowchart LR
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
 | State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
 | Studio image routes | SAM 3.1 detection and Muse Image illustration as one request each, sharing the action handler's session, budget and trace plumbing | `src/studio-images.mjs`, `src/request-error.mjs` |
-| Studio compare route | One question drafted by Muse Wonder and Muse Spark at once, each reply checked by the evaluation's open-question scorer and the ready lessons scored by the rubric judge (the tester role); two to four requests on the same budget | `src/studio-compare.mjs`, `src/eval/studio.mjs`, `src/eval/judge.mjs` |
+| Studio compare route | One question drafted by Muse Wonder and Muse Spark at once, each reply checked by the evaluation's open-question scorer and the ready lessons scored by the rubric judge (the tester role, or the other compared model when the creator picks it); two to four requests on the same budget | `src/studio-compare.mjs`, `src/eval/studio.mjs`, `src/eval/judge.mjs` |
 | Images | Vercel Blob keeps the bytes of show covers, slide illustrations and source sketches for saved lessons; records hold URLs only; without a token images stay in the browser | `src/blob.mjs`, `src/lessons.mjs`, `scripts/prune-blobs.mjs` |
 | Delivery | Vercel static frontend and serverless function, Node 22, service worker and web manifest | `vercel.json`, `scripts/build-vercel.mjs`, `public/sw.js` |
 | Optional local model | Ollama, guarded for sequential local use; not available through the cloud router | `src/llm/ollama*.mjs`, `src/cloud.mjs` |
@@ -52,8 +52,8 @@ For exact installed versions, use `package-lock.json`. Keep credentials out of d
 
 | Model (dev.meta.ai) | Role in ExplainBack | Where |
 |---|---|---|
-| Muse Wonder | Drafts and revises lessons, in the background when a sketch is attached; drafts alongside Spark when a creator compares | `src/lesson-author.mjs`, `/api/studio/compose`, `/api/studio/compare` |
-| Muse Spark 1.3 | Plays the first-time learner (tryout), grades explain-backs, writes the narrated show script; drafts alongside Wonder and judges both drafts when a creator compares; the hosted default | `src/lesson-tester.mjs`, `src/lesson-show.mjs`, `src/studio-compare.mjs` |
+| Muse Wonder | Drafts and revises lessons, in the background when a sketch is attached; drafts alongside Spark when a creator compares, and judges both drafts when picked as the judge | `src/lesson-author.mjs`, `/api/studio/compose`, `/api/studio/compare` |
+| Muse Spark 1.3 | Plays the first-time learner (tryout), grades explain-backs, writes the narrated show script; drafts alongside Wonder and, unless the creator picks Wonder, judges both drafts when a creator compares; the hosted default | `src/lesson-tester.mjs`, `src/lesson-show.mjs`, `src/studio-compare.mjs` |
 | Muse Image | Draws the show cover, the slides the show writer flags (up to two, within the request budget) and, on request, any other slide | `/api/studio/show`, `/api/studio/illustrate` |
 | Muse Voice Transcribe | Transcribes the spoken explain-back | `/api/studio/transcribe` |
 | SAM 3.1 | Finds the one thing a creator names in their sketch or photo and draws boxes over it (Spotlight) | `/api/studio/detect`, `frontend/components/Spotlight.tsx` |

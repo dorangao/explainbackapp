@@ -764,6 +764,19 @@ body {
   border-radius: 999px;
   padding-inline: 1.45rem;
 }
+.compare-judge-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.app-shell .compare-judge-pick select {
+  width: auto;
+  min-height: 0;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+}
 .author-privacy {
   margin: 18px 0 0;
   max-width: 650px;
