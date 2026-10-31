@@ -685,6 +685,7 @@ export const galleryShows=Object.freeze({
   "cover": "/gallery/explainback-cover.webp",
   "illustrations": {
    "1": "/gallery/explainback-slide-1.webp",
+   "3": "/gallery/explainback-slide-3.webp",
    "4": "/gallery/explainback-slide-4.webp"
   },
   "model": "muse-wonder-1.0",
