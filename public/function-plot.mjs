@@ -9,7 +9,7 @@ let plotSequence = 0;
 // allowlisted fixed formula. Build detached so invalid input preserves the old plot.
 export function drawGraph(container, graph, language, inputX = 0) {
   const [width, height, left, right, top, bottom] = [640, 420, 55, 610, 25, 365];
-  const range = graph?.range ?? [-1, 1];
+  const range = graph?.range ?? [-1, 1]; // vertical window from the checked limits
   if (!Array.isArray(range) || range.length !== 2 || !range.every(Number.isFinite) || range[0] >= range[1] || !Number.isFinite(range[1] - range[0])) {
     throw new Error('Graph range must contain two increasing finite values.');
   }
@@ -27,12 +27,12 @@ export function drawGraph(container, graph, language, inputX = 0) {
   svg.append('defs').append('clipPath').attr('id', clipId).append('rect')
     .attr('x', left).attr('y', top).attr('width', right-left).attr('height', bottom-top);
   const clip = `url(#${clipId})`;
-  for (let x = -8; x <= 8; x += 2) {
+  for (const x of [-8, -6, -4, -2, 0, 2, 4, 6, 8]) {
     svg.append('line').attr('x1', xScale(x)).attr('y1', top).attr('x2', xScale(x)).attr('y2', bottom).attr('stroke', '#dce1d5');
     svg.append('text').attr('x', xScale(x)).attr('y', bottom+24).attr('text-anchor', 'middle').attr('fill', '#68776c').attr('font-size', 13).text(x);
   }
-  for (let i = 0; i <= 4; i++) {
-    const y = range[0] + i / 4 * (range[1] - range[0]);
+  for (let tick = 0; tick <= 4; tick++) {
+    const y = range[0] + tick / 4 * (range[1] - range[0]);
     svg.append('line').attr('x1', left).attr('y1', yScale(y)).attr('x2', right).attr('y2', yScale(y)).attr('stroke', '#dce1d5');
     svg.append('text').attr('x', left-10).attr('y', yScale(y)+4).attr('text-anchor', 'end').attr('fill', '#68776c').attr('font-size', 12).text(Number(y.toFixed(2)));
   }

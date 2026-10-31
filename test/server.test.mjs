@@ -1,140 +1,150 @@
-import {testerCredentials,testerCookie} from '../test-support/tester.mjs';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { request } from 'node:http';
 import { createApp } from '../src/server.mjs';
+import { testerCredentials, testerCookie } from '../test-support/tester.mjs';
 
-async function running(t, modelCall) {
-  const server = createApp({testerCredentials, configured: true, modelCall });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  const cookie=await testerCookie(origin);
-  const post = (path, body) => fetch(origin + path, { method: 'POST', headers: { Cookie:cookie, 'Content-Type': 'application/json', Origin: origin }, body: JSON.stringify(body) });
-  return { origin, post, cookie };
+// Boots the app on a free local port with a scripted model and signs the tester in. The
+// returned `post` sends JSON with the tester cookie and a same-origin header, as the page would.
+async function running(t, model) {
+  const server = createApp({ testerCredentials, configured: true, modelCall: model });
+  await new Promise(ready => server.listen(0, '127.0.0.1', ready));
+  t.after(() => new Promise(done => server.close(done)));
+  const { port } = server.address();
+  const origin = `http://127.0.0.1:${port}`;
+  const cookie = await testerCookie(origin);
+  const post = (path, body, headers = {}) => fetch(origin + path, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify(body),
+  });
+  const statusOf = async (path, body, headers) => (await post(path, body, headers)).status;
+  return { origin, post, cookie, statusOf };
 }
 const start = { problemId: 'crossing', language: 'en', synthetic: true };
-const clarification = (text, feedback='Clarify.', question='Which end?') => ({ model:'test', toolCall:{name:'ask_clarification',arguments:JSON.stringify({assessment:'ambiguous',evidence:text,feedback,question,reason:'Clarify the meaning before judging.',focus:'meaning'})} });
+// A scripted model: one clarification that quotes the learner's words back as evidence.
+function clarification(text, feedback = 'Clarify.', question = 'Which end?') {
+  const args = { assessment: 'ambiguous', evidence: text, feedback, question, reason: 'Clarify the meaning before judging.', focus: 'meaning' };
+  return { model: 'test', toolCall: { name: 'ask_clarification', arguments: JSON.stringify(args) } };
+}
+const echoing = (...rest) => async args => clarification(JSON.parse(args.input).explanation, ...rest);
+// Sends a raw request (body chunks optional; a second chunk goes out after a short pause) and
+// resolves with the status code, for cases fetch() would normalise away.
+function raw(origin, path, { method = 'GET', headers = {}, chunks = [] } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = request(origin + path, { method, headers }, res => { res.resume(); resolve(res.statusCode); });
+    req.on('error', reject);
+    const [first, second] = chunks;
+    if (first) req.write(first);
+    if (second) setTimeout(() => req.end(second), 5); else req.end();
+  });
+}
+const untilReleased = async get => { while (!get()) await new Promise(tick => setTimeout(tick, 1)); };
+// A model that parks until the test releases it, so a second request can arrive meanwhile.
+function parked(reply) {
+  const gate = { release: null };
+  gate.model = async args => { await new Promise(open => { gate.release = open; }); return reply(args); };
+  gate.wait = () => untilReleased(() => gate.release);
+  return gate;
+}
 
-test('serves the workspace but never serves environment or server files', async t => {
-  const { origin } = await running(t);
-  const page = await fetch(origin);
-  // The page comes from the Vite build in dist/ when present; the API never serves source files.
+test('the built page is served with a strict CSP; repository and environment files are not', async t => {
+  const app = await running(t);
+  const page = await fetch(app.origin);
+  // dist/ may be absent in a bare checkout; either way no source file is reachable.
   assert.ok([200, 404].includes(page.status));
   if (page.status === 200) assert.match(await page.text(), /ExplainBack/);
-  for (const path of ['/.env.local', '/src/meta.mjs', '/package.json', '/docs/', '/assets/../.env.local']) {
-    assert.equal((await fetch(origin + path)).status, 404);
-  }
-  assert.match(page.headers.get('content-security-policy'), /default-src 'self'/);
+  assert.match(page.headers.get('content-security-policy') ?? '', /default-src 'self'/);
+  const privatePaths = ['/.env.local', '/src/meta.mjs', '/package.json', '/docs/', '/assets/../.env.local'];
+  for (const path of privatePaths) assert.equal((await fetch(app.origin + path)).status, 404, path);
 });
 
-test('legacy shell modules are no longer served and repository files stay private', async t => {
-  const { origin } = await running(t);
-  for (const path of ['/assets/app.mjs', '/assets/lesson-studio.mjs', '/assets/lesson-schema.mjs', '/frontend/App.tsx', '/public/gallery-lessons.mjs']) {
-    assert.equal((await fetch(origin + path)).status, 404, path);
-  }
-  const auth = await fetch(origin + '/api/auth');
-  assert.equal(auth.status, 200);
+test('the old module shell is gone and source stays private, while the auth route answers', async t => {
+  const app = await running(t);
+  const gone = ['/assets/app.mjs', '/assets/lesson-studio.mjs', '/assets/lesson-schema.mjs', '/frontend/App.tsx', '/public/gallery-lessons.mjs'];
+  for (const path of gone) assert.equal((await fetch(app.origin + path)).status, 404, path);
+  assert.equal((await fetch(app.origin + '/api/auth')).status, 200, 'the auth route answers');
 });
 
-test('rejects cross-origin requests and requires synthetic examples', async t => {
-  const { origin, post, cookie } = await running(t);
-  assert.equal((await fetch(origin + '/api/session', { method: 'POST', headers: { Cookie:cookie, Origin: 'https://example.com', 'Content-Type': 'application/json' }, body: JSON.stringify(start) })).status, 403);
-  assert.equal((await post('/api/session', { ...start, synthetic: false })).status, 400);
-  assert.equal((await post('/api/session', { ...start, problemId: '__proto__' })).status, 400);
-  const status = await new Promise((resolve, reject) => {
-    const req = request(origin + '/api/status', { headers: { Host: 'example.com' } }, res => { res.resume(); resolve(res.statusCode); });
-    req.on('error', reject); req.end();
-  });
-  assert.equal(status, 403);
+test('foreign origins, non-synthetic sessions, prototype keys and foreign hosts are refused', async t => {
+  const { origin, statusOf } = await running(t);
+  assert.equal(await statusOf('/api/session', start, { Origin: 'https://example.com' }), 403, 'foreign origin');
+  assert.equal(await statusOf('/api/session', { ...start, synthetic: false }), 400, 'synthetic flag required');
+  assert.equal(await statusOf('/api/session', { ...start, problemId: '__proto__' }), 400, 'prototype key');
+  assert.equal(await raw(origin, '/api/status', { headers: { Host: 'example.com' } }), 403, 'foreign host header');
 });
 
-test('reset during an in-flight request discards the stale result', async t => {
-  let release;
-  const { post } = await running(t, async args => {
-    await new Promise(resolve => { release = resolve; });
-    return clarification(JSON.parse(args.input).explanation);
-  });
-  const initial = await (await post('/api/session', start)).json();
-  const pending = post('/api/turn', { sessionId: initial.sessionId, explanation: 'synthetic explanation' });
-  while (!release) await new Promise(resolve => setTimeout(resolve, 1));
-  await post('/api/reset', { sessionId: initial.sessionId });
-  release();
-  assert.equal((await pending).status, 409);
+test('a reset while a turn is in flight discards the late result', async t => {
+  const gate = parked(echoing());
+  const { post } = await running(t, gate.model);
+  const { sessionId } = await (await post('/api/session', start)).json();
+  const late = post('/api/turn', { sessionId, explanation: 'synthetic explanation' });
+  await gate.wait();
+  await post('/api/reset', { sessionId });
+  gate.release();
+  assert.equal((await late).status, 409);
 });
 
-test('HTTP session carries learner reasoning through a live-adapter turn', async t => {
-  const { post } = await running(t, async args => clarification(JSON.parse(args.input).explanation,'Please distinguish finite inputs from end behavior.','What does never mean here?'));
-  const initial = await (await post('/api/session', start)).json();
-  const response = await post('/api/turn', { sessionId: initial.sessionId, explanation: 'never touches' });
-  assert.equal(response.status, 200);
-  const body = await response.json();
-  assert.equal(body.phase, 'explain');
-  assert.equal(body.history[0].assessment, 'ambiguous');
-  assert.equal(body.attemptsRemaining, 11);
-  assert.equal((await post('/api/reset', { sessionId: initial.sessionId })).status, 200);
-  assert.equal((await post('/api/turn', { sessionId: initial.sessionId, explanation: 'hello' })).status, 404);
+test('a turn carries the learner\'s words through the adapter and back, and a reset ends the session', async t => {
+  const { post } = await running(t, echoing('Please distinguish finite inputs from end behavior.', 'What does never mean here?'));
+  const { sessionId } = await (await post('/api/session', start)).json();
+  const turn = await post('/api/turn', { sessionId, explanation: 'never touches' });
+  const body = await turn.json();
+  assert.deepEqual(
+    [turn.status, body.phase, body.history[0].assessment, body.history[0].evidence, body.attemptsRemaining],
+    [200, 'explain', 'ambiguous', 'never touches', 11],
+  );
+  assert.equal((await post('/api/reset', { sessionId })).status, 200);
+  assert.equal((await post('/api/turn', { sessionId, explanation: 'hello' })).status, 404);
 });
 
-test('upstream failures are safe and do not advance the learning state', async t => {
-  const { post } = await running(t, async () => { throw new Error('test-secret should not reach browser'); });
-  const initial = await (await post('/api/session', start)).json();
-  const failed = await post('/api/turn', { sessionId: initial.sessionId, explanation: 'I think it never touches.' });
-  assert.equal(failed.status, 502);
-  const body = await failed.text();
-  assert.doesNotMatch(body, /test-secret/);
-  assert.equal(JSON.parse(body).attemptsRemaining, 11);
+test('an adapter failure is a safe 502 that counts the turn but changes no state', async t => {
+  const { post } = await running(t, async () => { throw new Error('test-secret must stay on the server'); });
+  const { sessionId } = await (await post('/api/session', start)).json();
+  const failed = await post('/api/turn', { sessionId, explanation: 'I think it never touches.' });
+  const text = await failed.text();
+  assert.equal(failed.status, 502, text);
+  assert.doesNotMatch(text, /test-secret/);
+  assert.equal(JSON.parse(text).attemptsRemaining, 11);
 });
 
-test('Chinese text survives split UTF-8 bytes in an HTTP body', async t => {
-  let observed;
+test('a Chinese character split across two TCP writes arrives intact', async t => {
+  let heard;
   const { origin, post, cookie } = await running(t, async args => {
-    observed = JSON.parse(args.input).explanation;
-    return clarification(observed,'请澄清。','指哪一端？');
+    heard = JSON.parse(args.input).explanation;
+    return clarification(heard, '请澄清。', '指哪一端？');
   });
-  const initial = await (await post('/api/session', { ...start, language: 'zh' })).json();
-  const buffer = Buffer.from(JSON.stringify({ sessionId: initial.sessionId, explanation: '不会碰到' }));
-  const split = buffer.indexOf(Buffer.from('不')) + 1;
-  const status = await new Promise((resolve, reject) => {
-    const req = request(origin + '/api/turn', { method: 'POST', headers: { Cookie:cookie, Origin: origin, 'Content-Type': 'application/json' } }, res => { res.resume(); resolve(res.statusCode); });
-    req.on('error', reject); req.write(buffer.subarray(0, split));
-    setTimeout(() => req.end(buffer.subarray(split)), 5);
-  });
-  assert.equal(status, 200);
-  assert.equal(observed, '不会碰到');
+  const { sessionId } = await (await post('/api/session', { ...start, language: 'zh' })).json();
+  const bytes = Buffer.from(JSON.stringify({ sessionId, explanation: '不会碰到' }));
+  const cut = bytes.indexOf(Buffer.from('不')) + 1; // inside the first multibyte character
+  const headers = { Cookie: cookie, Origin: origin, 'Content-Type': 'application/json' };
+  assert.equal(await raw(origin, '/api/turn', { method: 'POST', headers, chunks: [bytes.subarray(0, cut), bytes.subarray(cut)] }), 200);
+  assert.equal(heard, '不会碰到');
 });
 
-test('the request body and per-session attempt caps are enforced', async t => {
+test('oversized bodies are refused and the twelve-turn cap holds', async t => {
   let calls = 0;
-  const { post } = await running(t, async args => {
-    calls++;
-    return clarification(JSON.parse(args.input).explanation);
-  });
-  assert.equal((await post('/api/session', { ...start, padding: 'x'.repeat(17000) })).status, 413);
-  const initial = await (await post('/api/session', start)).json();
-  for (let i=0;i<12;i++) assert.equal((await post('/api/turn', { sessionId: initial.sessionId, explanation: 'never' })).status, 200);
-  assert.equal((await post('/api/turn', { sessionId: initial.sessionId, explanation: 'never' })).status, 429);
-  assert.equal(calls, 12);
+  const { post, statusOf } = await running(t, async args => { calls++; return clarification(JSON.parse(args.input).explanation); });
+  assert.equal(await statusOf('/api/session', { ...start, padding: 'x'.repeat(17000) }), 413, 'body cap');
+  const { sessionId } = await (await post('/api/session', start)).json();
+  for (let turn = 1; turn <= 12; turn++) assert.equal((await post('/api/turn', { sessionId, explanation: 'never' })).status, 200, `turn ${turn}`);
+  assert.equal((await post('/api/turn', { sessionId, explanation: 'never' })).status, 429);
+  assert.equal(calls, 12, 'one model call per accepted turn');
 });
 
-test('oversized input and duplicate requests cannot cause extra model calls', async t => {
+test('over-long explanations and concurrent duplicates never reach the model more than once', async t => {
   let calls = 0;
-  let release;
-  const { post } = await running(t, async args => {
-    calls++;
-    await new Promise(resolve => { release = resolve; });
-    return clarification(JSON.parse(args.input).explanation);
-  });
-  const initial = await (await post('/api/session', start)).json();
-  assert.equal((await post('/api/turn', { sessionId: initial.sessionId, explanation: 'x'.repeat(1201) })).status, 400);
-  assert.equal(calls, 0);
-  const first = post('/api/turn', { sessionId: initial.sessionId, explanation: 'never' });
-  while (!release) await new Promise(resolve => setTimeout(resolve, 1));
-  const duplicate = await post('/api/turn', { sessionId: initial.sessionId, explanation: 'never' });
-  assert.equal(duplicate.status, 409);
-  release();
-  assert.equal((await first).status, 200);
-  assert.equal(calls, 1);
+  const gate = parked(args => clarification(JSON.parse(args.input).explanation));
+  const { post } = await running(t, async args => { calls++; return gate.model(args); });
+  const { sessionId } = await (await post('/api/session', start)).json();
+  assert.equal((await post('/api/turn', { sessionId, explanation: 'x'.repeat(1201) })).status, 400);
+  assert.equal(calls, 0, 'refused before the model');
+  const first = post('/api/turn', { sessionId, explanation: 'never' });
+  await gate.wait();
+  assert.equal((await post('/api/turn', { sessionId, explanation: 'never' })).status, 409);
+  gate.release();
+  assert.equal((await first).status, 200, 'the first request completes');
+  assert.equal(calls, 1, 'the duplicate never reached the model');
 });
 
 const claimStart={...start,workflow:'claim-testing'};

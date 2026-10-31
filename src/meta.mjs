@@ -1,52 +1,53 @@
 import OpenAI from 'openai';
 
 // Server/CLI module only. Never bundle this module with a browser application.
-export const META_ENDPOINT = 'https://api.meta.ai/v1/responses';
-export const DEFAULT_META_MODEL = 'muse-spark-1.3';
+const META_API = 'https://api.meta.ai/v1';
+export const META_ENDPOINT = `${META_API}/responses`;
 // Models offered by default. Wonder is larger and slower, so it gets a longer budget.
 export const DEFAULT_META_MODELS = ['muse-spark-1.3', 'muse-wonder-1.0'];
+export const DEFAULT_META_MODEL = DEFAULT_META_MODELS[0];
+// Shared guards: every call needs a key and bounded time; text calls need non-empty input.
+const deadline = ms => AbortSignal.timeout(ms);
+function requireKey(apiKey) {
+  if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
+  return apiKey.trim();
+}
+function requireText(input) {
+  if (typeof input !== 'string' || !input.trim()) throw new Error('input must be non-empty text.');
+}
+const HTTP_HINTS = new Map([
+  [401, 'Check your Meta API key.'],
+  [403, 'Check account and model access.'],
+  [404, 'Check META_MODEL against your available models.'],
+  [429, 'Check credits and rate limits before retrying.'],
+]);
 export const metaTimeoutMs = model => (model.startsWith('muse-wonder') ? 50_000 : 30_000);
 // The usage summary the app reports: input and output tokens plus how many input tokens
 // the server served from its prompt cache (a subset of input, billed at the cached rate).
 export const usageSummary = usage => usage ? { input: usage.input_tokens ?? null, output: usage.output_tokens ?? null, cached: usage.input_tokens_details?.cached_tokens ?? null } : null;
 
-export async function callMeta({
-  apiKey,
-  input,
-  model = DEFAULT_META_MODEL,
-  instructions,
-  reasoningEffort,
-  maxOutputTokens = 2048,
-  tools,
-  structuredOutput = false,
-  images,
-  background = false,
-  // Multi-turn: chain this turn onto an earlier stored response so the model keeps its
-  // reasoning context. `store` must be true on the earlier turn for the id to resolve.
-  previousResponseId,
-  store = background,
-  // Prompt caching happens on the shared prefix automatically; a stable key per use case
-  // routes requests that share a prefix to the backend that already holds it.
-  promptCacheKey,
-  // Ask for a short natural-language summary of the model's private reasoning ("auto",
-  // "concise" or "detailed"). The summary is optional output and may be empty.
-  reasoningSummary,
-  timeoutMs = 30_000,
-  fetchImpl = globalThis.fetch,
-  onTrace,
-} = {}) {
-  if (typeof apiKey !== 'string' || !apiKey.trim()) {
-    throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
-  }
-  if (typeof input !== 'string' || !input.trim()) {
-    throw new Error('input must be non-empty text.');
-  }
+export async function callMeta(options = {}) {
+  const {
+    apiKey, input, model = DEFAULT_META_MODEL, instructions, reasoningEffort, maxOutputTokens = 2048, tools,
+    structuredOutput = false, images, background = false,
+    // Multi-turn: chain this turn onto an earlier stored response so the model keeps its
+    // reasoning context. `store` must be true on the earlier turn for the id to resolve.
+    previousResponseId, store = background,
+    // Prompt caching happens on the shared prefix automatically; a stable key per use case
+    // routes requests that share a prefix to the backend that already holds it.
+    promptCacheKey,
+    // Ask for a short natural-language summary of the model's private reasoning ("auto",
+    // "concise" or "detailed"). The summary is optional output and may be empty.
+    reasoningSummary, timeoutMs = 30_000, fetchImpl = globalThis.fetch, onTrace,
+  } = options;
+  const key = requireKey(apiKey);
+  requireText(input);
   if (images !== undefined && (!Array.isArray(images) || !images.length || images.length > 4 || images.some(u => typeof u !== 'string' || !/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(u) || u.length > 2_000_000))) {
     throw new Error('images must be one to four base64 data URLs.');
   }
   if(structuredOutput&&(!Array.isArray(tools)||tools.length!==1||!tools[0].parameters))throw new Error('Structured output needs one named schema.');
 
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = deadline(timeoutMs);
   const trace=event=>{try{onTrace?.(event);}catch{/* Diagnostics must not affect calls. */}};
   // Multimodal requests use one user message with text plus image parts (Responses API shape).
   const content=images?[{type:'input_text',text:input},...images.map(image_url=>({type:'input_image',image_url}))]:null;
@@ -68,7 +69,7 @@ export async function callMeta({
   // organisation, project, custom-header, logging or retry settings. Limit the
   // final outbound headers as a second boundary against ambient SDK settings.
   const client = new OpenAI({
-    apiKey: apiKey.trim(), baseURL: 'https://api.meta.ai/v1',
+    apiKey: key, baseURL: META_API,
     organization: null, project: null, adminAPIKey: null, webhookSecret: null,
     maxRetries: 0, timeout: timeoutMs, logLevel: 'off',
     fetch: (url, options) => {
@@ -86,13 +87,8 @@ export async function callMeta({
   } catch (error) {
     if (Number.isInteger(error?.status)) {
       trace({type:'error',status:error.status,message:'Provider returned an HTTP error; raw body omitted.'});
-      const guidance = {
-        401: 'Check your Meta API key.',
-        403: 'Check account and model access.',
-        404: 'Check META_MODEL against your available models.',
-        429: 'Check credits and rate limits before retrying.',
-      }[error.status] ?? 'Check the Meta dashboard before retrying.';
-      throw Object.assign(new Error(`Meta API returned HTTP ${error.status}. ${guidance}`),{status:error.status});
+      const hint = HTTP_HINTS.get(error.status) ?? 'Check the Meta dashboard before retrying.';
+      throw Object.assign(new Error(`Meta API returned HTTP ${error.status}. ${hint}`), { status: error.status });
     }
     if (error instanceof SyntaxError) {
       trace({type:'error',message:'invalid JSON'});
@@ -118,28 +114,32 @@ export function reasoningSummaryText(data){
 }
 // `reasoningSummary` is true only when the request asked for one; otherwise any reasoning
 // text in the reply is left unread, so nothing the caller did not ask for is exposed.
-function readMetaResponse(data,{tools,structuredOutput=false,reasoningSummary=false}={}) {
-  if (data?.status !== 'completed') throw new Error('Meta response was not completed; no success was recorded.');
-  const reasoning=reasoningSummary?reasoningSummaryText(data):undefined;
-  if (tools&&!structuredOutput) {
-    const calls = (Array.isArray(data.output) ? data.output : []).filter(item => item?.type === 'function_call');
-    if (calls.length !== 1 || !tools.some(tool => tool.name === calls[0].name) || typeof calls[0].arguments !== 'string') {
-      throw new Error('Meta must return exactly one allowed learning action.');
-    }
-    return { id: data.id, model: data.model, text: '', usage: data.usage, reasoning,
-      toolCall: { name: calls[0].name, arguments: calls[0].arguments } };
+const outputItems = data => (Array.isArray(data?.output) ? data.output : []);
+// The assistant's visible text: every output_text part of every assistant message, in order.
+const assistantText = items => items
+  .filter(item => item?.role === 'assistant' && item.type === 'message')
+  .flatMap(item => (Array.isArray(item.content) ? item.content : []))
+  .flatMap(part => (part?.type === 'output_text' && typeof part.text === 'string' ? [part.text] : []))
+  .join('\n').trim();
+function readMetaResponse(data, { tools, structuredOutput = false, reasoningSummary = false } = {}) {
+  const status = typeof data?.status === 'string' ? data.status : 'unknown';
+  if (status !== 'completed') throw new Error(`Meta response status was "${status}", not completed; no success was recorded.`);
+  const base = { id: data.id, model: data.model, usage: data.usage, reasoning: reasoningSummary ? reasoningSummaryText(data) : undefined };
+  if (tools && !structuredOutput) {
+    const calls = outputItems(data).filter(item => item?.type === 'function_call');
+    const [call] = calls;
+    const allowed = calls.length === 1 && typeof call.arguments === 'string' && tools.some(tool => tool.name === call.name);
+    if (!allowed) throw new Error('Meta must return exactly one allowed learning action.');
+    return { ...base, text: '', toolCall: { name: call.name, arguments: call.arguments } };
   }
-  const text = (Array.isArray(data.output) ? data.output : [])
-    .filter(item => item?.type === 'message' && item.role === 'assistant')
-    .flatMap(item => Array.isArray(item.content) ? item.content : [])
-    .filter(item => item?.type === 'output_text' && typeof item.text === 'string')
-    .map(item => item.text).join('\n').trim();
-  if (!text) throw new Error('Meta response contained no assistant text.');
-  if(structuredOutput){
-    let value;try{value=JSON.parse(text);}catch{throw new Error('Meta returned invalid structured JSON.');}
-    return {id:data.id,model:data.model,usage:data.usage,reasoning,text:'',structured:{name:tools[0].name,value}};
+  const text = assistantText(outputItems(data));
+  if (text === '') throw new Error('Meta response contained no assistant text.');
+  if (structuredOutput) {
+    let value;
+    try { value = JSON.parse(text); } catch { throw new Error('Meta returned invalid structured JSON.'); }
+    return { ...base, text: '', structured: { name: tools[0].name, value } };
   }
-  return { id: data.id, model: data.model, text, usage: data.usage, reasoning };
+  return { ...base, text };
 }
 
 // A background response is polled only by its owning server session, never by a browser ID.
@@ -168,13 +168,12 @@ export async function generateMetaImage({
   size = '1536x1024',
   outputFormat = 'webp',
   timeoutMs = 60_000,
-  fetchImpl = globalThis.fetch,
-  onTrace,
+  fetchImpl = globalThis.fetch, onTrace,
 } = {}) {
-  if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
+  const key = requireKey(apiKey);
   if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 1000) throw new Error('prompt must be non-empty text under 1000 characters.');
   if (!['webp', 'png', 'jpeg'].includes(outputFormat)) throw new Error('Unsupported image format.');
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = deadline(timeoutMs);
   const trace = event => { try { onTrace?.(event); } catch { /* Diagnostics must not affect calls. */ } };
   const body = { model, prompt, n: 1, size, response_format: 'b64_json', output_format: outputFormat };
   trace({ type: 'request', body });
@@ -182,7 +181,7 @@ export async function generateMetaImage({
   try {
     response = await fetchImpl(META_IMAGE_ENDPOINT, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       signal,
       redirect: 'error',
@@ -213,13 +212,12 @@ export async function transcribeMetaAudio({
   model = DEFAULT_META_VOICE_MODEL,
   languageBias,
   timeoutMs = 30_000,
-  fetchImpl = globalThis.fetch,
-  onTrace,
+  fetchImpl = globalThis.fetch, onTrace,
 } = {}) {
-  if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
+  const key = requireKey(apiKey);
   if (!(wav instanceof Uint8Array) || wav.byteLength < 44 || wav.byteLength > 4_000_000) throw new Error('wav must be a small WAV buffer.');
   if (languageBias !== undefined && (!Array.isArray(languageBias) || !languageBias.every(l => typeof l === 'string' && /^[A-Za-z ]{2,40}$/.test(l)))) throw new Error('languageBias must be language names.');
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = deadline(timeoutMs);
   const trace = event => { try { onTrace?.(event); } catch { /* Diagnostics must not affect calls. */ } };
   const request = { model, mode: 'PUSH_TO_TALK', audioEncoding: 'WAV', ...(languageBias ? { languageBias } : {}) };
   trace({ type: 'request', body: { ...request, audioBytes: wav.byteLength } });
@@ -230,7 +228,7 @@ export async function transcribeMetaAudio({
   try {
     response = await fetchImpl(META_ASR_ENDPOINT, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey.trim()}`, Accept: 'application/json' },
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
       body: form,
       signal,
       redirect: 'error',
@@ -276,19 +274,18 @@ export async function segmentMetaImage({
   concept,
   model = DEFAULT_META_SEGMENT_MODEL,
   timeoutMs = 30_000,
-  fetchImpl = globalThis.fetch,
-  onTrace,
+  fetchImpl = globalThis.fetch, onTrace,
 } = {}) {
-  if (typeof apiKey !== 'string' || !apiKey.trim()) throw new Error('MODEL_API_KEY is missing. Set it privately in your shell or .env.local.');
+  const key = requireKey(apiKey);
   if (typeof image !== 'string' || !/^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(image) || image.length > 2_000_000) throw new Error('image must be a base64 data URL.');
   if (!validConcept(concept)) throw new Error('concept must be a short noun phrase.');
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = deadline(timeoutMs);
   const trace = event => { try { onTrace?.(event); } catch { /* Diagnostics must not affect calls. */ } };
   const body = { model, input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: concept.trim() }, { type: 'input_image', image_url: image }] }], metadata: { include_confidence: 'true', mask_encoding: 'one_bit' } };
   trace({ type: 'request', body: { ...body, input: [{ type: 'message', role: 'user', content: [body.input[0].content[0], { type: 'input_image', image_url: `[image omitted · ${image.length} chars]` }] }] } });
   let response;
   try {
-    response = await fetchImpl(META_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${apiKey.trim()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal, redirect: 'error' });
+    response = await fetchImpl(META_ENDPOINT, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal, redirect: 'error' });
   } catch {
     trace({ type: 'error', message: signal.aborted ? 'timeout' : 'transport failure' });
     throw new Error(signal.aborted ? 'Meta segmentation request timed out.' : 'Could not reach Meta Model API. Check your network connection.');
