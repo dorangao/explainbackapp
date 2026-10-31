@@ -391,3 +391,48 @@ test("an invite opened from a public lesson enters the authoring workspace", asy
   ).toBeVisible();
   await expect(page.locator(".lesson-player")).toHaveCount(0);
 });
+
+test("evaluation showcase lessons open unedited with their provenance, and two models compare side by side without a model request", async ({
+  page,
+}) => {
+  const requests: string[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST") requests.push(r.url());
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "From the evaluation" }).click();
+  await expect(page.getByText("14 lessons")).toBeVisible();
+  await page
+    .getByRole("link", {
+      name: /Compare the two models: Why does a bacterial/,
+    })
+    .first()
+    .click();
+  await expect(
+    page.getByRole("heading", { name: /Why does a bacterial population/ }),
+  ).toBeVisible();
+  // The hidden library keeps its cards in the DOM, so look inside the comparison only.
+  const comparison = page.locator(".comparison");
+  await expect(comparison.locator(".compare-column")).toHaveCount(2);
+  await expect(comparison.getByText("Muse Wonder")).toBeVisible();
+  await expect(comparison.getByText("Muse Spark")).toBeVisible();
+  await expect(comparison.getByText("Rubric judge · 7/10")).toBeVisible();
+  await comparison
+    .getByRole("link", { name: /Open lesson: Why Bacterial Growth Slows/ })
+    .click();
+  await expect(page.locator(".lesson-player")).toBeVisible();
+  const provenance = page.locator(".lesson-provenance");
+  await expect(provenance.getByText(/shown here unedited/)).toBeVisible();
+  await expect(provenance.getByText(/scored it 7\/10/)).toBeVisible();
+  await provenance
+    .getByRole("link", { name: "Compare the two models" })
+    .click();
+  await expect(page.getByText("SAME QUESTION, TWO MODELS")).toBeVisible();
+  await page.getByRole("link", { name: "Back to library" }).click();
+  await expect(
+    page.getByRole("heading", {
+      name: "Find a question. Try it for yourself.",
+    }),
+  ).toBeVisible();
+  expect(requests).toEqual([]);
+});

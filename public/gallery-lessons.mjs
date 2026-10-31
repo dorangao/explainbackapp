@@ -3,6 +3,7 @@
 // during the frozen October 27, 2026 evaluation run, then edited by the author after
 // the content review recorded in docs/studio-evaluation.md. "catalog" lessons are
 // hand-authored text over the existing checked experiments.
+import {evaluationLesson,evaluationIds} from './evaluation-lessons.mjs';
 const bi=(en,zh)=>({en,zh});
 export const galleryLessons=Object.freeze([
  {id:'cooling',kind:'model',source:'muse',
@@ -94,11 +95,13 @@ export const galleryLessons=Object.freeze([
      rationale:bi('Grades are made against the result the app computed from the checked contract. The model judges whether the explanation fits that evidence, not what it believes should have happened.','评判对照的是应用根据核验过的契约计算出的结果。模型判断的是解释是否符合这一证据，而不是它认为应当发生什么。')}}}]}}
 ]);
 export const galleryIds=Object.freeze(galleryLessons.map(l=>l.id));
-export function galleryLesson(id){return galleryLessons.find(l=>l.id===id)??null;}
+// Evaluation showcase lessons open through the same links; their provenance is `evaluation`.
+export function galleryLesson(id){const item=galleryLessons.find(l=>l.id===id);if(item)return item;const e=evaluationLesson(id);return e?{id:e.id,kind:e.kind,source:'evaluation',summary:e.lesson.intro,lesson:e.lesson}:null;}
 // Deep link: /#lesson:cooling opens a gallery lesson directly.
-export function galleryIdFromHash(hash){const m=/^#lesson:([a-z-]+)$/.exec(hash??'');return m&&galleryIds.includes(m[1])?m[1]:null;}
+export function galleryIdFromHash(hash){const m=/^#lesson:([a-z-]+)$/.exec(hash??'');return m&&(galleryIds.includes(m[1])||evaluationIds.includes(m[1]))?m[1]:null;}
 export function gallerySourceNote(source,language='en'){
  const zh=language==='zh';
+ if(source==='evaluation')return zh?'由 Muse 模型在冻结的评估运行中根据学习者提问起草，未经编辑原样展示；作者未审阅其中的科学内容。':'Drafted by a Muse model from a learner question during a frozen evaluation run and shown unedited; the author has not reviewed the science.';
  if(source==='author')return zh?'由 ExplainBack 作者于 2026 年 10 月 30 日手写，描述本仓库中实现的流程；不涉及模型起草。':'Hand-authored by the ExplainBack author on October 30, 2026, describing the pipeline as implemented in this repository; no model drafted it.';
  if(source==='muse-sketch')return zh?'由 Meta muse-spark-1.3 根据这张手绘草图起草（2026 年 10 月 28 日，冻结的图片评估），作者审阅并做了小幅编辑后收录。':'Drafted by Meta muse-spark-1.3 from this hand-drawn sketch on October 28, 2026 (frozen image evaluation), then reviewed and lightly edited by the author.';
  return source==='muse'?(zh?'由 Meta muse-spark-1.3 起草（2026 年 10 月 27 日），作者审阅并编辑后收录。':'Drafted by Meta muse-spark-1.3 on October 27, 2026, then reviewed and edited by the author.'):(zh?'作者手写的文字，实验为原有的核验计算。':'Hand-authored text over the existing checked experiments.');

@@ -10,6 +10,15 @@ export {
   galleryIdFromHash,
   galleryLesson,
 } from "../../public/gallery-lessons.mjs";
+export {
+  evaluationLessons,
+  evaluationComparisons,
+  evaluationLesson,
+  evaluationComparison,
+  comparisonIdFromHash,
+  evaluationModelLabel,
+  evaluationNote,
+} from "../../public/evaluation-lessons.mjs";
 export { createLessonPlayer } from "../../public/lesson-player.mjs";
 export { chapterExperiment } from "../../public/generated-demo.mjs";
 export {

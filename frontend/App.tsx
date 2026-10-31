@@ -15,7 +15,9 @@ import {
   galleryLesson,
   galleryShow,
   showIdFromHash,
+  comparisonIdFromHash,
 } from "./lib/shared";
+import { Comparison } from "./components/Comparison";
 import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
@@ -44,6 +46,7 @@ function readRoute() {
     lessonId: galleryIdFromHash(hash) as string | null,
     showId: showIdFromHash(hash) as string | null,
     sharedId: sharedIdFromHash(hash),
+    compareId: comparisonIdFromHash(hash),
   };
 }
 export function App() {
@@ -155,6 +158,7 @@ export function App() {
         lessonId: null,
         showId: null,
         sharedId: null,
+        compareId: null,
       });
       history.replaceState(null, "", "#studio");
       firstAuth.current = false;
@@ -173,6 +177,7 @@ export function App() {
         lessonId: null,
         showId: null,
         sharedId: null,
+        compareId: null,
       });
       history.replaceState(null, "", "#create");
       setStarter((n) => n + 1);
@@ -189,15 +194,22 @@ export function App() {
       setVisited((previous) => ({ ...previous, [route.area]: true }));
   }, [auth.info.authenticated, route.area]);
   const focusRoute = useRef(
-    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${libraryVisit}`,
+    `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${libraryVisit}`,
   );
   useEffect(() => {
-    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${libraryVisit}`;
+    const key = `${route.area}/${route.lessonId}/${route.showId}/${route.sharedId}/${route.compareId}/${libraryVisit}`;
     if (key === focusRoute.current) return;
     focusRoute.current = key;
     main.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: "instant" });
-  }, [route.area, route.lessonId, route.showId, route.sharedId, libraryVisit]);
+  }, [
+    route.area,
+    route.lessonId,
+    route.showId,
+    route.sharedId,
+    route.compareId,
+    libraryVisit,
+  ]);
   const area = route.area;
   const galleryShowItem = route.showId
     ? { lesson: galleryLesson(route.showId), show: galleryShow(route.showId) }
@@ -338,6 +350,7 @@ export function App() {
             !route.lessonId &&
             !route.showId &&
             !route.sharedId &&
+            !route.compareId &&
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
@@ -347,6 +360,13 @@ export function App() {
           onRequestSettled={() => void auth.refresh()}
           onRequestAccess={openAccess}
         />
+        {route.compareId && (
+          <Comparison
+            key={`compare-${route.compareId}`}
+            caseId={route.compareId}
+            language={language}
+          />
+        )}
         {route.sharedId && shared?.record && (
           <Studio
             key={`shared-${auth.identity}-${route.sharedId}`}
