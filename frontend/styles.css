@@ -849,6 +849,19 @@ body {
   flex-direction: column;
   align-items: stretch;
 }
+/* In the side column each tour step stacks: mark and title, then the cost and its Run button. */
+.create-aside .judge-steps li {
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: start;
+}
+.create-aside .judge-steps .judge-cost,
+.create-aside .judge-steps .text-button {
+  grid-column: 2;
+  justify-self: start;
+}
+.create-aside .judge-steps .judge-cost {
+  margin-top: 2px;
+}
 .author-workspace .workspace-heading {
   margin-bottom: 32px;
 }
