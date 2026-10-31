@@ -19,7 +19,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 ## Catalog
 
 - A search box matches titles and summaries in both languages, so a Chinese reader finds an English-titled shared lesson and vice versa.
-- Filter chips: All, Adjustable models, Process explorers, Experiment series, From a sketch, With a show. The count updates live and an empty result says so.
+- Filters: a Type row (All, Adjustable models, Process explorers, Experiment series), a Source row (Any, Reviewed, From the evaluation, Shared) and two toggles (With a show, From a sketch). Reviewed, evaluation and shared lessons sit in one grid on one card; the source badge, the meta line and the note under each card say where it came from. The count updates live and an empty result says so.
 
 ## Server
 

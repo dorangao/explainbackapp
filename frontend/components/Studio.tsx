@@ -50,7 +50,7 @@ import {
   saveStudio,
 } from "../lib/studio-store";
 import type { CacheState } from "./CacheNote";
-import { Gallery } from "./Gallery";
+import { FeaturedLesson, Gallery } from "./Gallery";
 import { LessonShelf, ShareControls } from "./Library";
 import {
   cachesFromSaved,
@@ -1251,11 +1251,16 @@ export function Studio({
                 <span>{t(language, "Studio.yourOwnExplanation")}</span>
               </h1>
               <p>{t(language, "Studio.exploreAnIdeaSeeWhat")}</p>
+              <div className="hero-actions">
+                <a className="button" href="#library">
+                  {t(language, "Studio.browseTheLibrary")}
+                </a>
+                <a className="button secondary-button" href="#create">
+                  {t(language, "Studio.createALesson")}
+                </a>
+              </div>
             </div>
-            <div className="intro-note">
-              <span aria-hidden="true">↳</span>
-              <p>{t(language, "Studio.understandingGrowsWhenYouCan")}</p>
-            </div>
+            <FeaturedLesson language={language} id="cooling" />
           </section>
           <Gallery language={language} />
           <section className="create-invitation">

@@ -21,7 +21,7 @@ test("authored edits survive navigation through the library, a gallery lesson an
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   await page
@@ -45,7 +45,7 @@ test("Back, Forward and unknown gallery links synchronize the player", async ({
   await page.goBack();
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   await page.goForward();
@@ -53,7 +53,7 @@ test("Back, Forward and unknown gallery links synchronize the player", async ({
   await page.goto("/#lesson:missing");
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
 });
@@ -233,7 +233,7 @@ test("an authored animation pauses in the library and resumes only on request", 
   await page.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   const paused = await page
@@ -273,7 +273,7 @@ test("expired access clears the private draft and returns to the public library"
     .click();
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   await expect(page.locator(".draft-review")).toHaveCount(0);

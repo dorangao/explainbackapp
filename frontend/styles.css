@@ -381,9 +381,43 @@ body {
 .intro-studio {
   display: flex;
   justify-content: space-between;
-  align-items: end;
-  gap: 4rem;
+  align-items: center;
+  gap: 3rem;
   padding: 0 0 48px;
+}
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+.app-shell .hero-actions .button {
+  padding: 0.75rem 1.4rem;
+  font-size: 0.9rem;
+}
+.app-shell .hero-actions .secondary-button {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+.app-shell .hero-actions .secondary-button:hover {
+  background: var(--light);
+}
+.featured-card {
+  flex: 0 1 380px;
+  min-width: 0;
+}
+.featured-card .lesson-card-body {
+  padding-bottom: 20px;
+}
+.featured-card h2 {
+  font-size: 1.25rem;
+  letter-spacing: -0.4px;
+  margin: 12px 0 8px;
+}
+.lesson-badge-start {
+  background: var(--accent);
+  color: var(--paper);
 }
 .intro-studio h1 {
   margin: 0 0 20px;
@@ -457,6 +491,10 @@ body {
 .gallery {
   border-top: 1px solid var(--line);
   padding-top: 30px;
+  scroll-margin-top: 16px;
+}
+.gallery .section-title p.fine {
+  margin: 6px 0 0;
 }
 .gallery-grid {
   display: grid;
@@ -544,18 +582,45 @@ body {
 }
 .lesson-kind {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-size: 0.59rem;
   letter-spacing: 1.25px;
   font-weight: 650;
   color: var(--muted);
   line-height: 1.5;
 }
-.lesson-number {
-  font-variant-numeric: tabular-nums;
-  /* The same grey as the kind label: 5.5:1 on the card, where the lighter green was 3.3:1. */
-  color: var(--muted);
+.lesson-line strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+.lesson-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+  margin-top: auto;
+}
+.lesson-actions .lesson-link {
+  margin-top: 0;
+  justify-content: flex-start;
+  gap: 6px;
+}
+.lesson-badge-reviewed {
+  background: var(--light);
+  color: var(--ink);
+}
+.lesson-badge-evaluation {
+  background: #e9e4f3;
+  color: #4b3f7a;
+}
+.lesson-badge-shared {
+  background: #fbf0d9;
+  color: #7a5a16;
+}
+.lesson-badge-sketch {
+  background: #e2efe6;
+  color: var(--accent);
 }
 .lesson-card h3 {
   font-size: 1.2rem;
@@ -2457,13 +2522,48 @@ body {
 .catalog-tools {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 14px;
+  align-items: end;
+  gap: 14px 24px;
   margin: -6px 0 22px;
 }
 .catalog-search {
   flex: 1 1 260px;
   max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.facet {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.facet-legend {
+  font-size: 0.72rem;
+  color: var(--muted);
+  padding: 0;
+}
+.facet-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-bottom: 6px;
+}
+.facet-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+.facet-toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
 }
 .catalog-search input {
   width: 100%;
@@ -2532,8 +2632,10 @@ body {
   color: var(--accent);
 }
 .lesson-meta {
-  margin: 8px 0 0 !important;
+  margin: 10px 0 0 !important;
   font-size: 0.68rem !important;
+  border-top: 1px solid #e5e8df;
+  padding-top: 8px;
 }
 /* The creator's shelf and share controls. */
 .lesson-shelf {

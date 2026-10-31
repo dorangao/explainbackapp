@@ -151,28 +151,39 @@ describe("Gallery catalog", () => {
       ],
     });
     render(<Gallery language="en" />);
+    // One grid: reviewed, evaluation and shared lessons share one card.
     expect(
-      await screen.findByRole("heading", { name: "Fresh from the Studio." }),
+      await screen.findByRole("link", { name: /Open lesson: Cooling coffee/ }),
     ).toBeTruthy();
     expect(screen.getByText("22 lessons")).toBeTruthy();
+    // The summary line counts shows and compared questions across all three sources.
+    const summaryLine =
+      document.querySelector(".gallery .section-title p.fine")?.textContent ??
+      "";
+    // Reviewed lessons with a show carry a Watch link; the shared lesson's show opens
+    // from its lesson page, so it counts without a link.
+    const shows = screen.getAllByRole("link", {
+      name: /^Watch the show/,
+    }).length;
+    expect(summaryLine).toBe(
+      `22 lessons · ${shows + 1} with a narrated show · 3 compared across two models`,
+    );
+    expect(screen.getAllByText("From the evaluation").length).toBe(15);
+    expect(screen.getAllByText("Shared").length).toBe(2);
     const search = screen.getByRole("searchbox", { name: "Search lessons" });
     fireEvent.change(search, { target: { value: "单摆" } });
     expect(screen.getByText("2 lessons")).toBeTruthy();
     expect(
-      screen.queryByRole("heading", { name: "Fresh from the Studio." }),
+      screen.queryByRole("link", { name: /Open lesson: Cooling coffee/ }),
     ).toBeNull();
     fireEvent.change(search, { target: { value: "" } });
     fireEvent.click(screen.getByRole("button", { name: "Process explorers" }));
     expect(screen.getByText("6 lessons")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
     fireEvent.click(
       screen.getByRole("button", { name: "From the evaluation" }),
     );
     expect(screen.getByText("14 lessons")).toBeTruthy();
-    expect(
-      screen.getByRole("heading", {
-        name: "What Muse made from a learner's question, unedited.",
-      }),
-    ).toBeTruthy();
     // Both models' replies to the same question link to one comparison.
     expect(
       screen
@@ -181,19 +192,24 @@ describe("Gallery catalog", () => {
         })
         .map((link) => link.getAttribute("href")),
     ).toEqual(["#compare:logistic-growth-en", "#compare:logistic-growth-en"]);
-    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    fireEvent.click(screen.getByRole("button", { name: "Any" }));
     expect(
       screen
         .getByRole("link", { name: /Open lesson: Cooling coffee/ })
         .getAttribute("href"),
     ).toBe("#shared:fedcba9876543210");
+    // The toggles narrow further: only the sketch lesson is from a sketch.
+    fireEvent.click(screen.getByRole("checkbox", { name: "From a sketch" }));
+    expect(screen.getByText("1 lessons")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: "From a sketch" }));
     fireEvent.change(search, { target: { value: "zzz" } });
     expect(screen.getByText(/No lesson matches/)).toBeTruthy();
   });
-  it("leaves the shared section out when the public list is unavailable", async () => {
+  it("leaves shared lessons out when the public list is unavailable", async () => {
     getJson.mockRejectedValue(new Error("down"));
     render(<Gallery language="zh" />);
     expect(await screen.findByText("21 节课程")).toBeTruthy();
-    expect(screen.queryByText("创作者分享")).toBeNull();
+    // The Source chip remains; no card carries the badge.
+    expect(screen.getAllByText("创作者分享").length).toBe(1);
   });
 });
