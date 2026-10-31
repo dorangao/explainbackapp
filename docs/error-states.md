@@ -5,7 +5,7 @@ Checked October 29, 2026 Pacific against the fixture server with each condition 
 | Condition | What happens | Where it is said |
 |---|---|---|
 | The access code's hourly budget is used up (429) | The request is not sent to the model. The notice says the budget is used up, that saved and reviewed lessons still open, and to try next hour. The header strip refreshes to `0/n`. The judge path greys its request steps, explains why in the footer, and still lets Save and Share run. | `Studio.failBudget`, `JudgePath.noHourlyBudget` |
-| The provider session's own cap (8 requests) is reached | A notice offers to start a new provider session; the judge path footer says so. | `Studio.thisProviderSessionHasUsed`, `JudgePath.noBudget` |
+| The provider session's own request cap is reached | A notice offers to start a new provider session; the judge path footer says so. | `Studio.thisProviderSessionHasUsed`, `JudgePath.noBudget` |
 | Another request is in flight or the session was reset (409) | "Wait a moment, then retry." | `Studio.failConflict` |
 | The chosen model is not configured (503) | "Choose another model or ask the host to configure it." | `Studio.failNotConfigured` |
 | Sign-in ended (401) | "Sign in again; your draft is kept in this browser." | `Studio.failSignIn` |
@@ -17,7 +17,7 @@ Checked October 29, 2026 Pacific against the fixture server with each condition 
 | No Blob storage | Saving works; the notice adds that images are not kept on this server. | `Library.imagesNotKept` |
 | No SAM 3.1 | The Spotlight shows the sketch without the search form. | — |
 | A shared link was turned off | The visitor sees "This shared lesson is not available" with a link to the library. | `Library.sharedUnavailable` |
-| A saved copy could not be stored (cap of 50, or a bad image) | The server's reason is shown; nothing is lost in the browser. | server messages |
+| A saved copy could not be stored (shelf limit reached, or a bad image) | The server's reason is shown; nothing is lost in the browser. | server messages |
 | Empty states | An empty shelf, a catalog search with no match and a public list with no shared lessons each say so in a sentence. | `Library.nothingSavedYet`, `Gallery.noMatches` |
 
 A chained turn whose earlier response is gone is retried once without the chain before any failure is shown. Failure messages are chosen by HTTP status in `failureMessage` (`frontend/components/Studio.tsx`), so the server's English sentences never reach a Chinese reader.
