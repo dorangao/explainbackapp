@@ -2754,3 +2754,39 @@ li[data-state="done"] .judge-mark {
   font-style: normal;
   font-weight: 600;
 }
+
+/* Display units: a small segmented choice above the parameters; the engine keeps authored units. */
+.unit-toggle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0.9rem;
+  font-size: 0.8rem;
+}
+.unit-toggle > span {
+  color: var(--muted);
+  margin-right: 0.2rem;
+}
+.unit-toggle button {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+}
+.unit-toggle button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.unit-toggle small {
+  flex-basis: 100%;
+  color: var(--muted);
+}
+.units-default {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.9rem 0;
+  font-size: 0.85rem;
+}
+.units-default select {
+  justify-self: start;
+}

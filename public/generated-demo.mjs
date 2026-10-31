@@ -26,8 +26,13 @@ export function chapterExperiment(chapter,variant=0,language='en',controls={},me
  if(d.inputs.every(v=>values[v.id]===transferValues[v.id])){const p=d.inputs[0];transferValues[p.id]=transferValues[p.id]===p.min?p.max:p.min;}
  const transferEnv={...transferValues,x:d.transfer.at};for(const o of formulas)transferEnv[o.id]=evaluateExpression(o.ast,transferEnv);
  const transferOutput=formulas.find(o=>o.id===d.transfer.output),inputText=d.inputs.map(p=>`${p.label[language]} = ${transferValues[p.id]} ${p.unit}`).join(' · ');
+ const resultPrefix=say('Calculated from the authored formulas, not independently validated science: ','按创作公式计算，未经独立科学验证：');
+ // The structured pieces (axisLabel, axisUnit, xAt, outputLabel, resultPrefix, transfer*) let the
+ // browser re-render every text in another unit system without touching the computation.
  return {...base,inputs:d.inputs.map(p=>({...p,label:p.label[language],value:values[p.id]})),formulas:formulas.map(o=>({id:o.id,label:o.label[language],unit:o.unit,expression:o.expression})),metric,series:[output.label[language]],unit:output.unit,axis:`${d.axis.label[language]} (${d.axis.unit})`,axisEnds:[d.axis.min,d.axis.max],
+  axisLabel:d.axis.label[language],axisUnit:d.axis.unit,xAt,outputLabel:output.label[language],resultPrefix,
   sample:u=>[at(xAt(u))[output.id]],caption:u=>`${d.axis.label[language]} = ${formatDemoNumber(xAt(u))} ${d.axis.unit} · ${output.label[language]} = ${formatDemoNumber(at(xAt(u))[output.id])} ${output.unit}`,
-  metrics:formulas.map(o=>({label:o.label[language],value:last[o.id],unit:o.unit})),result:say('Calculated from the authored formulas, not independently validated science: ','按创作公式计算，未经独立科学验证：')+formulas.map(o=>`${o.label[language]} = ${formatDemoNumber(last[o.id])} ${o.unit}`).join(' · '),
+  metrics:formulas.map(o=>({label:o.label[language],value:last[o.id],unit:o.unit})),result:resultPrefix+formulas.map(o=>`${o.label[language]} = ${formatDemoNumber(last[o.id])} ${o.unit}`).join(' · '),
+  transferQuestion:d.transfer.question[language],transferInputs:d.inputs.map(p=>({label:p.label[language],value:transferValues[p.id],unit:p.unit})),transferAt:d.transfer.at,transferOutputLabel:transferOutput.label[language],
   transfer:{type:'number',question:`${d.transfer.question[language]}\n${inputText}\n${d.axis.label[language]} = ${d.transfer.at} ${d.axis.unit} → ${transferOutput.label[language]}`,answer:transferEnv[d.transfer.output],unit:transferOutput.unit,hint:transferOutput.expression,tolerance:.005*Math.abs(transferEnv[d.transfer.output])}};
 }

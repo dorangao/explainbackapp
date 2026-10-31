@@ -8,6 +8,13 @@ import {
   useId,
 } from "react";
 import { t } from "../lib/messages";
+import {
+  presentExperiment,
+  rememberUnitSystem,
+  rememberedUnitSystem,
+  toDisplay,
+  type UnitSystem,
+} from "../lib/units";
 import { MicrophoneError, startRecording } from "../lib/recorder";
 import type { Recording } from "../lib/recorder";
 import type { Feedback, Language, Player } from "../lib/types";
@@ -91,7 +98,13 @@ export function LessonPlayer({
     [bar, setBar] = useState(0),
     // Spoken explanation: microphone → WAV → Muse Voice Transcribe → the textarea.
     [voice, setVoice] = useState<"idle" | "recording" | "transcribing">("idle"),
-    [voiceNote, setVoiceNote] = useState("");
+    [voiceNote, setVoiceNote] = useState(""),
+    // Display units: the viewer's remembered choice, else the lesson's default, else as authored.
+    [units, setUnits] = useState<UnitSystem>(
+      () => rememberedUnitSystem() ?? player.lesson.units ?? "metric",
+    );
+  const unitsRef = useRef(units);
+  unitsRef.current = units;
   const recording = useRef<Recording | null>(null);
   const onExplanationsRef = useRef(onExplanations);
   onExplanationsRef.current = onExplanations;
@@ -158,11 +171,17 @@ export function LessonPlayer({
     state = player.state;
   // The player mutates in place; chapter, variant, metric and controls key the memo.
   const experimentKey = `${state.chapter}/${state.variant}/${state.metric}/${JSON.stringify(state.controls)}`;
-  const e = useMemo(
+  const base = useMemo(
     () => player.experiment(language),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- experimentKey summarises the mutable player state
     [player, language, experimentKey],
   );
+  // What the viewer sees; the engine, the model and the checks keep the authored units.
+  const presented = useMemo(
+    () => presentExperiment(base, units),
+    [base, units],
+  );
+  const e = presented.experiment;
   const chapter = player.lesson.chapters[state.chapter],
     ownText = own[state.chapter] ?? "";
   const ownRef = useRef(own);
@@ -270,9 +289,9 @@ export function LessonPlayer({
       if (stage === "predict" && !player.state.prediction)
         player.predict("unsure");
       if (stage === "transfer" && player.state.transfer !== true) {
-        const answer = String(player.experiment().transfer.answer);
-        setAnswer(answer);
-        setResult(player.check(answer));
+        const { answer: expected, unit } = player.experiment().transfer;
+        setAnswer(String(toDisplay(expected, unit, unitsRef.current)));
+        setResult(player.check(String(expected)));
       }
       onClearFeedback();
       player.next();
@@ -814,7 +833,12 @@ export function LessonPlayer({
                   onSubmit={(event) => {
                     event.preventDefault();
                     manual();
-                    setResult(player.check(answer) ?? "invalid");
+                    // The learner answers in the displayed unit; the check runs in the authored one.
+                    const typed = answer.trim() ? Number(answer) : NaN;
+                    const inBase = Number.isFinite(typed)
+                      ? String(presented.toBaseAnswer(typed))
+                      : "";
+                    setResult(player.check(inBase) ?? "invalid");
                     update();
                   }}
                 >
@@ -926,52 +950,90 @@ export function LessonPlayer({
               </select>
             </label>
           )}
-          {e.inputs?.map((input) => (
-            <div className="parameter" key={input.id}>
-              <label htmlFor={`${formId}-parameter-${input.id}`}>
-                {input.label} <span>({input.unit})</span>
-              </label>
-              <input
-                id={`${formId}-parameter-${input.id}`}
-                type="number"
-                min={input.min}
-                max={input.max}
-                step={input.step}
-                key={`${input.id}-${input.value}`}
-                defaultValue={input.value}
-                disabled={busy}
-                onBlur={(event) => {
-                  const value = event.target.value;
-                  if (value !== "" && event.target.validity.valid) {
-                    if (
-                      Number(value) !== input.value &&
-                      !setInput(input.id, Number(value))
-                    )
-                      event.target.value = String(input.value);
-                  } else {
-                    event.target.value = String(input.value);
-                    setNotice(t(language, "LessonPlayer.useAValueWithinThe"));
-                  }
-                }}
-              />
-              <input
-                type="range"
-                aria-label={`${input.label} slider`}
-                min={input.min}
-                max={input.max}
-                step={input.step}
-                value={input.value}
-                disabled={busy}
-                onChange={(event) =>
-                  setInput(input.id, Number(event.target.value))
-                }
-              />
-              <small>
-                {input.min} → {input.max} ·{" "}
-                {t(language, "LessonPlayer.changesResetYourPrediction")}
-              </small>
+          {presented.convertible && (
+            <div
+              className="unit-toggle"
+              role="group"
+              aria-label={t(language, "LessonPlayer.units")}
+            >
+              <span>{t(language, "LessonPlayer.units")}</span>
+              {(["metric", "us"] as const).map((system) => (
+                <button
+                  key={system}
+                  type="button"
+                  className="secondary"
+                  aria-pressed={units === system}
+                  disabled={busy}
+                  onClick={() => {
+                    setUnits(system);
+                    rememberUnitSystem(system);
+                  }}
+                >
+                  {t(
+                    language,
+                    system === "metric"
+                      ? "LessonPlayer.unitsMetric"
+                      : "LessonPlayer.unitsUs",
+                  )}
+                </button>
+              ))}
+              <small>{t(language, "LessonPlayer.unitsNote")}</small>
             </div>
-          ))}
+          )}
+          {e.inputs?.map((input) => {
+            // The slider works on the authored grid; the number field shows display units.
+            const raw = base.inputs?.find((p) => p.id === input.id) ?? input;
+            const converted = raw.unit !== input.unit;
+            return (
+              <div className="parameter" key={input.id}>
+                <label htmlFor={`${formId}-parameter-${input.id}`}>
+                  {input.label} <span>({input.unit})</span>
+                </label>
+                <input
+                  id={`${formId}-parameter-${input.id}`}
+                  type="number"
+                  min={input.min}
+                  max={input.max}
+                  step={converted ? "any" : input.step}
+                  key={`${input.id}-${input.value}`}
+                  defaultValue={input.value}
+                  disabled={busy}
+                  onBlur={(event) => {
+                    const value = event.target.value;
+                    if (value !== "" && event.target.validity.valid) {
+                      if (
+                        Number(value) !== input.value &&
+                        !setInput(
+                          input.id,
+                          presented.toBaseInput(input.id, Number(value)),
+                        )
+                      )
+                        event.target.value = String(input.value);
+                    } else {
+                      event.target.value = String(input.value);
+                      setNotice(t(language, "LessonPlayer.useAValueWithinThe"));
+                    }
+                  }}
+                />
+                <input
+                  type="range"
+                  aria-label={`${input.label} slider`}
+                  min={raw.min}
+                  max={raw.max}
+                  step={raw.step}
+                  value={raw.value}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setInput(input.id, Number(event.target.value))
+                  }
+                />
+                <small>
+                  {input.min} → {input.max} ·{" "}
+                  {t(language, "LessonPlayer.changesResetYourPrediction")}
+                </small>
+              </div>
+            );
+          })}
           {(e.formulas?.length ?? 0) > 1 && (
             <label>
               {t(language, "LessonPlayer.graphOutput")}

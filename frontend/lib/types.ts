@@ -93,6 +93,8 @@ export type Lesson = {
   title: Bilingual;
   intro: Bilingual;
   chapters: Chapter[];
+  // Unit system viewers see first; numbers are converted for display only.
+  units?: "metric" | "us";
 };
 export type GalleryItem = {
   id: string;
@@ -136,6 +138,17 @@ export type Experiment = {
   sample: (progress: number) => number[];
   caption: (progress: number) => string;
   result: string;
+  // Structured pieces of a generated model (see generated-demo.mjs) so the browser can render
+  // the caption, result and transfer question in another unit system.
+  axisLabel?: string;
+  axisUnit?: string;
+  xAt?: (progress: number) => number;
+  outputLabel?: string;
+  resultPrefix?: string;
+  transferQuestion?: string;
+  transferInputs?: { label: string; value: number; unit: string }[];
+  transferAt?: number;
+  transferOutputLabel?: string;
   position?: (progress: number) => number[];
   rotation?: (progress: number) => { angle: number };
   quantumState?: unknown;
