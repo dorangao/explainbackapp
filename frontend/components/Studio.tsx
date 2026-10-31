@@ -1262,7 +1262,7 @@ export function Studio({
                 </a>
               </div>
             </div>
-            <FeaturedLesson language={language} id="cooling" />
+            <FeaturedLesson language={language} id="explainback" />
           </section>
           <Gallery language={language} />
           <section className="create-invitation">

@@ -1115,7 +1115,7 @@ describe("Judge path", () => {
       post,
     );
     expect(
-      screen.getByRole("heading", { name: "The six-minute tour" }),
+      screen.getByRole("heading", { name: "The 6-step tour" }),
     ).toBeTruthy();
     expect(document.querySelector(".judge-foot")?.textContent).toMatch(
       /remaining steps will make: 4 · Used in this session: 0/,

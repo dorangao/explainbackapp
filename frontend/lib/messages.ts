@@ -880,7 +880,7 @@ export const messages = {
     zh: "你想弄明白什么？",
   },
   "JudgePath.eyebrow": { en: "FOR REVIEWERS", zh: "评审路径" },
-  "JudgePath.title": { en: "The six-minute tour", zh: "六步速览" },
+  "JudgePath.title": { en: "The 6-step tour", zh: "六步导览" },
   "JudgePath.intro": {
     en: "Draft, try, narrate, illustrate, save, share: the whole creation story in order. Results you already have are reused, so repeating the tour costs nothing.",
     zh: "起草、试学、讲解、配图、保存、分享：按顺序走完整个创作过程。已有的结果会被复用，重复一遍不花费请求。",
@@ -1091,6 +1091,12 @@ export const messages = {
   "Gallery.reviewed": { en: "Reviewed", zh: "已审阅" },
   "Gallery.shared": { en: "Shared", zh: "创作者分享" },
   "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
+  "Gallery.theSixStepTour": { en: "The 6-step tour", zh: "六步导览" },
+  "Gallery.playTheTour": { en: "Play the tour", zh: "播放导览" },
+  "Gallery.coverNote": {
+    en: "The cover was drawn by Muse Image from the title and introduction on {date}; it is decorative and was not reviewed.",
+    zh: "封面由 Muse Image 于 {date} 根据标题和引言绘制；仅作装饰，未经审阅。",
+  },
   "Gallery.depth": { en: "Depth", zh: "深度" },
   "Gallery.moreFilters": { en: "More filters", zh: "更多筛选" },
   "Gallery.fewerFilters": { en: "Fewer filters", zh: "收起筛选" },

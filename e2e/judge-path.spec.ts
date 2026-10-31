@@ -10,7 +10,7 @@ test("the judge path runs the whole creation story in order and reports its cost
   });
   await page.goto("/#invite:BROWSER-TEST-CODE");
   await expect(
-    page.getByRole("heading", { name: "The six-minute tour" }),
+    page.getByRole("heading", { name: "The 6-step tour" }),
   ).toBeVisible();
   await expect(
     page.getByText("Requests the remaining steps will make: 4"),
