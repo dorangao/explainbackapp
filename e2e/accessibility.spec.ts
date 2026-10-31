@@ -45,6 +45,19 @@ test("the library, a lesson and its show pass the automated WCAG audit", async (
     page.getByRole("heading", { level: 1, name: "About ExplainBack" }),
   ).toBeVisible();
   await audit(page, "about page");
+  await page.goto("/#compare:logistic-growth-en");
+  await expect(page.getByText("SAME QUESTION, TWO MODELS")).toBeVisible();
+  await audit(page, "comparison");
+  await page.goto("/#physics");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Physics & math" }),
+  ).toBeVisible();
+  await audit(page, "locked bench");
+  await page.goto("/#create");
+  await expect(
+    page.getByRole("button", { name: "Enter with access code" }),
+  ).toBeVisible();
+  await audit(page, "create signed out");
   await page.goto("/");
   await page.getByRole("link", { name: /Open lesson.*cooling/i }).click();
   await expect(
@@ -61,6 +74,20 @@ test("the library, a lesson and its show pass the automated WCAG audit", async (
     page.getByRole("button", { name: /play/i }).first(),
   ).toBeVisible();
   await audit(page, "show player");
+});
+
+test("the phone library passes the automated WCAG audit with the menu closed and open", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await audit(page, "library on a phone");
+  await page.getByRole("button", { name: "Menu" }).click();
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).toBeVisible();
+  await audit(page, "library on a phone, menu open");
 });
 
 test("the signed-in studio and the judge path pass the automated WCAG audit", async ({

@@ -95,6 +95,36 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await visitor.close();
 });
 
+test("on a phone the header folds into a menu, a lesson is on the first screen and the facets fold behind More filters", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await expect(nav).toBeHidden();
+  await expect(page.locator(".gallery .lesson-card").first()).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Source" })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "From the evaluation" }),
+  ).toBeHidden();
+  await page.getByRole("button", { name: "More filters" }).click();
+  await expect(
+    page.getByRole("button", { name: "From the evaluation" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Menu" }).click();
+  await expect(nav).toBeVisible();
+  await nav.getByRole("link", { name: "About", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "About ExplainBack" }),
+  ).toBeVisible();
+  await expect(nav).toBeHidden();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
 test("the catalog filters reviewed lessons by kind", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".catalog-count")).toHaveText(/\d+ lessons/);

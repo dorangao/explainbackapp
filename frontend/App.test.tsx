@@ -90,3 +90,27 @@ describe("invite links", () => {
     expect(state.logins).toHaveLength(2);
   });
 });
+
+describe("phone menu", () => {
+  it("folds the navigation behind a Menu button that closes again on navigation", async () => {
+    render(<App />);
+    const header = document.querySelector(".site-header");
+    const button = screen.getByRole("button", { name: "Menu" });
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(header?.getAttribute("data-menu")).toBe("closed");
+    fireEvent.click(button);
+    expect(header?.getAttribute("data-menu")).toBe("open");
+    expect(screen.getByRole("button", { name: "Close menu" })).toBeTruthy();
+    // Following a link closes the menu once the route changes.
+    await act(async () => {
+      location.hash = "#about";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    await waitFor(() =>
+      expect(header?.getAttribute("data-menu")).toBe("closed"),
+    );
+    expect(
+      screen.getByRole("heading", { level: 1, name: "About ExplainBack" }),
+    ).toBeTruthy();
+  });
+});

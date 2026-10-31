@@ -280,6 +280,8 @@ test("mobile library and player fit the viewport in both languages with keyboard
   await expect(
     page.getByRole("link", { name: "Skip to content" }),
   ).toBeFocused();
+  // On a phone the language control sits behind the Menu button.
+  await page.getByRole("button", { name: "Menu" }).click();
   for (const language of ["en", "zh"]) {
     await page.getByLabel("Language / 语言").selectOption(language);
     expect(
@@ -288,7 +290,8 @@ test("mobile library and player fit the viewport in both languages with keyboard
       ),
     ).toBe(true);
   }
-  await page.locator(".lesson-link").first().click();
+  await page.getByRole("button", { name: "关闭菜单" }).click();
+  await page.locator(".gallery .lesson-link").first().click();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,

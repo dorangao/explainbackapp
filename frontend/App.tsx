@@ -70,7 +70,9 @@ export function App() {
     [route, setRoute] = useState(readRoute),
     [showAccess, setShowAccess] = useState(false),
     [starter, setStarter] = useState(0),
-    [libraryVisit, setLibraryVisit] = useState(0);
+    [libraryVisit, setLibraryVisit] = useState(0),
+    // The phone header folds the navigation and tools behind one Menu button.
+    [menuOpen, setMenuOpen] = useState(false);
   const invite = useRef<string | null>(null),
     firstAuth = useRef(false),
     main = useRef<HTMLElement>(null),
@@ -223,6 +225,17 @@ export function App() {
     libraryVisit,
   ]);
   const area = route.area;
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [
+    area,
+    route.lessonId,
+    route.showId,
+    route.sharedId,
+    route.compareId,
+    route.evaluation,
+    route.about,
+  ]);
   const galleryShowItem = route.showId
     ? { lesson: galleryLesson(route.showId), show: galleryShow(route.showId) }
     : null;
@@ -231,7 +244,7 @@ export function App() {
       <a className="skip-link" href="#main-content">
         {t(language, "App.skipToContent")}
       </a>
-      <header className="site-header">
+      <header className="site-header" data-menu={menuOpen ? "open" : "closed"}>
         <a
           href="#studio"
           onClick={() => setLibraryVisit((n) => n + 1)}
@@ -245,82 +258,94 @@ export function App() {
             {t(language, "App.localDevelopmentOpenAccess")}
           </span>
         )}
-        <nav
-          aria-label={t(language, "App.mainNavigation")}
-          className="main-nav"
+        <button
+          type="button"
+          className="menu-button"
+          aria-expanded={menuOpen}
+          aria-controls="site-menu"
+          onClick={() => setMenuOpen((open) => !open)}
         >
-          <a
-            href="#studio"
-            onClick={() => setLibraryVisit((n) => n + 1)}
-            aria-current={
-              area === "studio" && !route.about ? "page" : undefined
-            }
+          <span className="menu-icon" aria-hidden="true" />
+          {t(language, menuOpen ? "App.closeMenu" : "App.menu")}
+        </button>
+        <div className="site-menu" id="site-menu">
+          <nav
+            aria-label={t(language, "App.mainNavigation")}
+            className="main-nav"
           >
-            {t(language, "App.library")}
-          </a>
-          <a
-            href="#create"
-            onClick={() => setLibraryVisit((n) => n + 1)}
-            aria-current={area === "create" ? "page" : undefined}
-          >
-            {t(language, "App.create")}
-          </a>
-          <a href="#about" aria-current={route.about ? "page" : undefined}>
-            {t(language, "App.about")}
-          </a>
-        </nav>
-        <div className="header-tools">
-          <label className="language-switch">
-            <span className="sr-only">Language / 语言</span>
-            <select
-              value={language}
-              onChange={(event) => setLang(event.target.value as Language)}
-              aria-label="Language / 语言"
+            <a
+              href="#studio"
+              onClick={() => setLibraryVisit((n) => n + 1)}
+              aria-current={
+                area === "studio" && !route.about ? "page" : undefined
+              }
             >
-              <option value="en">EN · English</option>
-              <option value="zh">中 · 中文</option>
-            </select>
-          </label>
-          {installer.canInstall && (
-            <button className="text-button" onClick={installer.install}>
-              {t(language, "App.installApp")}
-            </button>
-          )}
-          {auth.info.authenticated && !auth.info.open ? (
-            <>
-              {auth.status?.access && (
-                <span
-                  className="account-pill"
-                  role="status"
-                  title={
-                    auth.status.access.expiresAt
-                      ? `${auth.status.access.label} · ${t(language, "App.expires")} ${new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium" }).format(auth.status.access.expiresAt)}`
-                      : auth.status.access.label
-                  }
+              {t(language, "App.library")}
+            </a>
+            <a
+              href="#create"
+              onClick={() => setLibraryVisit((n) => n + 1)}
+              aria-current={area === "create" ? "page" : undefined}
+            >
+              {t(language, "App.create")}
+            </a>
+            <a href="#about" aria-current={route.about ? "page" : undefined}>
+              {t(language, "App.about")}
+            </a>
+          </nav>
+          <div className="header-tools">
+            <label className="language-switch">
+              <span className="sr-only">Language / 语言</span>
+              <select
+                value={language}
+                onChange={(event) => setLang(event.target.value as Language)}
+                aria-label="Language / 语言"
+              >
+                <option value="en">EN · English</option>
+                <option value="zh">中 · 中文</option>
+              </select>
+            </label>
+            {installer.canInstall && (
+              <button className="text-button" onClick={installer.install}>
+                {t(language, "App.installApp")}
+              </button>
+            )}
+            {auth.info.authenticated && !auth.info.open ? (
+              <>
+                {auth.status?.access && (
+                  <span
+                    className="account-pill"
+                    role="status"
+                    title={
+                      auth.status.access.expiresAt
+                        ? `${auth.status.access.label} · ${t(language, "App.expires")} ${new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", { dateStyle: "medium" }).format(auth.status.access.expiresAt)}`
+                        : auth.status.access.label
+                    }
+                  >
+                    {auth.status.access.remaining}/{auth.status.access.quota}{" "}
+                    {t(language, "App.liveRequestsLeftThisHour")}
+                  </span>
+                )}
+                <button
+                  className="text-button"
+                  disabled={auth.working}
+                  onClick={() => void auth.logout()}
                 >
-                  {auth.status.access.remaining}/{auth.status.access.quota}{" "}
-                  {t(language, "App.liveRequestsLeftThisHour")}
-                </span>
-              )}
-              <button
-                className="text-button"
-                disabled={auth.working}
-                onClick={() => void auth.logout()}
-              >
-                {t(language, "App.signOut")}
-              </button>
-            </>
-          ) : (
-            !auth.info.authenticated && (
-              <button
-                className="account-button"
-                onClick={openAccess}
-                disabled={auth.loading}
-              >
-                {t(language, "App.signIn")}
-              </button>
-            )
-          )}
+                  {t(language, "App.signOut")}
+                </button>
+              </>
+            ) : (
+              !auth.info.authenticated && (
+                <button
+                  className="account-button"
+                  onClick={openAccess}
+                  disabled={auth.loading}
+                >
+                  {t(language, "App.signIn")}
+                </button>
+              )
+            )}
+          </div>
         </div>
       </header>
       <main id="main-content" ref={main} tabIndex={-1}>
@@ -471,13 +496,50 @@ export function App() {
         {!auth.loading &&
           !auth.info.authenticated &&
           (area === "physics" || area === "quantum") && (
-            <section className="creation-locked">
-              <h1>{t(language, "App.openTheExperimentBench")}</h1>
-              <p>{t(language, "App.theseGuidedLabsNeedPreview")}</p>
-              <button onClick={openAccess}>
-                {t(language, "App.previewAccess")}
-              </button>
-              <a href="#studio">{t(language, "App.exploreLessons")}</a>
+            <section className="lab-workspace bench-locked">
+              <PageHeader
+                language={language}
+                crumbs={[
+                  { label: t(language, "App.library"), href: "#studio" },
+                  {
+                    label: t(
+                      language,
+                      area === "physics"
+                        ? "App.physicsBench"
+                        : "App.quantumBench",
+                    ),
+                  },
+                ]}
+                eyebrow={t(language, "Labs.theExperimentBench")}
+                title={t(
+                  language,
+                  area === "physics" ? "App.physicsBench" : "App.quantumBench",
+                )}
+                meta={t(language, "Labs.coachedMeta")}
+              />
+              <div className="locked-stage">
+                <p className="eyebrow">
+                  {t(language, "App.lockedStageEyebrow")}
+                </p>
+                <h2>{t(language, "App.lockedStageTitle")}</h2>
+                <p>
+                  {t(language, "App.theseGuidedLabsNeedPreview")}{" "}
+                  {t(language, "App.lessonVersionNote")}
+                </p>
+                <div className="locked-actions">
+                  <button onClick={openAccess}>
+                    {t(language, "Studio.enterWithAccessCode")}
+                  </button>
+                  <a
+                    className="text-link"
+                    href={
+                      area === "physics" ? "#lesson:vehicle" : "#lesson:quantum"
+                    }
+                  >
+                    {t(language, "App.openTheLessonVersion")}
+                  </a>
+                </div>
+              </div>
             </section>
           )}
         {showAccess && (
