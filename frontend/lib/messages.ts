@@ -980,8 +980,8 @@ export const messages = {
   "Studio.compareTwoModels": { en: "Compare two models", zh: "比较两个模型" },
   "Studio.comparing": { en: "Comparing…", zh: "比较中…" },
   "Studio.compareNote": {
-    en: "Compare sends your question to Muse Wonder and Muse Spark at once, checks both replies and has the judge score them: up to four requests. Pick the draft you prefer to continue.",
-    zh: "“比较”会把你的问题同时发给 Muse Wonder 和 Muse Spark，检查两份回答并由评分模型打分：最多四次请求。选择你喜欢的草稿继续。",
+    en: "Compare sends your question to Muse Wonder and Muse Spark at once, checks both replies and has the judge you pick score them: up to four requests. Pick the draft you prefer to continue.",
+    zh: "“比较”会把你的问题同时发给 Muse Wonder 和 Muse Spark，检查两份回答并由你选择的评分模型打分：最多四次请求。选择你喜欢的草稿继续。",
   },
   "Studio.comparisonReady": {
     en: "Both replies are in. Compare them below and pick one to review.",
@@ -1007,8 +1007,8 @@ export const messages = {
   "Compare.failed": { en: "No reply", zh: "没有回答" },
   "Compare.judgeSkipped": { en: "Not judged", zh: "未评分" },
   "Compare.footnoteLive": {
-    en: "One attempt each, on your question alone: a view of these two replies, not a ranking of the models. Review the science before presenting either.",
-    zh: "各一次尝试，只针对你的问题：这是对两份回答的观察，不是对模型的排名。演示前请先审阅科学内容。",
+    en: "One attempt each, on your question alone: a view of these two replies, not a ranking of the models. The judge is one of the two models, so it scored its own draft as well. Review the science before presenting either.",
+    zh: "各一次尝试，只针对你的问题：这是对两份回答的观察，不是对模型的排名。评分模型是两者之一，因此也给自己的草稿打了分。演示前请先审阅科学内容。",
   },
   "Gallery.fromTheEvaluation": { en: "From the evaluation", zh: "来自评估" },
   "Gallery.fromTheEvaluationEyebrow": {

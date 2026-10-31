@@ -265,7 +265,8 @@ export function createHandler({
         if(mode==='detect'){await detectInImage(ctx);return;}
         if(mode==='illustrate'){await illustrateSlide(ctx);return;}
         // The compare route (studio-compare.mjs) drafts the same question with both Muse text
-        // models and has the tester role judge the ready lessons: up to four requests.
+        // models and has the judge (the tester role unless the body names the other model)
+        // score the ready lessons: up to four requests.
         if(mode==='compare'){await compareDrafts({...ctx,models:[selected(roles.creator),selected(roles.tester)],judge:selected(roles.tester),invoke:(target,o)=>modelCall?modelCall(o,target.id):router.call(target.id,o)});return;}
         // Quick learner feedback and the test learner use Spark regardless of the creator model.
         const llm=['tryout','guide'].includes(mode)?selected(roles.tester):s.llm;

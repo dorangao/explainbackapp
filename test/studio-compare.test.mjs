@@ -77,6 +77,22 @@ test('compare reports a rejected contract, a declined request and a failed model
  assert.equal(second.replies[1].status,'failed');assert.equal(second.replies[1].lesson,null);assert.equal(second.attemptsRemaining,4);
 });
 
+test('compare lets the creator pick Wonder as the judge and refuses a judge outside the pair',async t=>{
+ const calls=[];
+ const {post,sessionId}=await setup(t,async(args,id)=>{
+  const name=args.tools[0].name;calls.push(`${id}:${name}`);
+  if(name==='compose_lesson')return ready(id.includes('wonder')?coolingLesson():processLesson());
+  return judged(full);
+ });
+ const result=await(await post('/api/studio/compare',{sessionId,topic:'Why does coffee cool?',judge:'meta:muse-wonder-1.0'})).json();
+ assert.equal(result.judge,'muse-wonder-1.0');assert.equal(result.attemptsRemaining,4);
+ for(const reply of result.replies)assert.equal(reply.judge.model,'muse-wonder-1.0');
+ assert.deepEqual(calls.filter(c=>c.endsWith('judge_lesson')),['meta:muse-wonder-1.0:judge_lesson','meta:muse-wonder-1.0:judge_lesson']);
+ calls.length=0;
+ const outside=await post('/api/studio/compare',{sessionId,topic:'Why does coffee cool?',judge:'meta:muse-glimmer'});
+ assert.equal(outside.status,400);assert.equal(calls.length,0);
+});
+
 test('compare needs two different configured models and a valid topic',async t=>{
  const {post,sessionId}=await setup(t,async()=>assert.fail('no call expected'),{models:['muse-spark-1.3']});
  assert.equal((await post('/api/studio/compare',{sessionId,topic:'Cooling'})).status,503);

@@ -120,13 +120,25 @@ describe("Compare two models in Studio", () => {
     fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
       target: { value: "Why does coffee cool?" },
     });
+    // The judge defaults to the tester role; the creator picks Wonder instead.
+    const judgePick = screen.getByLabelText(
+      /Rubric judge/,
+    ) as HTMLSelectElement;
+    expect(judgePick.value).toBe("meta:muse-spark-1.3");
+    fireEvent.change(judgePick, { target: { value: "meta:muse-wonder-1.0" } });
     fireEvent.click(screen.getByRole("button", { name: /Compare two models/ }));
     expect(
       await screen.findByRole("heading", { name: "Why does coffee cool?" }),
     ).toBeTruthy();
     expect(
       posted.filter((p) => p.path === "/api/studio/compare").map((p) => p.body),
-    ).toEqual([{ sessionId: "s1", topic: "Why does coffee cool?" }]);
+    ).toEqual([
+      {
+        sessionId: "s1",
+        topic: "Why does coffee cool?",
+        judge: "meta:muse-wonder-1.0",
+      },
+    ]);
     const comparison = screen.getByRole("region", {
       name: "Why does coffee cool?",
     });
@@ -220,5 +232,6 @@ describe("Compare two models in Studio", () => {
     expect(
       screen.queryByRole("button", { name: /Compare two models/ }),
     ).toBeNull();
+    expect(screen.queryByLabelText(/Rubric judge/)).toBeNull();
   });
 });

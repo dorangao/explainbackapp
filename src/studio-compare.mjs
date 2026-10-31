@@ -8,14 +8,17 @@ import {scoreOpenReply} from './eval/studio.mjs';
 // text models at once, each reply is checked by the same validator and open-question
 // scorer the evaluation uses, and the rubric judge scores the ready lessons. It receives
 // the action handler's context like the image routes do. Each model call is one request
-// on the session budget: two drafts, then up to two judge scores.
+// on the session budget: two drafts, then up to two judge scores. The judge is the tester
+// role (Spark) unless the body names the other compared model's id.
 const usage=u=>u?{input:u.input_tokens??null,output:u.output_tokens??null}:null;
 const hasBudget=async ctx=>ctx.s.attempts<8&&await ctx.state.consumeTurn(ctx.bucket,ctx.limit);
 export async function compareDrafts(ctx){
   const {body,s}=ctx;
   const [first,second]=ctx.models;
   if(!first?.configured||!second?.configured||first.id===second.id)throw new RequestError(503,'Comparing needs two different configured Muse models.');
-  if(body.judge!==undefined&&typeof body.judge!=='boolean')throw new RequestError(400,'Invalid judge flag.');
+  if(body.judge!==undefined&&typeof body.judge!=='boolean'&&typeof body.judge!=='string')throw new RequestError(400,'Invalid judge flag.');
+  const judgeTarget=typeof body.judge==='string'?ctx.models.find(m=>m.id===body.judge):ctx.judge;
+  if(typeof body.judge==='string'&&!judgeTarget)throw new RequestError(400,'The judge must be one of the two compared models.');
   let args;try{args=lessonAuthorRequest({topic:body.topic,creation:'generated'},'compose');}catch{throw new RequestError(400,'Use a short topic under 600 characters.');}
   const topic=body.topic.trim(),wantJudge=body.judge!==false;
   // Both drafts are charged up front so a half-finished comparison cannot run on credit.
@@ -47,9 +50,9 @@ export async function compareDrafts(ctx){
   try{
     const replies=await Promise.all([draft(first),draft(second)]);
     if(!await ctx.access.active(ctx.tester.id)){await ctx.state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
-    // The judge (the tester role) scores each ready lesson while the budget allows. Its
-    // scores are one model's view of the wording, kept apart from the checks above.
-    const judgeTarget=ctx.judge;
+    // The judge scores each ready lesson while the budget allows. Its scores are one
+    // model's view of the wording, kept apart from the checks above, and it scores its
+    // own draft as well as the other model's.
     const judgeOne=async reply=>{
       if(!wantJudge||reply.status!=='ready'||!judgeTarget?.configured)return;
       if(!await hasBudget(ctx)){reply.judge={failure:'budget',reason:'No request left for the judge.'};return;}
