@@ -48,9 +48,7 @@ test("public gallery opens a lesson, preserves progress across language changes 
   await page.getByRole("button", { name: "解释结果 →", exact: true }).click();
   await expect(page.getByText("计算证据", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "返回课程库", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "找一个问题，亲手试一试。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "课程库" })).toBeVisible();
   expect(requests).toEqual([]);
 });
 
@@ -101,7 +99,7 @@ test("reviewer entry creates a lesson and requires review again after editing", 
   ).toHaveCount(0);
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
 });
@@ -248,9 +246,7 @@ test("late compose results cannot restore a draft after changing language or sig
   await expect.poll(() => intercepted).toBe(2);
   await page.getByRole("button", { name: "退出登录", exact: true }).click();
   release();
-  await expect(
-    page.getByRole("heading", { name: "找一个问题，亲手试一试。" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "课程库" })).toBeVisible();
   await expect(page.locator(".draft-review")).toHaveCount(0);
 });
 
@@ -374,7 +370,7 @@ test("unknown lesson links fall back to the library without a provider call", as
   await page.goto("/#lesson:unknown-lesson");
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   expect(calls).toEqual([]);
@@ -446,7 +442,7 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
   await page.getByRole("link", { name: "Back to library" }).click();
   await expect(
     page.getByRole("heading", {
-      name: "Find a question. Try it for yourself.",
+      name: "The library",
     }),
   ).toBeVisible();
   expect(requests).toEqual([]);

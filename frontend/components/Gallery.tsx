@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { t } from "../lib/messages";
+import type { MessageKey } from "../lib/messages";
 import {
   galleryLessons,
   gallerySourceNote,
@@ -9,8 +10,12 @@ import {
   evaluationModelLabel,
   evaluationNote,
 } from "../lib/shared";
-import type { EvaluationItem, GalleryItem, Language } from "../lib/types";
-import { EVALUATION_CARD_HASH } from "../lib/evaluation";
+import type {
+  Bilingual,
+  EvaluationItem,
+  GalleryItem,
+  Language,
+} from "../lib/types";
 import { listShared } from "../lib/library";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
@@ -147,245 +152,320 @@ function LessonArt({ id }: { id: string }) {
     </svg>
   );
 }
-type Filter =
-  "all" | "model" | "process" | "catalog" | "sketch" | "show" | "evaluation";
-const filters: Filter[] = [
-  "all",
-  "model",
-  "process",
-  "catalog",
-  "sketch",
-  "show",
+
+// One library, three sources. Every lesson becomes the same entry so one card can show
+// it; only the source badge, the meta line and the provenance note differ.
+type Source = "reviewed" | "evaluation" | "shared";
+type Entry = {
+  id: string;
+  href: string;
+  kind: GalleryItem["kind"];
+  source: Source;
+  title: Bilingual;
+  line: Bilingual;
+  lineLead?: MessageKey;
+  artId: string;
+  image: string | null;
+  sketch: boolean;
+  show: string | null;
+  compare: string | null;
+  search: string[];
+  reviewed?: GalleryItem;
+  evaluation?: EvaluationItem;
+  shared?: SavedSummary;
+};
+const fromReviewed = (item: GalleryItem): Entry => ({
+  id: item.id,
+  href: `#lesson:${item.id}`,
+  kind: item.kind,
+  source: "reviewed",
+  title: item.lesson.title,
+  line: item.summary,
+  artId: item.id,
+  image: item.image ?? null,
+  sketch: item.source === "muse-sketch",
+  show: galleryShow(item.id) ? `#show:${item.id}` : null,
+  compare: null,
+  search: [
+    item.lesson.title.en,
+    item.lesson.title.zh,
+    item.summary.en,
+    item.summary.zh,
+    item.lesson.intro.en,
+    item.lesson.intro.zh,
+  ],
+  reviewed: item,
+});
+const fromEvaluation = (item: EvaluationItem): Entry => ({
+  id: item.id,
+  href: `#lesson:${item.id}`,
+  kind: item.kind,
+  source: "evaluation",
+  title: item.lesson.title,
+  line: item.question,
+  lineLead: "Gallery.theLearnerAsked",
+  artId: item.kind === "process" ? "shared-process" : "shared-model",
+  image: null,
+  sketch: false,
+  show: null,
+  compare: evaluationComparison(item.caseId) ? `#compare:${item.caseId}` : null,
+  search: [
+    item.lesson.title.en,
+    item.lesson.title.zh,
+    item.question.en,
+    item.question.zh,
+    item.lesson.intro.en,
+    item.lesson.intro.zh,
+  ],
+  evaluation: item,
+});
+const fromShared = (item: SavedSummary): Entry => ({
+  id: `shared:${item.id}`,
+  href: `#shared:${item.id}`,
+  kind: item.kind,
+  source: "shared",
+  title: item.title,
+  line: item.intro,
+  artId: item.kind === "process" ? "shared-process" : "shared-model",
+  image: item.cover ?? null,
+  sketch: Boolean(item.sketch),
+  show: null,
+  compare: null,
+  search: [item.title.en, item.title.zh, item.intro.en, item.intro.zh],
+  shared: item,
+});
+
+type TypeFilter = "all" | GalleryItem["kind"];
+type SourceFilter = "any" | Source;
+const typeFilters: TypeFilter[] = ["all", "model", "process", "catalog"];
+const sourceFilters: SourceFilter[] = [
+  "any",
+  "reviewed",
   "evaluation",
+  "shared",
 ];
-const filterLabel = (language: Language, filter: Filter) =>
-  t(
-    language,
-    (
-      {
-        all: "Gallery.all",
-        model: "Gallery.models",
-        process: "Gallery.processes",
-        catalog: "Gallery.series",
-        sketch: "Gallery.fromASketch",
-        show: "Gallery.withAShow",
-        evaluation: "Gallery.fromTheEvaluation",
-      } as const
-    )[filter],
-  );
+const typeKey: Record<TypeFilter, MessageKey> = {
+  all: "Gallery.all",
+  model: "Gallery.models",
+  process: "Gallery.processes",
+  catalog: "Gallery.series",
+};
+const sourceKey: Record<SourceFilter, MessageKey> = {
+  any: "Gallery.any",
+  reviewed: "Gallery.reviewed",
+  evaluation: "Gallery.fromTheEvaluation",
+  shared: "Gallery.shared",
+};
+const sourceBadgeKey: Record<Source, MessageKey> = {
+  reviewed: "Gallery.reviewed",
+  evaluation: "Gallery.fromTheEvaluation",
+  shared: "Gallery.shared",
+};
 const normalize = (text: string) => text.toLowerCase().replace(/\s+/g, " ");
 // Search both languages so a Chinese reader can find an English-titled shared lesson.
 const matches = (query: string, fields: string[]) => {
   const q = normalize(query).trim();
   return !q || fields.some((field) => normalize(field).includes(q));
 };
-function LessonCard({
+
+// The meta line names who made the lesson and what checked it, in a few words.
+function metaLine(entry: Entry, language: Language): string {
+  if (entry.evaluation) {
+    const item = entry.evaluation;
+    const issues =
+      item.judge.issues.length === 0
+        ? t(language, "Gallery.noIssuesRaised")
+        : `${item.judge.issues.length} ${t(language, "Gallery.issuesRaised")}`;
+    return `${evaluationModelLabel(item.model)} · ${t(language, "Gallery.judge")} ${item.judge.total}/${item.judge.max} · ${issues} · ${(item.latencyMs / 1000).toFixed(1)}\u00a0s`;
+  }
+  if (entry.shared) {
+    const item = entry.shared;
+    const date = new Intl.DateTimeFormat(
+      language === "zh" ? "zh-CN" : "en-US",
+      { dateStyle: "medium" },
+    ).format(item.updatedAt);
+    return [
+      date,
+      item.model,
+      item.hasShow ? t(language, "Library.withShow") : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  const source = entry.reviewed?.source;
+  return t(
+    language,
+    source === "catalog"
+      ? "Gallery.metaCatalog"
+      : source === "author"
+        ? "Gallery.metaAuthor"
+        : source === "muse-sketch"
+          ? "Gallery.metaSketch"
+          : "Gallery.metaMuse",
+  );
+}
+function provenance(entry: Entry, language: Language): string {
+  if (entry.evaluation) return evaluationNote(entry.evaluation, language);
+  if (entry.shared) return t(language, "Gallery.sharedProvenance");
+  return gallerySourceNote(entry.reviewed?.source ?? "muse", language);
+}
+
+function LibraryCard({
   language,
-  index,
-  item,
+  entry,
 }: {
   language: Language;
-  index: number;
-  item: GalleryItem;
+  entry: Entry;
 }) {
-  const title = item.lesson.title[language];
+  const title = entry.title[language];
   return (
-    <article className="lesson-card">
+    <article className={`lesson-card lesson-card-${entry.source}`}>
       <a
         className="lesson-art-link"
-        href={`#lesson:${item.id}`}
+        href={entry.href}
         tabIndex={-1}
         aria-hidden="true"
       >
-        {item.image ? (
+        {entry.image ? (
           <img
             className="lesson-art lesson-art-image"
-            src={item.image}
+            src={entry.image}
             alt=""
             width={360}
             height={158}
             loading="lazy"
           />
         ) : (
-          <LessonArt id={item.id} />
+          <LessonArt id={entry.artId} />
         )}
       </a>
       <div className="lesson-card-body">
         <span className="lesson-kind">
-          <span className="lesson-number">
-            {String(index + 1).padStart(2, "0")}
+          {kindLabel(language, entry.kind)}
+          <span className={`lesson-badge lesson-badge-${entry.source}`}>
+            {t(language, sourceBadgeKey[entry.source])}
           </span>
-          {kindLabel(language, item.kind)}
+          {entry.sketch && (
+            <span className="lesson-badge lesson-badge-sketch">
+              {t(language, "Gallery.fromASketch")}
+            </span>
+          )}
         </span>
         <h3>{title}</h3>
-        {item.source === "muse-sketch" && (
-          <span className="lesson-origin">
-            {t(language, "Gallery.createdFromASketch")}
-          </span>
-        )}
-        <p>{item.summary[language]}</p>
-        <a
-          className="lesson-link"
-          href={`#lesson:${item.id}`}
-          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
-        >
-          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
-        </a>
-        {galleryShow(item.id) && (
+        <p className="lesson-line">
+          {entry.lineLead && (
+            <>
+              <strong>{t(language, entry.lineLead)}</strong>{" "}
+            </>
+          )}
+          {entry.line[language]}
+        </p>
+        <div className="lesson-actions">
           <a
-            className="lesson-link lesson-link-show"
-            href={`#show:${item.id}`}
-            aria-label={`${t(language, "Gallery.watchTheShow")}: ${title}`}
+            className="lesson-link"
+            href={entry.href}
+            aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
           >
-            {t(language, "Gallery.watchTheShow")}{" "}
-            <span aria-hidden="true">▶</span>
+            {t(language, "Gallery.openLesson")}{" "}
+            <span aria-hidden="true">↗</span>
           </a>
-        )}
+          {entry.show && (
+            <a
+              className="lesson-link lesson-link-show"
+              href={entry.show}
+              aria-label={`${t(language, "Gallery.watchTheShow")}: ${title}`}
+            >
+              {t(language, "Gallery.watchTheShow")}{" "}
+              <span aria-hidden="true">▶</span>
+            </a>
+          )}
+          {entry.compare && entry.evaluation && (
+            <a
+              className="lesson-link lesson-link-compare"
+              href={entry.compare}
+              aria-label={`${t(language, "Gallery.compareTheTwoModels")}: ${entry.evaluation.question[language]}`}
+            >
+              {t(language, "Gallery.compareTheTwoModels")}{" "}
+              <span aria-hidden="true">⇄</span>
+            </a>
+          )}
+        </div>
+        <p className="lesson-meta fine">{metaLine(entry, language)}</p>
         <details className="lesson-source">
           <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
-          <p>{gallerySourceNote(item.source, language)}</p>
+          <p>{provenance(entry, language)}</p>
         </details>
       </div>
     </article>
   );
 }
-function EvaluationCard({
+
+// The hero's "start here" card: one reviewed lesson with a show, so a first visit has
+// one obvious thing to open before the grid.
+export function FeaturedLesson({
   language,
-  item,
+  id,
 }: {
   language: Language;
-  item: EvaluationItem;
+  id: string;
 }) {
-  const title = item.lesson.title[language];
-  const comparison = evaluationComparison(item.caseId);
+  const item = galleryLessons.find((lesson) => lesson.id === id);
+  if (!item) return null;
+  const entry = fromReviewed(item);
+  const title = entry.title[language];
   return (
-    <article className="lesson-card lesson-card-evaluation">
+    <article className="lesson-card featured-card">
       <a
         className="lesson-art-link"
-        href={`#lesson:${item.id}`}
+        href={entry.href}
         tabIndex={-1}
         aria-hidden="true"
       >
-        <LessonArt
-          id={item.kind === "process" ? "shared-process" : "shared-model"}
-        />
+        <LessonArt id={entry.artId} />
       </a>
       <div className="lesson-card-body">
         <span className="lesson-kind">
-          <span className="lesson-badge lesson-badge-model">
-            {evaluationModelLabel(item.model)}
+          <span className="lesson-badge lesson-badge-start">
+            {t(language, "Gallery.startHere")}
           </span>
-          {kindLabel(language, item.kind)}
+          {kindLabel(language, entry.kind)}
         </span>
-        <h3>{title}</h3>
-        <p className="evaluation-question">
-          <strong>{t(language, "Gallery.theLearnerAsked")}</strong>{" "}
-          {item.question[language]}
-        </p>
-        <a
-          className="lesson-link"
-          href={`#lesson:${item.id}`}
-          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
-        >
-          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
-        </a>
-        {comparison && (
+        <h2>{title}</h2>
+        <p className="lesson-line">{entry.line[language]}</p>
+        <div className="lesson-actions">
           <a
-            className="lesson-link lesson-link-compare"
-            href={`#compare:${item.caseId}`}
-            aria-label={`${t(language, "Gallery.compareTheTwoModels")}: ${item.question[language]}`}
+            className="lesson-link"
+            href={entry.href}
+            aria-label={`${t(language, "Gallery.startHere")}: ${title}`}
           >
-            {t(language, "Gallery.compareTheTwoModels")}{" "}
-            <span aria-hidden="true">⇄</span>
+            {t(language, "Gallery.startHere")} <span aria-hidden="true">↗</span>
           </a>
-        )}
-        <p className="lesson-meta fine">
-          {t(language, "Gallery.judge")} {item.judge.total}/{item.judge.max}
-          {" · "}
-          {item.judge.issues.length === 0
-            ? t(language, "Gallery.noIssuesRaised")
-            : `${item.judge.issues.length} ${t(language, "Gallery.issuesRaised")}`}
-          {" · "}
-          {(item.latencyMs / 1000).toFixed(1)} s
-        </p>
-        <details className="lesson-source">
-          <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
-          <p>{evaluationNote(item, language)}</p>
-        </details>
+          {entry.show && (
+            <a
+              className="lesson-link lesson-link-show"
+              href={entry.show}
+              aria-label={`${t(language, "Gallery.startWithTheShow")}: ${title}`}
+            >
+              {t(language, "Gallery.startWithTheShow")}{" "}
+              <span aria-hidden="true">▶</span>
+            </a>
+          )}
+        </div>
       </div>
     </article>
   );
 }
-function SharedCard({
-  language,
-  item,
-}: {
-  language: Language;
-  item: SavedSummary;
-}) {
-  const title = item.title[language];
-  return (
-    <article className="lesson-card lesson-card-shared">
-      <a
-        className="lesson-art-link"
-        href={`#shared:${item.id}`}
-        tabIndex={-1}
-        aria-hidden="true"
-      >
-        {item.cover ? (
-          <img
-            className="lesson-art lesson-art-image"
-            src={item.cover}
-            alt=""
-            width={360}
-            height={158}
-            loading="lazy"
-          />
-        ) : (
-          <LessonArt
-            id={item.kind === "process" ? "shared-process" : "shared-model"}
-          />
-        )}
-      </a>
-      <div className="lesson-card-body">
-        <span className="lesson-kind">
-          <span className="lesson-badge">
-            {t(language, "Gallery.sharedBadge")}
-          </span>
-          {kindLabel(language, item.kind)}
-        </span>
-        <h3>{title}</h3>
-        {item.sketch && (
-          <span className="lesson-origin">
-            {t(language, "Gallery.createdFromASketch")}
-          </span>
-        )}
-        <p>{item.intro[language]}</p>
-        <a
-          className="lesson-link"
-          href={`#shared:${item.id}`}
-          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
-        >
-          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
-        </a>
-        <p className="lesson-meta fine">
-          {new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
-            dateStyle: "medium",
-          }).format(item.updatedAt)}
-          {item.model && ` · ${item.model}`}
-          {item.hasShow && ` · ${t(language, "Library.withShow")}`}
-        </p>
-      </div>
-    </article>
-  );
-}
+
 export function Gallery({ language }: { language: Language }) {
   const headingId = useId(),
     searchId = useId();
   const [query, setQuery] = useState(""),
-    [filter, setFilter] = useState<Filter>("all"),
+    [type, setType] = useState<TypeFilter>("all"),
+    [source, setSource] = useState<SourceFilter>("any"),
+    [withShow, setWithShow] = useState(false),
+    [fromSketch, setFromSketch] = useState(false),
     [shared, setShared] = useState<SavedSummary[]>([]);
-  // Shared lessons are public; a failed fetch simply leaves the section out.
+  // Shared lessons are public; a failed fetch simply leaves them out of the grid.
   useEffect(() => {
     let live = true;
     void listShared()
@@ -397,71 +477,43 @@ export function Gallery({ language }: { language: Language }) {
       live = false;
     };
   }, []);
-  const reviewed = useMemo(
-    () =>
-      galleryLessons.filter(
-        (item) =>
-          (filter === "all" ||
-            (filter === "sketch"
-              ? item.source === "muse-sketch"
-              : filter === "show"
-                ? Boolean(galleryShow(item.id))
-                : item.kind === filter)) &&
-          matches(query, [
-            item.lesson.title.en,
-            item.lesson.title.zh,
-            item.summary.en,
-            item.summary.zh,
-            item.lesson.intro.en,
-            item.lesson.intro.zh,
-          ]),
-      ),
-    [filter, query],
+  const entries = useMemo(
+    () => [
+      ...galleryLessons.map(fromReviewed),
+      ...evaluationLessons.map(fromEvaluation),
+      ...shared.map(fromShared),
+    ],
+    [shared],
   );
-  const showcase = useMemo(
+  const shown = useMemo(
     () =>
-      evaluationLessons.filter(
-        (item) =>
-          (filter === "all" ||
-            filter === "evaluation" ||
-            item.kind === filter) &&
-          matches(query, [
-            item.lesson.title.en,
-            item.lesson.title.zh,
-            item.question.en,
-            item.question.zh,
-            item.lesson.intro.en,
-            item.lesson.intro.zh,
-          ]),
+      entries.filter(
+        (entry) =>
+          (type === "all" || entry.kind === type) &&
+          (source === "any" || entry.source === source) &&
+          (!withShow || Boolean(entry.show || entry.shared?.hasShow)) &&
+          (!fromSketch || entry.sketch) &&
+          matches(query, entry.search),
       ),
-    [filter, query],
+    [entries, type, source, withShow, fromSketch, query],
   );
-  const community = useMemo(
-    () =>
-      shared.filter(
-        (item) =>
-          (filter === "all" ||
-            (filter === "show"
-              ? item.hasShow
-              : filter === "sketch"
-                ? Boolean(item.sketch)
-                : item.kind === filter)) &&
-          matches(query, [
-            item.title.en,
-            item.title.zh,
-            item.intro.en,
-            item.intro.zh,
-          ]),
-      ),
-    [shared, filter, query],
-  );
-  const total = reviewed.length + showcase.length + community.length;
+  const counts = {
+    shows: entries.filter((entry) => entry.show || entry.shared?.hasShow)
+      .length,
+    compared: new Set(
+      entries.filter((entry) => entry.compare).map((entry) => entry.compare),
+    ).size,
+  };
   return (
-    <section className="gallery" aria-labelledby={headingId}>
+    <section className="gallery" id="library" aria-labelledby={headingId}>
       <div className="section-title">
         <div>
-          <p className="eyebrow">{t(language, "Gallery.theLearningLibrary")}</p>
-          <h2 id={headingId}>{t(language, "Gallery.findAQuestionTryIt")}</h2>
+          <h2 id={headingId}>{t(language, "Gallery.theLibrary")}</h2>
+          <p className="fine">
+            {entries.length} {t(language, "Gallery.lessonCount")} ·{" "}
+            {counts.shows} {t(language, "Gallery.withANarratedShow")} ·{" "}
+            {counts.compared} {t(language, "Gallery.comparedAcrossTwoModels")}
+          </p>
         </div>
         <span className="quiet-label">
           <span className="status-dot" />
@@ -470,7 +522,7 @@ export function Gallery({ language }: { language: Language }) {
       </div>
       <div className="catalog-tools">
         <label className="catalog-search">
-          <span className="sr-only">
+          <span className="facet-legend">
             {t(language, "Gallery.searchLessons")}
           </span>
           <input
@@ -482,90 +534,76 @@ export function Gallery({ language }: { language: Language }) {
             aria-label={t(language, "Gallery.searchLessons")}
           />
         </label>
-        <div
-          className="catalog-filters"
-          role="group"
-          aria-label={t(language, "Gallery.all")}
-        >
-          {filters.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className={filter === value ? "chip on" : "chip"}
-              aria-pressed={filter === value}
-              onClick={() => setFilter(value)}
-            >
-              {filterLabel(language, value)}
-            </button>
-          ))}
+        <fieldset className="facet">
+          <legend className="facet-legend">
+            {t(language, "Gallery.type")}
+          </legend>
+          <div className="catalog-filters">
+            {typeFilters.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={type === value ? "chip on" : "chip"}
+                aria-pressed={type === value}
+                onClick={() => setType(value)}
+              >
+                {t(language, typeKey[value])}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="facet">
+          <legend className="facet-legend">
+            {t(language, "Gallery.source")}
+          </legend>
+          <div className="catalog-filters">
+            {sourceFilters.map((value) => (
+              <button
+                key={value}
+                type="button"
+                className={source === value ? "chip on" : "chip"}
+                aria-pressed={source === value}
+                onClick={() => setSource(value)}
+              >
+                {t(language, sourceKey[value])}
+              </button>
+            ))}
+          </div>
+        </fieldset>
+        <div className="facet-toggles">
+          <label className="facet-toggle">
+            <input
+              type="checkbox"
+              checked={withShow}
+              onChange={(event) => setWithShow(event.target.checked)}
+            />
+            {t(language, "Gallery.withAShow")}
+          </label>
+          <label className="facet-toggle">
+            <input
+              type="checkbox"
+              checked={fromSketch}
+              onChange={(event) => setFromSketch(event.target.checked)}
+            />
+            {t(language, "Gallery.fromASketch")}
+          </label>
         </div>
         <span className="quiet-label catalog-count" aria-live="polite">
-          {total} {t(language, "Gallery.lessonCount")}
+          {shown.length} {t(language, "Gallery.lessonCount")}
         </span>
       </div>
-      {total === 0 ? (
+      {shown.length === 0 ? (
         <p className="catalog-empty">{t(language, "Gallery.noMatches")}</p>
       ) : (
         <div className="gallery-grid">
-          {reviewed.map((item, index) => (
-            <LessonCard
-              key={item.id}
-              language={language}
-              index={index}
-              item={item}
-            />
+          {shown.map((entry) => (
+            <LibraryCard key={entry.id} language={language} entry={entry} />
           ))}
         </div>
       )}
-      {showcase.length > 0 && (
-        <section
-          className="shared-section evaluation-section"
-          aria-label={t(language, "Gallery.fromTheEvaluationEyebrow")}
-        >
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">
-                {t(language, "Gallery.fromTheEvaluationEyebrow")}
-              </p>
-              <h2>{t(language, "Gallery.whatMuseMadeFromAQuestion")}</h2>
-              <p className="fine">
-                {t(language, "Gallery.evaluationSectionNote")}{" "}
-                <a href={EVALUATION_CARD_HASH}>
-                  {t(language, "Gallery.evaluationCard")}
-                </a>
-              </p>
-            </div>
-          </div>
-          <div className="gallery-grid">
-            {showcase.map((item) => (
-              <EvaluationCard key={item.id} language={language} item={item} />
-            ))}
-          </div>
-        </section>
-      )}
-      {community.length > 0 && (
-        <section
-          className="shared-section"
-          aria-label={t(language, "Gallery.sharedByCreators")}
-        >
-          <div className="section-title">
-            <div>
-              <p className="eyebrow">
-                {t(language, "Gallery.sharedByCreators")}
-              </p>
-              <h2>{t(language, "Gallery.freshFromTheStudio")}</h2>
-              <p className="fine">{t(language, "Gallery.sharedNote")}</p>
-            </div>
-          </div>
-          <div className="gallery-grid">
-            {community.map((item) => (
-              <SharedCard key={item.id} language={language} item={item} />
-            ))}
-          </div>
-        </section>
-      )}
       <p className="gallery-footnote">
-        {t(language, "Gallery.predictChangeAnInputExplain")}
+        {t(language, "Gallery.predictChangeAnInputExplain")}{" "}
+        {t(language, "Gallery.gridFootnote")}
       </p>
     </section>
   );

@@ -62,7 +62,7 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await guest.getByRole("button", { name: "Disagree", exact: true }).click();
   await guest.getByRole("link", { name: "Library", exact: true }).click();
   await expect(
-    guest.getByRole("heading", { name: "Fresh from the Studio." }),
+    guest.getByRole("heading", { name: "The library" }),
   ).toBeVisible();
   await guest
     .getByRole("searchbox", { name: "Search lessons" })
@@ -94,9 +94,9 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
 
 test("the catalog filters reviewed lessons by kind", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(/\d+ lessons/)).toBeVisible();
-  await page.getByRole("button", { name: "From a sketch" }).click();
-  await expect(page.getByText("1 lessons")).toBeVisible();
+  await expect(page.locator(".catalog-count")).toHaveText(/\d+ lessons/);
+  await page.getByRole("checkbox", { name: "From a sketch" }).click();
+  await expect(page.locator(".catalog-count")).toHaveText("1 lessons");
   await expect(
     page.getByRole("heading", { name: "Pendulum sketch: length and swing" }),
   ).toBeVisible();

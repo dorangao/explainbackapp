@@ -1042,6 +1042,50 @@ export const messages = {
   },
   "Gallery.sharedBadge": { en: "SHARED LESSON", zh: "分享课程" },
   "Gallery.lessonCount": { en: "lessons", zh: "节课程" },
+  "Gallery.theLibrary": { en: "The library", zh: "课程库" },
+  "Gallery.withANarratedShow": {
+    en: "with a narrated show",
+    zh: "节有讲解秀",
+  },
+  "Gallery.comparedAcrossTwoModels": {
+    en: "compared across two models",
+    zh: "个问题有两个模型的对比",
+  },
+  "Gallery.type": { en: "Type", zh: "类型" },
+  "Gallery.source": { en: "Source", zh: "来源" },
+  "Gallery.any": { en: "Any", zh: "不限" },
+  "Gallery.reviewed": { en: "Reviewed", zh: "已审阅" },
+  "Gallery.shared": { en: "Shared", zh: "创作者分享" },
+  "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
+  "Gallery.startWithTheShow": {
+    en: "Start with the show",
+    zh: "先看讲解秀",
+  },
+  "Gallery.metaMuse": {
+    en: "Drafted by Muse · reviewed by the author",
+    zh: "由 Muse 起草 · 作者已审阅",
+  },
+  "Gallery.metaCatalog": {
+    en: "Built by hand · checked calculations",
+    zh: "手工构建 · 计算经核验",
+  },
+  "Gallery.metaAuthor": {
+    en: "Written by the author",
+    zh: "作者手写",
+  },
+  "Gallery.metaSketch": {
+    en: "From a sketch · reviewed by the author",
+    zh: "来自草图 · 作者已审阅",
+  },
+  "Gallery.sharedProvenance": {
+    en: "A creator shared this from Studio by link. The author has not reviewed it; the creator is responsible for its content.",
+    zh: "由创作者在 Studio 中通过链接分享。作者未审阅；内容由创作者负责。",
+  },
+  "Gallery.gridFootnote": {
+    en: "Lessons from the evaluation and from creators sit in the same grid as the reviewed ones; their badge and the note under each card say where they came from.",
+    zh: "来自评估和来自创作者的课程与已审阅课程在同一网格中；徽章和每张卡片下的说明注明其来源。",
+  },
+  "Studio.browseTheLibrary": { en: "Browse the library", zh: "浏览课程库" },
   "RevisionSummary.comparedTwoModels": {
     en: "drafted this question with both models",
     zh: "用两个模型起草了这个问题",
