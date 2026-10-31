@@ -13,6 +13,7 @@
 !frontend
 !frontend/**
 !index.html
+!docs/evaluation.md
 !vite.config.ts
 !tsconfig.json
 !playwright.config.ts
