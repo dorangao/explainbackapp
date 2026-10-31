@@ -541,6 +541,8 @@ export function Gallery({ language }: { language: Language }) {
     [type, setType] = useState<TypeFilter>("all"),
     [source, setSource] = useState<SourceFilter>("any"),
     [depth, setDepth] = useState<DepthFilter>("any"),
+    // Phones show the Type row and fold the other facets behind More filters.
+    [moreFilters, setMoreFilters] = useState(false),
     [withShow, setWithShow] = useState(false),
     [fromSketch, setFromSketch] = useState(false),
     [shared, setShared] = useState<SavedSummary[]>([]);
@@ -633,59 +635,77 @@ export function Gallery({ language }: { language: Language }) {
             ))}
           </div>
         </fieldset>
-        <fieldset className="facet">
-          <legend className="facet-legend">
-            {t(language, "Gallery.source")}
-          </legend>
-          <div className="catalog-filters">
-            {sourceFilters.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={source === value ? "chip on" : "chip"}
-                aria-pressed={source === value}
-                onClick={() => setSource(value)}
-              >
-                {t(language, sourceKey[value])}
-              </button>
-            ))}
+        <button
+          type="button"
+          className="chip more-filters-button"
+          aria-expanded={moreFilters}
+          aria-controls="library-more-filters"
+          onClick={() => setMoreFilters((open) => !open)}
+        >
+          {t(
+            language,
+            moreFilters ? "Gallery.fewerFilters" : "Gallery.moreFilters",
+          )}
+        </button>
+        <div
+          className="facet-more"
+          id="library-more-filters"
+          data-open={moreFilters ? "true" : "false"}
+        >
+          <fieldset className="facet">
+            <legend className="facet-legend">
+              {t(language, "Gallery.source")}
+            </legend>
+            <div className="catalog-filters">
+              {sourceFilters.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={source === value ? "chip on" : "chip"}
+                  aria-pressed={source === value}
+                  onClick={() => setSource(value)}
+                >
+                  {t(language, sourceKey[value])}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset className="facet">
+            <legend className="facet-legend">
+              {t(language, "Gallery.depth")}
+            </legend>
+            <div className="catalog-filters">
+              {depthFilters.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  className={depth === value ? "chip on" : "chip"}
+                  aria-pressed={depth === value}
+                  onClick={() => setDepth(value)}
+                >
+                  {t(language, depthKey[value])}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+          <div className="facet-toggles">
+            <label className="facet-toggle">
+              <input
+                type="checkbox"
+                checked={withShow}
+                onChange={(event) => setWithShow(event.target.checked)}
+              />
+              {t(language, "Gallery.withAShow")}
+            </label>
+            <label className="facet-toggle">
+              <input
+                type="checkbox"
+                checked={fromSketch}
+                onChange={(event) => setFromSketch(event.target.checked)}
+              />
+              {t(language, "Gallery.fromASketch")}
+            </label>
           </div>
-        </fieldset>
-        <fieldset className="facet">
-          <legend className="facet-legend">
-            {t(language, "Gallery.depth")}
-          </legend>
-          <div className="catalog-filters">
-            {depthFilters.map((value) => (
-              <button
-                key={value}
-                type="button"
-                className={depth === value ? "chip on" : "chip"}
-                aria-pressed={depth === value}
-                onClick={() => setDepth(value)}
-              >
-                {t(language, depthKey[value])}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <div className="facet-toggles">
-          <label className="facet-toggle">
-            <input
-              type="checkbox"
-              checked={withShow}
-              onChange={(event) => setWithShow(event.target.checked)}
-            />
-            {t(language, "Gallery.withAShow")}
-          </label>
-          <label className="facet-toggle">
-            <input
-              type="checkbox"
-              checked={fromSketch}
-              onChange={(event) => setFromSketch(event.target.checked)}
-            />
-            {t(language, "Gallery.fromASketch")}
-          </label>
         </div>
         <span className="quiet-label catalog-count" aria-live="polite">
           {shown.length} {t(language, "Gallery.lessonCount")}
