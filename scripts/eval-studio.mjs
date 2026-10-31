@@ -5,7 +5,7 @@ import {createProviderRouter} from '../src/llm/index.mjs';
 import {loadStudioSuite,selectStudioCases,runStudioEvaluation,studioReportMarkdown,compareStudioReports,studioComparisonMarkdown,studioSuites} from '../src/eval/studio.mjs';
 import {judgeStudioReport} from '../src/eval/judge.mjs';
 import {authorPromptVersion} from '../src/lesson-author.mjs';
-// Usage: npm run eval:studio -- [--live] [--suite=studio-v1|studio-image-v1] [--cases=ID,ID]
+// Usage: npm run eval:studio -- [--live] [--suite=studio-v1|studio-image-v1|studio-breadth-v1] [--cases=ID,ID]
 //        [--models=meta:muse-spark-1.3,meta:muse-wonder-1.0] [--judge=meta:muse-spark-1.3]
 // Without --live nothing is sent. Each model runs the same frozen cases sequentially, one
 // attempt per case, no retries. --judge adds a separate rubric score from the named model.

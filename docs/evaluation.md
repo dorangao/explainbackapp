@@ -12,7 +12,7 @@ Three frozen suites exist. A suite is a JSON file under `eval/` whose SHA-256 is
 |---|---|---|---|
 | `studio-v1` | 12 | Six bilingual pairs: two specified models (cooling, pendulum), two processes (web cache, water cycle), one ambiguous request, one request that cannot be modelled responsibly (CFD). Model cases name input ids, ranges and probe values, so the scorer can check the computed numbers. | `e2817e2c4cd6ea4550ca96c455e4a7242d391af25111cdbeed68ddac961683aa` |
 | `studio-image-v1` | 2 | A hand-drawn sketch (bytes hashed) becomes a model lesson with a unit-labelled output. | `08d89c800c82059e3c8f114a414a5a7bc8e78f3856d2a376397fc09136a9e7e8` |
-| `studio-breadth-v1` | 24 | Twelve bilingual pairs phrased as a learner would ask, not as specifications: nine adjustable models across physics, nuclear chemistry, biology, pharmacology, finance, networking, earth science, road safety and electronics; two ordered processes (immunology, DNS); one request that should be declined (a stock pick with buy advice). | `d297c2235e8ff567a5589a8c78392a22fa459fbc16cd70c96956cd3614710c43` |
+| `studio-breadth-v1` | 24 | Twelve bilingual pairs phrased as a learner would ask, not as specifications: nine adjustable models across physics, nuclear chemistry, biology, pharmacology, finance, networking, earth science, road safety and electronics; two ordered processes (immunology, and a DNS lookup, so networking appears once as a model and once as a process); one request that should be declined (a stock pick with buy advice). | `d297c2235e8ff567a5589a8c78392a22fa459fbc16cd70c96956cd3614710c43` |
 
 ## How a case is scored
 
@@ -24,6 +24,8 @@ Two layers, kept apart on purpose.
 Every report records the suite checksum, the SHA-256 of the scorer and judge source files, the author prompt version, the model names, the per-request latency and token counts, and the hash of each prompt sent. Failures are kept in the table with their reason category (contract rejected, expectation failed, provider or transport); the raw provider text is never recorded.
 
 Versions at the time of the runs below: author prompt `author-v3`; scorer `studio-score-v2`; judge `studio-judge-v1`; compose requests at reasoning effort `low` with an output budget of 8000 tokens (6000 with an image).
+
+The scorer has since moved to `studio-score-v3`, which only trims output units before comparing them with the expected list; it changes no result below.
 
 ## Results
 
@@ -38,7 +40,7 @@ Both models, same 24 cases, one attempt each, Spark as judge. Full reviewed repo
 
 What the run shows, in plain terms:
 
-- **Breadth.** Across nine model domains and two processes, in two languages, each model produced a valid, computable, unit-labelled lesson contract on the first attempt for all but three or four cases, and both declined the stock-pick request in both languages with a reason ("no bounded model can reliably forecast a specific company's stock price"). Every topic was covered by at least one model; 22 of 22 teachable pairs have a passing lesson from one model or the other.
+- **Breadth.** Across nine model domains and two processes, in two languages, each model produced a valid, computable, unit-labelled lesson contract on the first attempt for all but three or four cases, and both declined the stock-pick request in both languages with a reason ("no bounded model can reliably forecast a specific company's stock price"). Every topic was covered by at least one model: all 22 teachable cases (11 pairs in two languages) have a passing lesson from one model or the other.
 - **Where it failed, it failed closed.** All seven failures are contract rejections by the app's validator, not wrong numbers that slipped through: a formula with a possible division by zero (projectile, Wonder), a process with too few stages (half-life, Wonder), an intro or framing over the length limit in one language (two Chinese cases, Wonder), an invalid output definition (projectile, Spark), a transfer case that did not change an input (carbon dating, Spark), and a claim phrased as a question (vaccine, Spark). None reached a learner.
 - **Judge.** 37 ready lessons scored a mean of 9.76 / 10 on the five-item rubric. The issues it raised are specific and checkable: an English unit left inside Chinese text, a symbol named differently in the explanation and the formula, a transfer choice that copies a stage sentence, an intro that hints at the answer. These are the kinds of defects the Studio revision loop is for.
 - **Cost.** A Wonder draft took 12 s and about 1,400 input / 1,900 output tokens on average; Spark 9 s and about 2,600 / 2,200. The declined requests took 1.4 to 3.6 s.
@@ -67,6 +69,7 @@ Without `--live` the command prints the case list and sends nothing. With `--liv
 - Not scientific validity. A formula that compiles, stays finite and matches a probe is consistent with the lesson's own assumptions, nothing more. Human review of the science is still required before a lesson is presented, and the app says so on every generated lesson.
 - Not learning effectiveness. No learner study has been run.
 - Not a ranking of the models. One sample per case, one day, one prompt version. Differences between Wonder and Spark are observations about this pipeline on these cases.
+- Not an independent rubric comparison. Spark was the judge in both runs, so it scored its own lessons as well as Wonder's. The deterministic checks are unaffected; the judge means should be read as one model's view of wording, with that bias in mind.
 - Not fluency certification. Bilingual parity is a rubric item scored by a model, plus a script check for stray Cyrillic; it is not a human translation review.
 - Not independent of the prompt. The author prompt is part of the system under test; a prompt change invalidates comparisons across versions, which is why the version is recorded.
 
@@ -75,5 +78,5 @@ Without `--live` the command prints the case list and sends nothing. With `--liv
 - Fixed suites with checksums, several metrics reported side by side, failures shown, in the manner of HELM-style evaluation reporting.
 - This card follows the model-card and datasheet practice of stating intended use, what was measured, with what, and the limits.
 - The NIST AI Risk Management Framework's "measure" function: record what was tested, how, and what was not.
-- Separation of deterministic checks from model judgment, so that no model grades the numbers it or a sibling produced.
+- Separation of deterministic checks from model judgment: code, not a model, checks every number; the rubric judge scores wording only and is named so a reader can see when it scored its own output.
 - The product itself is checked against WCAG 2.1 AA (browser tests) and the NIST SSDF secure-development practices (see `docs/security.md`).
