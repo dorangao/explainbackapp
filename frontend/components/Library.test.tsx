@@ -155,7 +155,7 @@ describe("Gallery catalog", () => {
     expect(
       await screen.findByRole("link", { name: /Open lesson: Cooling coffee/ }),
     ).toBeTruthy();
-    expect(screen.getByText("22 lessons")).toBeTruthy();
+    expect(screen.getByText("24 lessons")).toBeTruthy();
     // The summary line counts shows and compared questions across all three sources.
     const summaryLine =
       document.querySelector(".gallery .section-title p.fine")?.textContent ??
@@ -166,7 +166,7 @@ describe("Gallery catalog", () => {
       name: /^Watch the show/,
     }).length;
     expect(summaryLine).toBe(
-      `22 lessons · ${shows + 1} with a narrated show · 3 compared across two models`,
+      `24 lessons · ${shows + 1} with a narrated show · 3 compared across two models`,
     );
     expect(screen.getAllByText("From the evaluation").length).toBe(15);
     expect(screen.getAllByText("Shared").length).toBe(2);
@@ -192,12 +192,21 @@ describe("Gallery catalog", () => {
         })
         .map((link) => link.getAttribute("href")),
     ).toEqual(["#compare:logistic-growth-en", "#compare:logistic-growth-en"]);
-    fireEvent.click(screen.getByRole("button", { name: "Any" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Any" })[0]);
     expect(
       screen
         .getByRole("link", { name: /Open lesson: Cooling coffee/ })
         .getAttribute("href"),
     ).toBe("#shared:fedcba9876543210");
+    // The Depth facet separates the two coached benches from everything else.
+    fireEvent.click(screen.getByRole("button", { name: "Coached by Muse" }));
+    expect(screen.getByText("2 lessons")).toBeTruthy();
+    expect(
+      screen
+        .getByRole("link", { name: /Open the bench: Physics/ })
+        .getAttribute("href"),
+    ).toBe("#physics");
+    fireEvent.click(screen.getAllByRole("button", { name: "Any" })[1]);
     // The toggles narrow further: only the sketch lesson is from a sketch.
     fireEvent.click(screen.getByRole("checkbox", { name: "From a sketch" }));
     expect(screen.getByText("1 lessons")).toBeTruthy();
@@ -208,7 +217,7 @@ describe("Gallery catalog", () => {
   it("leaves shared lessons out when the public list is unavailable", async () => {
     getJson.mockRejectedValue(new Error("down"));
     render(<Gallery language="zh" />);
-    expect(await screen.findByText("21 节课程")).toBeTruthy();
+    expect(await screen.findByText("23 节课程")).toBeTruthy();
     // The Source chip remains; no card carries the badge.
     expect(screen.getAllByText("创作者分享").length).toBe(1);
   });

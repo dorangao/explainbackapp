@@ -60,7 +60,10 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(guest.locator(".lesson-player")).toBeVisible();
   await expect(guest.getByText(/Shared by its creator/)).toBeVisible();
   await guest.getByRole("button", { name: "Disagree", exact: true }).click();
-  await guest.getByRole("link", { name: "Library", exact: true }).click();
+  await guest
+    .getByRole("navigation", { name: "Main navigation" })
+    .getByRole("link", { name: "Library", exact: true })
+    .click();
   await expect(
     guest.getByRole("heading", { name: "The library" }),
   ).toBeVisible();
