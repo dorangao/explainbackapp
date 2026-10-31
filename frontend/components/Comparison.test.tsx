@@ -41,7 +41,7 @@ describe("Comparison", () => {
       screen
         .getByRole("link", { name: "Evaluation card" })
         .getAttribute("href"),
-    ).toMatch(/docs\/evaluation\.md$/);
+    ).toBe("#evaluation");
     cleanup();
     render(<Comparison caseId="logistic-growth-en" language="zh" />);
     expect(

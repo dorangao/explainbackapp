@@ -16,7 +16,7 @@ import type {
   Language,
   Lesson,
 } from "../lib/types";
-import { EVALUATION_CARD_URL, RUBRIC_ITEMS } from "../lib/evaluation";
+import { EVALUATION_CARD_HASH, RUBRIC_ITEMS } from "../lib/evaluation";
 import type { RubricItem } from "../lib/evaluation";
 import { kindLabel } from "./Library";
 
@@ -306,7 +306,7 @@ export function Comparison({
           <h2 id={headingId}>{first.question[language]}</h2>
           <p className="fine">
             {t(language, "Compare.note")} {first.suite} · {first.caseId} ·{" "}
-            <a href={EVALUATION_CARD_URL} target="_blank" rel="noreferrer">
+            <a href={EVALUATION_CARD_HASH}>
               {t(language, "Gallery.evaluationCard")}
             </a>
           </p>

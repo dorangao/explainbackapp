@@ -428,6 +428,21 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
     .getByRole("link", { name: "Compare the two models" })
     .click();
   await expect(page.getByText("SAME QUESTION, TWO MODELS")).toBeVisible();
+  // The evaluation card is a page of the app, read from docs/evaluation.md.
+  await comparison.getByRole("link", { name: "Evaluation card" }).click();
+  const card = page.locator(".evaluation-card");
+  await expect(
+    card.getByRole("heading", { level: 1, name: "Evaluation card" }),
+  ).toBeVisible();
+  await expect(
+    card.getByRole("heading", { name: "What these numbers do not establish" }),
+  ).toBeVisible();
+  await expect(
+    card.getByRole("cell", { name: "muse-wonder-1.0" }).first(),
+  ).toBeVisible();
+  await expect(
+    card.getByRole("link", { name: "Source on GitHub" }),
+  ).toHaveAttribute("href", /docs\/evaluation\.md$/);
   await page.getByRole("link", { name: "Back to library" }).click();
   await expect(
     page.getByRole("heading", {

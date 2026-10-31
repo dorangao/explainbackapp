@@ -1024,6 +1024,12 @@ export const messages = {
     zh: "两个 Muse 模型于 2026 年 10 月 31 日在冻结的评估运行中，根据十二个学习者提问起草的课程。每节都通过了应用的检查并由评分模型打分；作者未做编辑，也未审阅其科学内容。保留了两个模型对同一问题回答的，可以并排比较。",
   },
   "Gallery.evaluationCard": { en: "Evaluation card", zh: "评估卡" },
+  "Evaluation.eyebrow": { en: "EVALUATION CARD", zh: "评估卡" },
+  "Evaluation.note": {
+    en: "The same card as docs/evaluation.md in the repository, rendered here from that file when the app is built. The full per-case reports it links to stay on GitHub.",
+    zh: "与仓库中 docs/evaluation.md 相同的评估卡，在构建应用时由该文件渲染；正文为英文。它链接的完整逐例报告仍在 GitHub 上。",
+  },
+  "Evaluation.source": { en: "Source on GitHub", zh: "GitHub 上的源文件" },
   "Gallery.theLearnerAsked": { en: "The learner asked:", zh: "学习者提问：" },
   "Gallery.compareTheTwoModels": {
     en: "Compare the two models",

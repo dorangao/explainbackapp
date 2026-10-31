@@ -2994,6 +2994,92 @@ li[data-state="done"] .judge-mark {
 }
 
 /* Live comparison in Studio. */
+/* The evaluation card: a document page in the comparison frame, read from docs/evaluation.md. */
+.evaluation-card > .prose {
+  display: block;
+  max-width: 820px;
+  margin: 28px auto 0;
+  font-size: 0.98rem;
+  line-height: 1.7;
+}
+.evaluation-card .prose h1 {
+  font-size: 2rem;
+  letter-spacing: -0.6px;
+  margin: 0 0 14px;
+}
+.evaluation-card .prose h2 {
+  font-size: 1.3rem;
+  letter-spacing: -0.3px;
+  margin: 40px 0 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.evaluation-card .prose h3 {
+  font-size: 1.05rem;
+  margin: 26px 0 8px;
+}
+.evaluation-card .prose p,
+.evaluation-card .prose li {
+  color: var(--ink);
+}
+.evaluation-card .prose li {
+  margin: 6px 0;
+}
+.evaluation-card .prose code {
+  font-size: 0.86em;
+  background: var(--light);
+  border-radius: 4px;
+  padding: 1px 5px;
+  word-break: break-all;
+}
+.evaluation-card .prose pre {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 12px;
+  padding: 14px 18px;
+  overflow-x: auto;
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+.evaluation-card .prose pre code {
+  background: none;
+  padding: 0;
+  word-break: normal;
+}
+.evaluation-card .table-scroll {
+  overflow-x: auto;
+  margin: 14px 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.evaluation-card table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.evaluation-card th,
+.evaluation-card td {
+  text-align: left;
+  vertical-align: top;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  min-width: 7rem;
+}
+.evaluation-card th {
+  font-size: 0.72rem;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--light);
+}
+.evaluation-card tbody tr:last-child td {
+  border-bottom: 0;
+}
+.evaluation-card td code {
+  font-size: 0.78em;
+}
 .compare-panel {
   margin-top: 36px;
   padding-top: 28px;
