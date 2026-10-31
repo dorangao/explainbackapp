@@ -44,6 +44,23 @@ describe("voice ranking", () => {
     ).toEqual(["Google 普通话（中国大陆）", "Tingting (Enhanced)"]);
     expect(ranked.at(-1)?.lang).not.toBe("zh-CN");
   });
+  it("puts Yu-Shu (Enhanced) ahead of Tingting (Enhanced) and both ahead of the compact voice", () => {
+    const ranked = rankVoices(
+      [
+        v("Tingting", "zh-CN"),
+        v("Tingting (Enhanced)", "zh-CN"),
+        v("Yu-Shu (Enhanced)", "zh-CN"),
+        v("Yue (Premium)", "zh-CN"),
+      ],
+      "zh",
+    );
+    expect(ranked.map((x) => x.name)).toEqual([
+      "Yu-Shu (Enhanced)",
+      "Tingting (Enhanced)",
+      "Yue (Premium)",
+      "Tingting",
+    ]);
+  });
   it("skips novelty English voices and keeps the natural ones first", () => {
     const ranked = rankVoices(macVoices, "en");
     expect(

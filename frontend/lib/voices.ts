@@ -19,6 +19,9 @@ export const narrationLocale = (language: "en" | "zh") =>
 // case-insensitive; the list is a preference, not a requirement.
 const preferredNames: Record<"en" | "zh", string[]> = {
   zh: [
+    // Yu-Shu (Enhanced) is Apple's Siri-grade Mandarin voice; Tingting follows.
+    "yu-shu",
+    "yushu",
     "tingting",
     "lili",
     "meijia",
@@ -110,7 +113,10 @@ export const scoreVoice = (voice: VoiceLike, language: "en" | "zh"): number => {
   else score += 5;
   if (qualityMarks.some((m) => name.includes(m))) score += 20;
   if (name.includes("premium")) score += 5;
-  if (preferredNames[language].some((m) => name.includes(m))) score += 15;
+  const preferredAt = preferredNames[language].findIndex((m) =>
+    name.includes(m),
+  );
+  if (preferredAt >= 0) score += preferredAt === 0 ? 17 : 15;
   if (lowMarks.some((m) => name.includes(m))) score -= 40;
   if (voice.default) score += 1;
   return score;
