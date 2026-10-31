@@ -26,8 +26,11 @@ import { say } from "../lib/types";
 import { ApiError } from "../lib/api";
 import {
   createLessonPlayer,
-  galleryLessons,
+  galleryLesson,
   gallerySourceNote,
+  evaluationLesson,
+  evaluationComparison,
+  evaluationNote,
   studioWalkthrough,
   validateLesson,
 } from "../lib/shared";
@@ -66,6 +69,7 @@ import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
+import { EVALUATION_CARD_URL } from "../lib/evaluation";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -321,11 +325,12 @@ export function Studio({
   }, [authenticated, savedId, savedItem?.id]);
   // A gallery lesson is reviewed content: open it straight into the player.
   const openedGallery = useRef<string | null>(null);
+  const evaluationItem = lessonId ? evaluationLesson(lessonId) : null;
   useEffect(() => {
     if (!lessonId || openedGallery.current === lessonId) return;
     const item = external
       ? { lesson: external.lesson, source: "shared", image: undefined }
-      : galleryLessons.find((g) => g.id === lessonId);
+      : galleryLesson(lessonId);
     if (!item) return;
     openedGallery.current = lessonId;
     invalidate();
@@ -1572,16 +1577,43 @@ export function Studio({
                     canFind={remaining > 0}
                   />
                 )}
+                {source === "evaluation" && evaluationItem && (
+                  <p className="evaluation-question">
+                    <strong>{t(language, "Gallery.theLearnerAsked")}</strong>{" "}
+                    {evaluationItem.question[language]}
+                  </p>
+                )}
                 <p>
                   {source === "shared"
                     ? t(language, "Library.sharedLessonNote")
                     : source === "studio-sketch"
                       ? t(language, "Studio.sketchLessonNote")
-                      : gallerySourceNote(source, language)}
+                      : source === "evaluation" && evaluationItem
+                        ? evaluationNote(evaluationItem, language)
+                        : gallerySourceNote(source, language)}
                   {external?.model &&
                     source === "shared" &&
                     ` · ${external.model}`}
                 </p>
+                {source === "evaluation" && evaluationItem && (
+                  <p className="evaluation-links fine">
+                    <a
+                      href={EVALUATION_CARD_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t(language, "Gallery.evaluationCard")}
+                    </a>
+                    {evaluationComparison(evaluationItem.caseId) && (
+                      <>
+                        {" · "}
+                        <a href={`#compare:${evaluationItem.caseId}`}>
+                          {t(language, "Gallery.compareTheTwoModels")}
+                        </a>
+                      </>
+                    )}
+                  </p>
+                )}
                 {source === "shared" && show && (
                   <button
                     type="button"

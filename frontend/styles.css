@@ -2790,3 +2790,192 @@ li[data-state="done"] .judge-mark {
 .units-default select {
   justify-self: start;
 }
+
+/* Evaluation showcase cards and the two-model comparison. */
+.lesson-badge-model {
+  background: #e9e4f3;
+  color: #4b3f7a;
+}
+.lesson-card-evaluation .lesson-art {
+  background: #ece9f1;
+}
+.evaluation-question {
+  font-size: 0.84rem;
+  color: var(--muted);
+  margin: 0 0 16px;
+}
+.evaluation-question strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+.lesson-link-compare {
+  margin-top: 0;
+}
+.evaluation-links {
+  margin: 6px 0 0;
+}
+.comparison {
+  margin: 0 auto;
+}
+.comparison .section-title {
+  align-items: start;
+}
+.comparison .section-title h2 {
+  font-size: 1.5rem;
+  letter-spacing: -0.4px;
+  max-width: 820px;
+}
+.comparison .section-title p.fine {
+  max-width: 720px;
+  margin: 8px 0 0;
+}
+.comparison .text-link {
+  white-space: nowrap;
+  padding-bottom: 6px;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+.compare-column {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 22px 24px 18px;
+  display: flex;
+  flex-direction: column;
+}
+.compare-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.compare-head .lesson-badge {
+  font-size: 0.59rem;
+  letter-spacing: 1.25px;
+  font-weight: 650;
+}
+.compare-head h3 {
+  flex-basis: 100%;
+  margin: 10px 0 2px;
+  font-size: 1.25rem;
+  letter-spacing: -0.4px;
+}
+.compare-head .lesson-kind {
+  margin: 0 0 6px;
+}
+.compare-column h4 {
+  font-size: 0.66rem;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 18px 0 6px;
+}
+.compare-column h5 {
+  font-size: 0.78rem;
+  margin: 12px 0 4px;
+}
+.compare-column p {
+  font-size: 0.88rem;
+  margin: 0;
+}
+.compare-intro {
+  color: var(--muted);
+}
+.compare-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.86rem;
+}
+.compare-list li {
+  margin: 3px 0;
+}
+.compare-expression {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.compare-judge {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.compare-judge h4 {
+  margin-top: 0;
+}
+.compare-scores {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: 0.8rem;
+}
+.compare-scores div {
+  display: contents;
+}
+.compare-scores dt {
+  color: var(--muted);
+}
+.compare-scores dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.score-dots {
+  display: inline-block;
+  width: 26px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e3e6dd;
+  position: relative;
+  overflow: hidden;
+}
+.score-dots::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 0;
+  background: var(--accent);
+}
+.score-1::after {
+  width: 50%;
+  background: #c08a2e;
+}
+.score-2::after {
+  width: 100%;
+}
+.compare-issues {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+}
+.compare-issues li {
+  margin: 4px 0;
+}
+.compare-judge-summary {
+  margin-top: 10px !important;
+}
+.compare-cost {
+  margin-top: 14px !important;
+}
+.compare-column .lesson-link {
+  margin-top: 12px;
+}
+@media (max-width: 800px) {
+  .compare-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .comparison .section-title {
+    flex-direction: column;
+    align-items: start;
+  }
+}

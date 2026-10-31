@@ -56,6 +56,10 @@ Same settings, the 12 specified cases, where the scorer also checks the computed
 
 Here the checks are strict: for the cooling and pendulum lessons the scorer evaluates the model's own formula at four probe settings and compares the transfer answer with an independently computed value. Every ready lesson from both models matched those numbers. The one failure was Spark's English pendulum reply, which the validator rejected for an invalid output definition; no wrong number reached the checks. Both models declined the ambiguous request and the computational-fluid-dynamics request in both languages.
 
+## In the app
+
+Fourteen of the passing breadth lessons are shown in the library under **From the evaluation**, unedited, each with its model, question, judge score and a provenance note; three questions have both models' replies and a side-by-side view (`/#compare:logistic-growth-en`, `rc-charging-zh`, `dns-lookup-zh`) with the judge's scores and issues under each. `scripts/eval-showcase.mjs` builds that fixture from a run's local reports; see [lesson-library.md](lesson-library.md#evaluation-showcase-added-october-31-2026-pacific).
+
 ## How to reproduce
 
 ```sh

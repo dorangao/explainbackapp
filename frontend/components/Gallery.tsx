@@ -1,7 +1,16 @@
 import { useEffect, useId, useMemo, useState } from "react";
 import { t } from "../lib/messages";
-import { galleryLessons, gallerySourceNote, galleryShow } from "../lib/shared";
-import type { GalleryItem, Language } from "../lib/types";
+import {
+  galleryLessons,
+  gallerySourceNote,
+  galleryShow,
+  evaluationLessons,
+  evaluationComparison,
+  evaluationModelLabel,
+  evaluationNote,
+} from "../lib/shared";
+import type { EvaluationItem, GalleryItem, Language } from "../lib/types";
+import { EVALUATION_CARD_URL } from "../lib/evaluation";
 import { listShared } from "../lib/library";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
@@ -138,7 +147,8 @@ function LessonArt({ id }: { id: string }) {
     </svg>
   );
 }
-type Filter = "all" | "model" | "process" | "catalog" | "sketch" | "show";
+type Filter =
+  "all" | "model" | "process" | "catalog" | "sketch" | "show" | "evaluation";
 const filters: Filter[] = [
   "all",
   "model",
@@ -146,6 +156,7 @@ const filters: Filter[] = [
   "catalog",
   "sketch",
   "show",
+  "evaluation",
 ];
 const filterLabel = (language: Language, filter: Filter) =>
   t(
@@ -158,6 +169,7 @@ const filterLabel = (language: Language, filter: Filter) =>
         catalog: "Gallery.series",
         sketch: "Gallery.fromASketch",
         show: "Gallery.withAShow",
+        evaluation: "Gallery.fromTheEvaluation",
       } as const
     )[filter],
   );
@@ -232,6 +244,73 @@ function LessonCard({
         <details className="lesson-source">
           <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
           <p>{gallerySourceNote(item.source, language)}</p>
+        </details>
+      </div>
+    </article>
+  );
+}
+function EvaluationCard({
+  language,
+  item,
+}: {
+  language: Language;
+  item: EvaluationItem;
+}) {
+  const title = item.lesson.title[language];
+  const comparison = evaluationComparison(item.caseId);
+  return (
+    <article className="lesson-card lesson-card-evaluation">
+      <a
+        className="lesson-art-link"
+        href={`#lesson:${item.id}`}
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        <LessonArt
+          id={item.kind === "process" ? "shared-process" : "shared-model"}
+        />
+      </a>
+      <div className="lesson-card-body">
+        <span className="lesson-kind">
+          <span className="lesson-badge lesson-badge-model">
+            {evaluationModelLabel(item.model)}
+          </span>
+          {kindLabel(language, item.kind)}
+        </span>
+        <h3>{title}</h3>
+        <p className="evaluation-question">
+          <strong>{t(language, "Gallery.theLearnerAsked")}</strong>{" "}
+          {item.question[language]}
+        </p>
+        <a
+          className="lesson-link"
+          href={`#lesson:${item.id}`}
+          aria-label={`${t(language, "Gallery.openLesson")}: ${title}`}
+        >
+          {t(language, "Gallery.openLesson")} <span aria-hidden="true">↗</span>
+        </a>
+        {comparison && (
+          <a
+            className="lesson-link lesson-link-compare"
+            href={`#compare:${item.caseId}`}
+            aria-label={`${t(language, "Gallery.compareTheTwoModels")}: ${item.question[language]}`}
+          >
+            {t(language, "Gallery.compareTheTwoModels")}{" "}
+            <span aria-hidden="true">⇄</span>
+          </a>
+        )}
+        <p className="lesson-meta fine">
+          {t(language, "Gallery.judge")} {item.judge.total}/{item.judge.max}
+          {" · "}
+          {item.judge.issues.length === 0
+            ? t(language, "Gallery.noIssuesRaised")
+            : `${item.judge.issues.length} ${t(language, "Gallery.issuesRaised")}`}
+          {" · "}
+          {(item.latencyMs / 1000).toFixed(1)} s
+        </p>
+        <details className="lesson-source">
+          <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
+          <p>{evaluationNote(item, language)}</p>
         </details>
       </div>
     </article>
@@ -339,6 +418,24 @@ export function Gallery({ language }: { language: Language }) {
       ),
     [filter, query],
   );
+  const showcase = useMemo(
+    () =>
+      evaluationLessons.filter(
+        (item) =>
+          (filter === "all" ||
+            filter === "evaluation" ||
+            item.kind === filter) &&
+          matches(query, [
+            item.lesson.title.en,
+            item.lesson.title.zh,
+            item.question.en,
+            item.question.zh,
+            item.lesson.intro.en,
+            item.lesson.intro.zh,
+          ]),
+      ),
+    [filter, query],
+  );
   const community = useMemo(
     () =>
       shared.filter(
@@ -358,7 +455,7 @@ export function Gallery({ language }: { language: Language }) {
       ),
     [shared, filter, query],
   );
-  const total = reviewed.length + community.length;
+  const total = reviewed.length + showcase.length + community.length;
   return (
     <section className="gallery" aria-labelledby={headingId}>
       <div className="section-title">
@@ -419,6 +516,32 @@ export function Gallery({ language }: { language: Language }) {
             />
           ))}
         </div>
+      )}
+      {showcase.length > 0 && (
+        <section
+          className="shared-section evaluation-section"
+          aria-label={t(language, "Gallery.fromTheEvaluationEyebrow")}
+        >
+          <div className="section-title">
+            <div>
+              <p className="eyebrow">
+                {t(language, "Gallery.fromTheEvaluationEyebrow")}
+              </p>
+              <h2>{t(language, "Gallery.whatMuseMadeFromAQuestion")}</h2>
+              <p className="fine">
+                {t(language, "Gallery.evaluationSectionNote")}{" "}
+                <a href={EVALUATION_CARD_URL} target="_blank" rel="noreferrer">
+                  {t(language, "Gallery.evaluationCard")}
+                </a>
+              </p>
+            </div>
+          </div>
+          <div className="gallery-grid">
+            {showcase.map((item) => (
+              <EvaluationCard key={item.id} language={language} item={item} />
+            ))}
+          </div>
+        </section>
       )}
       {community.length > 0 && (
         <section
