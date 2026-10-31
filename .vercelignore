@@ -13,6 +13,8 @@
 !frontend
 !frontend/**
 !index.html
+!docs
+docs/*
 !docs/evaluation.md
 !vite.config.ts
 !tsconfig.json
