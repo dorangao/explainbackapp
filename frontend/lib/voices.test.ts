@@ -44,6 +44,22 @@ describe("voice ranking", () => {
     ).toEqual(["Google 普通话（中国大陆）", "Tingting (Enhanced)"]);
     expect(ranked.at(-1)?.lang).not.toBe("zh-CN");
   });
+  it("defaults to the Google voice for each language when the browser offers it, and falls back to the platform favourites otherwise", () => {
+    const chrome = [
+      v("Samantha (Enhanced)", "en-US", { default: true }),
+      v("Yu-Shu (Enhanced)", "zh-CN"),
+      v("Tingting (Enhanced)", "zh-CN"),
+      v("Google US English", "en-US", { localService: false }),
+      v("Google UK English Female", "en-GB", { localService: false }),
+      v("Google 普通话（中国大陆）", "zh-CN", { localService: false }),
+      v("Google 國語（臺灣）", "zh-TW", { localService: false }),
+    ];
+    expect(pickVoice(chrome, "en")?.name).toBe("Google US English");
+    expect(pickVoice(chrome, "zh")?.name).toBe("Google 普通话（中国大陆）");
+    const safari = chrome.filter((x) => !x.name.startsWith("Google"));
+    expect(pickVoice(safari, "en")?.name).toBe("Samantha (Enhanced)");
+    expect(pickVoice(safari, "zh")?.name).toBe("Yu-Shu (Enhanced)");
+  });
   it("puts Yu-Shu (Enhanced) ahead of Tingting (Enhanced) and both ahead of the compact voice", () => {
     const ranked = rankVoices(
       [

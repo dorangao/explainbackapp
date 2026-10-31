@@ -1,7 +1,8 @@
 // Choosing a browser voice for the narrated show. The platform lists voices in an arbitrary
 // order, and the first match for a language is often a compact or wrong-region voice (a Hong
-// Kong or Taiwan voice for a Mainland script, a low-quality English voice). Rank them: exact
-// locale first, then any voice of the language, with higher-quality names ahead.
+// Kong or Taiwan voice for a Mainland script, a low-quality English voice). Rank them: the
+// Google voice for the locale first wherever the browser offers it, then exact locale, then
+// any voice of the language, with higher-quality names ahead.
 
 export type VoiceLike = {
   name: string;
@@ -15,6 +16,12 @@ export type VoiceLike = {
 export const narrationLocale = (language: "en" | "zh") =>
   language === "zh" ? "zh-CN" : "en-US";
 
+// The default narrator per language: Google's voices, which Chrome ships on every platform
+// and which read both scripts evenly. Checked by substring, case-insensitive.
+const firstChoice: Record<"en" | "zh", string> = {
+  en: "google us english",
+  zh: "google 普通话",
+};
 // Voice names (platform families) known to read the language well. Checked by substring,
 // case-insensitive; the list is a preference, not a requirement.
 const preferredNames: Record<"en" | "zh", string[]> = {
@@ -117,6 +124,7 @@ export const scoreVoice = (voice: VoiceLike, language: "en" | "zh"): number => {
     name.includes(m),
   );
   if (preferredAt >= 0) score += preferredAt === 0 ? 17 : 15;
+  if (name.includes(firstChoice[language])) score += 30;
   if (lowMarks.some((m) => name.includes(m))) score -= 40;
   if (voice.default) score += 1;
   return score;
