@@ -726,8 +726,8 @@ export const messages = {
     zh: "添加照片、草图或示意图",
   },
   "Studio.aQuestionAnExperiment": {
-    en: "A question. An experiment.",
-    zh: "一个问题，一次实验。",
+    en: "Predict. Test. Explain.",
+    zh: "预测。实验。解释。",
   },
   "Studio.aQuestionOrASketch": {
     en: "A question or a sketch becomes a lesson you can review and operate.",
@@ -788,8 +788,8 @@ export const messages = {
     zh: "解释浏览器如何通过缓存加载网页。",
   },
   "Studio.exploreAnIdeaSeeWhat": {
-    en: "Predict, test, and explain an idea in English or Chinese.",
-    zh: "探索一个想法，观察变化，再用自己的话讲出来。中英文互动课程，从好奇开始。",
+    en: "Every lesson is an experiment you can argue with: the numbers are computed by code, in English or Chinese.",
+    zh: "每节课都是一次可以质疑的实验：数字由代码计算，中英文皆可。",
   },
   "Studio.exploreTheLibrary": { en: "Explore the library", zh: "探索课程库" },
   "Studio.sixStepsEachShowsItsCost": {
