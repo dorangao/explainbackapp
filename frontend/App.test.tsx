@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { useEffect, useReducer } from "react";
 
@@ -112,6 +113,26 @@ describe("phone menu", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "About ExplainBack" }),
     ).toBeTruthy();
+  });
+  it("Sign in from the menu folds it, scrolls the access panel into view and focuses the code field", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    render(<App />);
+    const header = document.querySelector(".site-header");
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(header?.getAttribute("data-menu")).toBe("open");
+    fireEvent.click(
+      within(document.querySelector(".site-menu") as HTMLElement).getByRole(
+        "button",
+        { name: "Sign in" },
+      ),
+    );
+    expect(header?.getAttribute("data-menu")).toBe("closed");
+    const panel = document.querySelector(".access-panel");
+    expect(panel).toBeTruthy();
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    expect(scrolled.mock.instances[0]).toBe(panel?.parentElement);
+    expect(document.activeElement?.id).toBe("reviewer-code");
   });
 });
 

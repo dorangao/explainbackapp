@@ -510,3 +510,18 @@ test("the hero's Play the tour link opens the how-to show already narrating, wit
   ).toBeVisible();
   expect(requests).toEqual([]);
 });
+
+test("on a phone, Sign in folds the menu and brings the access panel into view", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Menu" }).click();
+  await page
+    .locator(".site-menu")
+    .getByRole("button", { name: "Sign in", exact: true })
+    .click();
+  await expect(page.locator(".access-panel")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(page.locator("#reviewer-code")).toBeFocused();
+});
