@@ -126,6 +126,9 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2],ARGV[2]);redis.call('ZREM',KEYS[3],ARGV[2]);return 1
   `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons')],[owner,id])===1;},
   async listSharedLessons(limit=48){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit]);return (await readLessons(ids)).filter(r=>r.shared===true);},
+  // Creator-drawn library covers for reviewed lessons: one hash, lesson id to JSON record.
+  async putCover(id,record){await run("redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]);return 1",[key('covers')],[id,JSON.stringify(record)]);return true;},
+  async getCovers(){const flat=await run("return redis.call('HGETALL',KEYS[1])",[key('covers')]);const out={};for(let i=0;i+1<(Array.isArray(flat)?flat.length:0);i+=2){try{out[flat[i]]=JSON.parse(flat[i+1]);}catch{/* A damaged entry is left out. */}}return out;},
  };
  return {state,auth};
 }

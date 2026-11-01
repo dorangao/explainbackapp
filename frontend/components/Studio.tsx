@@ -11,6 +11,7 @@ import {
 } from "react";
 import type {
   ComposeReply,
+  CoverReply,
   GroundReply,
   References,
   CompareDraft,
@@ -73,6 +74,7 @@ import type {
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
+import { CoverTool } from "./CoverTool";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
@@ -768,6 +770,29 @@ export function Studio({
         `来自 ${chosen.model} 的草稿已就绪，演示前请审阅模型与假设。`,
       ),
     );
+  }
+  // A library cover for the open reviewed lesson, drawn by Muse Image: one image request.
+  async function drawCover(): Promise<CoverReply | null> {
+    if (
+      !lessonId ||
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      remaining === 0
+    )
+      return null;
+    const result = await run<CoverReply>(target, "cover", (id, options) =>
+      post<CoverReply>(
+        "/api/studio/cover",
+        { sessionId: id, lessonId },
+        { ...options, timeoutMs: options.timeoutMs + 60_000 },
+      ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return null;
+    }
+    return result.reply;
   }
   // The test learner (tester role) tries the validated draft; its answers are checked by code.
   async function tryLesson() {
@@ -1765,6 +1790,18 @@ export function Studio({
               onPace={setPace}
               onState={onPlayerState}
             />
+            {lessonId &&
+              authenticated &&
+              providerStatus?.images &&
+              target?.configured && (
+                <CoverTool
+                  key={lessonId}
+                  language={language}
+                  lessonId={lessonId}
+                  busy={busy}
+                  onDraw={drawCover}
+                />
+              )}
             {((feedback && metrics?.mode === "guide") ||
               metrics?.mode === "transcribe") && (
               <RequestSummary metrics={metrics} language={language} />

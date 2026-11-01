@@ -663,6 +663,10 @@ export const messages = {
     en: "The model's own account of its reasoning, unverified:",
     zh: "模型对自身推理的说明（未经核验）：",
   },
+  "RevisionSummary.drewACoverFor": {
+    en: "drew a library cover for",
+    zh: "绘制了课程库封面",
+  },
   "RevisionSummary.drewAnIllustrationFor": {
     en: "drew an illustration for",
     zh: "绘制了一张插图，用于",
@@ -1200,6 +1204,33 @@ export const messages = {
   "Gallery.theSixStepTour": { en: "The 6-step tour", zh: "六步导览" },
   "Gallery.playTheTour": { en: "Play the tour", zh: "播放导览" },
   "Gallery.figuresAsOf": { en: "figures as of {date}", zh: "数据截至 {date}" },
+  "Gallery.creatorCoverNote": {
+    en: "The cover was drawn by Muse Image on {date} at a creator's request; it is decorative and was not reviewed.",
+    zh: "封面由 Muse Image 于 {date} 应创作者请求绘制；仅作装饰，未经审阅。",
+  },
+  "Cover.eyebrow": { en: "LIBRARY COVER", zh: "课程库封面" },
+  "Cover.title": {
+    en: "Draw a cover with Muse Image",
+    zh: "用 Muse Image 绘制封面",
+  },
+  "Cover.currentCover": { en: "Current cover:", zh: "当前封面：" },
+  "Cover.shipped": { en: "shipped with the app", zh: "随应用附带" },
+  "Cover.noCoverYet": {
+    en: "This lesson has no cover yet.",
+    zh: "这节课还没有封面。",
+  },
+  "Cover.none": { en: "No cover", zh: "暂无封面" },
+  "Cover.note": {
+    en: "Muse Image draws one from the title and introduction; one image request. The library shows the new cover to everyone from then on. Covers are decorative and not reviewed.",
+    zh: "Muse Image 根据标题和引言绘制一张；一次图片请求。此后课程库对所有人显示新封面。封面仅作装饰，未经审阅。",
+  },
+  "Cover.draw": { en: "Draw a cover", zh: "绘制封面" },
+  "Cover.redraw": { en: "Redraw the cover", zh: "重新绘制封面" },
+  "Cover.drawing": { en: "Muse Image is drawing…", zh: "Muse Image 正在绘制…" },
+  "Cover.drawnNote": {
+    en: "New cover drawn. The library shows it now; this lesson is unchanged.",
+    zh: "新封面已绘制。课程库现已显示；本课内容不变。",
+  },
   "Gallery.coverNote": {
     en: "The cover was drawn by Muse Image from the title and introduction on {date}; it is decorative and was not reviewed.",
     zh: "封面由 Muse Image 于 {date} 根据标题和引言绘制；仅作装饰，未经审阅。",

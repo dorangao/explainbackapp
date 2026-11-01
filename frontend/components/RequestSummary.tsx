@@ -20,6 +20,7 @@ export function RequestSummary({
     tryout: t(language, "RevisionSummary.triedThisLessonAs"),
     show: t(language, "RevisionSummary.wroteTheShowFor"),
     illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
+    cover: t(language, "RevisionSummary.drewACoverFor"),
     detect: t(language, "RevisionSummary.lookedForAnObjectIn"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
     compare: t(language, "RevisionSummary.comparedTwoModels"),

@@ -1,9 +1,12 @@
 import {RequestError} from './request-error.mjs';
+import {publicCover} from './lesson-covers.mjs';
 import {buildSavedLesson,attachImages,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
 import {recordImageUrls} from './blob.mjs';
 // Saved and shared lessons. The server registers the public shared routes before its
 // sign-in gate and the creator routes after it; both share its reply and tracking helpers.
 export function registerSharedRoutes(app,{state,reply,tracked}){
+  // Creator-drawn library covers for reviewed lessons, public like the gallery; never who drew them.
+  app.get('/api/covers', tracked(async (req,res) => reply(res,200,{covers:Object.fromEntries(Object.entries(await state.getCovers()).map(([id,c])=>[id,publicCover(c)]))})));
   // Shared lessons open without signing in, like the gallery. Ids are unguessable.
   app.get('/api/shared', tracked(async (req,res) => reply(res,200,{lessons:(await state.listSharedLessons(MAX_SHARED_LISTED)).map(lessonSummary)})));
   app.get('/api/shared/:id', tracked(async (req,res) => {
