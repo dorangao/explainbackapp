@@ -5,7 +5,7 @@ import { EvaluationPage } from "./EvaluationPage";
 afterEach(cleanup);
 
 describe("EvaluationPage", () => {
-  it("renders the evaluation card from docs/evaluation.md with its tables and source link", () => {
+  it("renders the evaluation card from docs/evaluation.md with its suite checksums and source link, without private run reports", () => {
     render(<EvaluationPage language="en" />);
     expect(
       screen.getByRole("heading", { level: 1, name: "Evaluation card" }),
@@ -13,28 +13,16 @@ describe("EvaluationPage", () => {
     expect(
       screen.getByRole("heading", {
         level: 2,
-        name: "What these numbers do not establish",
+        name: "What these checks do not establish",
       }),
     ).toBeTruthy();
-    // Both frozen-suite result tables name the two models.
-    expect(
-      screen.getAllByRole("cell", { name: "muse-wonder-1.0" }).length,
-    ).toBe(2);
-    expect(screen.getAllByRole("cell", { name: "muse-spark-1.3" }).length).toBe(
-      2,
-    );
     expect(
       screen.getAllByRole("columnheader", { name: "Checksum (SHA-256)" })
         .length,
     ).toBe(1);
-    // The full reports stay on GitHub; the card's own source is linked too.
-    expect(
-      screen
-        .getByRole("link", { name: "studio-breadth-v1-2026-10-31.md" })
-        .getAttribute("href"),
-    ).toBe(
-      "https://github.com/dorangao/explainbackapp/blob/main/docs/evaluation/studio-breadth-v1-2026-10-31.md",
-    );
+    // Public methods must not link to dated reports or expose run aggregates.
+    expect(screen.queryByRole("heading", { name: "Results" })).toBeNull();
+    expect(document.querySelector('a[href*="/docs/evaluation/"]')).toBeNull();
     expect(
       screen
         .getByRole("link", { name: "Source on GitHub" })

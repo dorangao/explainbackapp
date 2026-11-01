@@ -57,6 +57,7 @@ export function ShowPlayer({
   illustrating = false,
   canIllustrate = true,
   autoplay = false,
+  titleShown = false,
 }: {
   lesson: Lesson;
   show: Show;
@@ -77,6 +78,8 @@ export function ShowPlayer({
   canIllustrate?: boolean;
   // Start narrating at once: used when the show is opened from a Play link.
   autoplay?: boolean;
+  // Gallery shows already have a page title and introduction.
+  titleShown?: boolean;
 }) {
   const [index, setIndex] = useState(0),
     [playing, setPlaying] = useState(autoplay),
@@ -224,92 +227,6 @@ export function ShowPlayer({
       data-kind={slide.kind}
       aria-label={t(language, "ShowPlayer.lessonShow")}
     >
-      <div className="show-stage">
-        {slide.kind === "cover" && (
-          <div className="show-cover">
-            {cover && (
-              <img
-                src={cover}
-                alt=""
-                width={768}
-                height={512}
-                loading="eager"
-              />
-            )}
-            <div>
-              <p className="eyebrow">{t(language, "ShowPlayer.lessonShow2")}</p>
-              <h2>{lesson.title[language]}</h2>
-              <p className="lead-small">{lesson.intro[language]}</p>
-            </div>
-          </div>
-        )}
-        {slide.kind === "claim" && (
-          <blockquote className="show-claim">
-            <p className="eyebrow">{t(language, "ShowPlayer.theClaim")}</p>
-            <p>{e.claim}</p>
-          </blockquote>
-        )}
-        {slide.kind === "experiment" && (
-          <div className="show-experiment">
-            <ExperimentView
-              experiment={e}
-              progress={progress}
-              language={language}
-              interactive={false}
-              onScrub={() => {}}
-            />
-            <p className="experiment-caption">{e.caption(progress)}</p>
-          </div>
-        )}
-        {slide.kind === "evidence" && (
-          <div className="show-evidence">
-            <p className="eyebrow">
-              {t(language, "ShowPlayer.calculatedEvidence")}
-            </p>
-            <p>{e.result}</p>
-            {e.metrics.length > 0 && (
-              <dl>
-                {e.metrics.map((m) => (
-                  <div key={m.label}>
-                    <dt>{m.label}</dt>
-                    <dd>
-                      {fmt(m.value)} {m.unit}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </div>
-        )}
-        {slide.kind === "transfer" && (
-          <div className="show-transfer">
-            <p className="eyebrow">{t(language, "ShowPlayer.aFreshCase")}</p>
-            <p className="pre-line">{e.transfer.question}</p>
-            {e.transfer.choices?.map((choice, i) => (
-              <p key={i} className="show-choice">
-                {i + 1}. {choice}
-              </p>
-            ))}
-          </div>
-        )}
-        {slide.kind === "takeaway" && (
-          <div className="show-takeaway">
-            <p className="eyebrow">{t(language, "ShowPlayer.takeaway")}</p>
-            <p>{chapter.explanation[language]}</p>
-          </div>
-        )}
-        {illustration && (
-          <figure className="show-illustration">
-            <img src={illustration} alt="" width={768} height={512} />
-          </figure>
-        )}
-      </div>
-      <div className="show-caption">
-        <p className="eyebrow">{slide.heading[language]}</p>
-        <p className="show-narration" aria-live="polite">
-          {narration}
-        </p>
-      </div>
       <div className="show-controls">
         <button
           type="button"
@@ -390,6 +307,98 @@ export function ShowPlayer({
         <button type="button" className="text-button" onClick={onClose}>
           {t(language, "ShowPlayer.closeShow")}
         </button>
+      </div>
+      <div className="show-stage">
+        {slide.kind === "cover" && (
+          <div
+            className={`show-cover${titleShown ? " show-cover-art-only" : ""}`}
+          >
+            {cover && (
+              <img
+                src={cover}
+                alt=""
+                width={768}
+                height={512}
+                loading="eager"
+              />
+            )}
+            {!titleShown && (
+              <div>
+                <p className="eyebrow">
+                  {t(language, "ShowPlayer.lessonShow2")}
+                </p>
+                <h2>{lesson.title[language]}</h2>
+                <p className="lead-small">{lesson.intro[language]}</p>
+              </div>
+            )}
+          </div>
+        )}
+        {slide.kind === "claim" && (
+          <blockquote className="show-claim">
+            <p className="eyebrow">{t(language, "ShowPlayer.theClaim")}</p>
+            <p>{e.claim}</p>
+          </blockquote>
+        )}
+        {slide.kind === "experiment" && (
+          <div className="show-experiment">
+            <ExperimentView
+              experiment={e}
+              progress={progress}
+              language={language}
+              interactive={false}
+              onScrub={() => {}}
+            />
+            <p className="experiment-caption">{e.caption(progress)}</p>
+          </div>
+        )}
+        {slide.kind === "evidence" && (
+          <div className="show-evidence">
+            <p className="eyebrow">
+              {t(language, "ShowPlayer.calculatedEvidence")}
+            </p>
+            <p>{e.result}</p>
+            {e.metrics.length > 0 && (
+              <dl>
+                {e.metrics.map((m) => (
+                  <div key={m.label}>
+                    <dt>{m.label}</dt>
+                    <dd>
+                      {fmt(m.value)} {m.unit}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+        )}
+        {slide.kind === "transfer" && (
+          <div className="show-transfer">
+            <p className="eyebrow">{t(language, "ShowPlayer.aFreshCase")}</p>
+            <p className="pre-line">{e.transfer.question}</p>
+            {e.transfer.choices?.map((choice, i) => (
+              <p key={i} className="show-choice">
+                {i + 1}. {choice}
+              </p>
+            ))}
+          </div>
+        )}
+        {slide.kind === "takeaway" && (
+          <div className="show-takeaway">
+            <p className="eyebrow">{t(language, "ShowPlayer.takeaway")}</p>
+            <p>{chapter.explanation[language]}</p>
+          </div>
+        )}
+        {illustration && (
+          <figure className="show-illustration">
+            <img src={illustration} alt="" width={768} height={512} />
+          </figure>
+        )}
+      </div>
+      <div className="show-caption">
+        <p className="eyebrow">{slide.heading[language]}</p>
+        <p className="show-narration" aria-live="polite">
+          {narration}
+        </p>
       </div>
       {onIllustrate && (
         <div className="show-tools">

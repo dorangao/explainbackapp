@@ -1,5 +1,5 @@
 // The evaluation card is rendered inside the app from docs/evaluation.md; showcase lessons
-// and comparisons link to that page. The published folder is where its sibling reports live.
+// and comparisons link to that page. Dated run reports are kept in the private repository.
 export const EVALUATION_CARD_HASH = "#evaluation";
 export const REPO_URL = "https://github.com/dorangao/explainbackapp";
 export const EVALUATION_DOCS_URL =

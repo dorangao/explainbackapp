@@ -128,7 +128,7 @@ describe("Compare two models in Studio", () => {
     fireEvent.change(judgePick, { target: { value: "meta:muse-wonder-1.0" } });
     fireEvent.click(screen.getByRole("button", { name: /Compare two models/ }));
     expect(
-      await screen.findByRole("heading", { name: "Why does coffee cool?" }),
+      await screen.findByRole("heading", { name: "Compare the two models" }),
     ).toBeTruthy();
     expect(
       posted.filter((p) => p.path === "/api/studio/compare").map((p) => p.body),
@@ -140,13 +140,13 @@ describe("Compare two models in Studio", () => {
       },
     ]);
     const comparison = screen.getByRole("region", {
-      name: "Why does coffee cool?",
+      name: "Compare the two models",
     });
     expect(comparison.querySelectorAll(".compare-column").length).toBe(2);
-    expect(screen.getByText("Rubric judge · 10/10")).toBeTruthy();
-    expect(screen.getByText("Rubric judge · 8/10")).toBeTruthy();
+    expect(screen.getByText("AI wording rubric · 10/10")).toBeTruthy();
+    expect(screen.getByText("AI wording rubric · 8/10")).toBeTruthy();
     expect(screen.getByText("A stage title mixes languages.")).toBeTruthy();
-    expect(screen.getAllByText("Passed the app's checks").length).toBe(2);
+    expect(screen.getAllByText("Passed the app's checks").length).toBe(4);
     // Choosing Spark's draft opens the normal review flow with that lesson.
     const [, useSpark] = screen.getAllByRole("button", {
       name: /Review this draft/,
@@ -201,9 +201,9 @@ describe("Compare two models in Studio", () => {
       target: { value: "预测股价" },
     });
     fireEvent.click(screen.getByRole("button", { name: /比较两个模型/ }));
-    expect(await screen.findByText("拒绝了请求")).toBeTruthy();
+    expect(await screen.findAllByText("拒绝了请求")).toHaveLength(2);
     expect(screen.getByText("不是有界模型。")).toBeTruthy();
-    expect(screen.getByText("被校验器拒绝")).toBeTruthy();
+    expect(screen.getAllByText("被校验器拒绝")).toHaveLength(2);
     expect(screen.getByText("Possible division by zero.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /审阅这份草稿/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "放弃比较" }));

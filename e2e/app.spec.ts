@@ -123,10 +123,10 @@ test("process lesson completes locally and changing a model input resets the pre
   const choices = page.locator(".choice-list button");
   for (let i = 0; i < (await choices.count()); i++) {
     await choices.nth(i).click();
-    if (await page.getByRole("button", { name: /Next chapter/ }).isEnabled())
+    if (await page.getByRole("button", { name: /Finish lesson/ }).isEnabled())
       break;
   }
-  await page.getByRole("button", { name: /Next chapter/ }).click();
+  await page.getByRole("button", { name: /Finish lesson/ }).click();
   await expect(
     page.getByRole("heading", { name: "A clearer explanation." }),
   ).toBeVisible();
@@ -428,14 +428,22 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
     .first()
     .click();
   await expect(
-    page.getByRole("heading", { name: /Why does a bacterial population/ }),
+    page.getByRole("heading", { name: "Compare the two models", exact: true }),
   ).toBeVisible();
   // The hidden library keeps its cards in the DOM, so look inside the comparison only.
   const comparison = page.locator(".comparison");
   await expect(comparison.locator(".compare-column")).toHaveCount(2);
-  await expect(comparison.getByText("Muse Wonder")).toBeVisible();
-  await expect(comparison.getByText("Muse Spark")).toBeVisible();
-  await expect(comparison.getByText("Rubric judge · 7/10")).toBeVisible();
+  await expect(
+    comparison.getByRole("rowheader", { name: "Muse Wonder" }),
+  ).toBeVisible();
+  await expect(
+    comparison.getByRole("rowheader", { name: "Muse Spark" }),
+  ).toBeVisible();
+  await comparison
+    .getByText("Lesson and rubric details", { exact: true })
+    .nth(1)
+    .click();
+  await expect(comparison.getByText("AI wording rubric · 7/10")).toBeVisible();
   await comparison
     .getByRole("link", { name: /Open lesson: Why Bacterial Growth Slows/ })
     .click();
@@ -454,10 +462,10 @@ test("evaluation showcase lessons open unedited with their provenance, and two m
     card.getByRole("heading", { level: 1, name: "Evaluation card" }),
   ).toBeVisible();
   await expect(
-    card.getByRole("heading", { name: "What these numbers do not establish" }),
+    card.getByRole("heading", { name: "What these checks do not establish" }),
   ).toBeVisible();
   await expect(
-    card.getByRole("cell", { name: "muse-wonder-1.0" }).first(),
+    card.getByRole("cell", { name: "studio-breadth-v1", exact: true }),
   ).toBeVisible();
   await expect(
     card.getByRole("link", { name: "Source on GitHub" }),

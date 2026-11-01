@@ -99,12 +99,12 @@ export const messages = {
     zh: "每节课都经过预测、实验、解释和迁移四步。学习者的答案由代码判定；模型只对表述给出评语。",
   },
   "About.whatHasBeenMeasured": {
-    en: "What has been measured",
-    zh: "已测量的内容",
+    en: "How evaluation works",
+    zh: "评估如何进行",
   },
   "About.measuredBody": {
-    en: "Frozen suites with checksums, one attempt per case, deterministic checks kept apart from a rubric judge. The evaluation card states the numbers and what they do not establish.",
-    zh: "带校验和的冻结测试集、每例一次尝试、与评分模型分开的确定性检查。评估卡列出了数字，以及它们不能说明的事。",
+    en: "Frozen suites with checksums, one attempt per case, deterministic checks kept apart from a rubric judge. The evaluation card explains the methods and their limits.",
+    zh: "带校验和的冻结测试集、每例一次尝试、与评分模型分开的确定性检查。评估卡说明方法及其局限。",
   },
   "About.limitsAndPrivacy": { en: "Limits and privacy", zh: "限制与隐私" },
   "About.limit1": {
@@ -421,6 +421,19 @@ export const messages = {
     en: "Muse is working…",
     zh: "Muse 正在处理…",
   },
+  "LessonPlayer.finishLesson": { en: "Finish lesson →", zh: "完成课程 →" },
+  "LessonPlayer.previousExperiment": {
+    en: "Earlier experiment · reference",
+    zh: "之前的实验 · 参考",
+  },
+  "LessonPlayer.previousExperimentNote": {
+    en: "This result uses the earlier settings, not the fresh case above. Replay the experiment to change those settings.",
+    zh: "这个结果使用之前的设置，并非上方新情境的结果。重播实验后可修改之前的设置。",
+  },
+  "LessonPlayer.aboutThisModel": {
+    en: "Units & assumptions",
+    zh: "单位与假设",
+  },
   "LessonPlayer.nextChapter": { en: "Next chapter →", zh: "下一章 →" },
   "LessonPlayer.notSure": { en: "Not sure", zh: "不确定" },
   "LessonPlayer.notYetSupported": {
@@ -716,7 +729,7 @@ export const messages = {
     zh: "解释浏览器如何通过缓存加载网页。",
   },
   "Studio.exploreAnIdeaSeeWhat": {
-    en: "Explore an idea, see what changes, and explain it back. Interactive lessons in English and Chinese.",
+    en: "Predict, test, and explain an idea in English or Chinese.",
     zh: "探索一个想法，观察变化，再用自己的话讲出来。中英文互动课程，从好奇开始。",
   },
   "Studio.exploreTheLibrary": { en: "Explore the library", zh: "探索课程库" },
@@ -1198,8 +1211,8 @@ export const messages = {
   "Gallery.evaluationCard": { en: "Evaluation card", zh: "评估卡" },
   "Evaluation.eyebrow": { en: "EVALUATION CARD", zh: "评估卡" },
   "Evaluation.note": {
-    en: "The same card as docs/evaluation.md in the repository, rendered here from that file when the app is built. The full per-case reports it links to stay on GitHub.",
-    zh: "与仓库中 docs/evaluation.md 相同的评估卡，在构建应用时由该文件渲染；正文为英文。它链接的完整逐例报告仍在 GitHub 上。",
+    en: "How the frozen suites and AI wording rubric work, rendered from the public evaluation documentation.",
+    zh: "冻结测试集与 AI 表述评分的工作方式，由公开的评估文档渲染；正文为英文。",
   },
   "Evaluation.source": { en: "Source on GitHub", zh: "GitHub 上的源文件" },
   "Gallery.theLearnerAsked": { en: "The learner asked:", zh: "学习者提问：" },
@@ -1207,7 +1220,16 @@ export const messages = {
     en: "Compare the two models",
     zh: "比较两个模型",
   },
-  "Gallery.judge": { en: "Judge", zh: "评分" },
+  "Gallery.judge": { en: "AI wording rubric", zh: "AI 表述评分" },
+  "Gallery.humanReviewRequired": {
+    en: "Human science review required",
+    zh: "科学内容仍需人工审阅",
+  },
+  "Compare.wordingRubric": { en: "AI wording rubric", zh: "AI 表述评分" },
+  "Compare.overview": { en: "At a glance", zh: "对比概览" },
+  "Compare.model": { en: "Model", zh: "模型" },
+  "Compare.checks": { en: "App checks", zh: "应用检查" },
+  "Compare.details": { en: "Lesson and rubric details", zh: "课程与评分详情" },
   "Gallery.noIssuesRaised": { en: "no issues raised", zh: "未提出问题" },
   "Gallery.issuesRaised": { en: "issues raised", zh: "个问题" },
   "Compare.sameQuestionTwoModels": {
@@ -1215,8 +1237,8 @@ export const messages = {
     zh: "同一问题，两个模型",
   },
   "Compare.note": {
-    en: "Both replies came from one frozen evaluation case, one attempt each, unedited. Code checked every number; the judge scored only the wording.",
-    zh: "两份回答来自同一个冻结评估用例，各一次尝试，未经编辑。数字由代码检查；评分模型只评价表述。",
+    en: "Both replies came from one frozen evaluation case, one attempt each, unedited. Code checked the lesson contract and computed its numbers; an AI rubric judged the wording. Human science review is still required.",
+    zh: "两份回答来自同一个冻结评估用例，各一次尝试，未经编辑。代码检查课程结构并计算数值；AI 只评价表述。科学内容仍需人工审阅。",
   },
   "Compare.footnote": {
     en: "One sample each, on one day, with one prompt version: an observation about these two replies, not a ranking of the models.",

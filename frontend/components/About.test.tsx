@@ -21,7 +21,7 @@ describe("About page and the shared page header", () => {
     );
     for (const name of [
       "How it works",
-      "What has been measured",
+      "How evaluation works",
       "Limits and privacy",
       "Source",
     ])

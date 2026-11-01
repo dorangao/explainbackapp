@@ -151,115 +151,123 @@ export function ModelColumn({
       {item.lesson && (
         <p className="compare-intro">{item.lesson.intro[language]}</p>
       )}
-      {demo && (
-        <>
-          <h4>{t(language, "Compare.claim")}</h4>
-          <p>{demo.claim[language]}</p>
-          {demo.kind === "model" ? (
-            <>
-              <h4>{t(language, "Compare.inputs")}</h4>
-              <ul className="compare-list">
-                {demo.inputs.map((input) => (
-                  <li key={input.id}>
-                    {input.label[language]}
-                    <span className="fine">
-                      {" "}
-                      {input.min}–{input.max} {input.unit}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <h4>{t(language, "Compare.outputs")}</h4>
-              <ul className="compare-list">
-                {demo.outputs.map((output) => (
-                  <li key={output.id}>
-                    {output.label[language]}
-                    {output.unit && output.unit !== "1" && (
-                      <span className="fine"> ({output.unit})</span>
-                    )}
-                    <code className="compare-expression">
-                      {output.expression}
-                    </code>
-                  </li>
-                ))}
-              </ul>
-              <p className="fine">
-                {t(language, "Compare.axis")}: {demo.axis.label[language]}{" "}
-                {demo.axis.min}–{demo.axis.max} {demo.axis.unit}
-              </p>
-            </>
-          ) : (
-            <>
-              <h4>
-                {t(language, "Compare.stages")} ({demo.stages.length})
-              </h4>
-              <ol className="compare-list">
-                {demo.stages.map((stage, index) => (
-                  <li key={index}>{stage.title[language]}</li>
-                ))}
-              </ol>
-            </>
-          )}
-          <h4>{t(language, "Compare.transferQuestion")}</h4>
-          <p>{demo.transfer.question[language]}</p>
-        </>
+      {item.lesson && (
+        <p className="lesson-review-note fine">
+          {t(language, "Gallery.humanReviewRequired")}
+        </p>
       )}
-      {judge ? (
-        <div className="compare-judge">
-          <h4>
-            {t(language, "Compare.judge")} · {judge.total}/{judge.max}
-          </h4>
-          <dl className="compare-scores">
-            {RUBRIC_ITEMS.map((key) => (
-              <div key={key}>
-                <dt>{t(language, rubricKey[key])}</dt>
-                <dd aria-label={`${judge.scores[key] ?? 0} / 2`}>
-                  <span
-                    className={`score-dots score-${judge.scores[key] ?? 0}`}
-                    aria-hidden="true"
-                  />
-                  {judge.scores[key] ?? 0}/2
-                </dd>
-              </div>
-            ))}
-          </dl>
-          {judge.issues.length > 0 ? (
-            <>
-              <h5>{t(language, "Compare.issuesTheJudgeRaised")}</h5>
-              <ul className="compare-issues">
-                {judge.issues.map((issue, index) => (
-                  <li key={index}>{issue}</li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p className="fine">{t(language, "Gallery.noIssuesRaised")}</p>
-          )}
-          <p className="fine compare-judge-summary">{judge.summary}</p>
-        </div>
-      ) : (
-        item.status === "ready" && (
+      <details className="compare-details">
+        <summary>{t(language, "Compare.details")}</summary>
+        {demo && (
+          <>
+            <h4>{t(language, "Compare.claim")}</h4>
+            <p>{demo.claim[language]}</p>
+            {demo.kind === "model" ? (
+              <>
+                <h4>{t(language, "Compare.inputs")}</h4>
+                <ul className="compare-list">
+                  {demo.inputs.map((input) => (
+                    <li key={input.id}>
+                      {input.label[language]}
+                      <span className="fine">
+                        {" "}
+                        {input.min}–{input.max} {input.unit}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <h4>{t(language, "Compare.outputs")}</h4>
+                <ul className="compare-list">
+                  {demo.outputs.map((output) => (
+                    <li key={output.id}>
+                      {output.label[language]}
+                      {output.unit && output.unit !== "1" && (
+                        <span className="fine"> ({output.unit})</span>
+                      )}
+                      <code className="compare-expression">
+                        {output.expression}
+                      </code>
+                    </li>
+                  ))}
+                </ul>
+                <p className="fine">
+                  {t(language, "Compare.axis")}: {demo.axis.label[language]}{" "}
+                  {demo.axis.min}–{demo.axis.max} {demo.axis.unit}
+                </p>
+              </>
+            ) : (
+              <>
+                <h4>
+                  {t(language, "Compare.stages")} ({demo.stages.length})
+                </h4>
+                <ol className="compare-list">
+                  {demo.stages.map((stage, index) => (
+                    <li key={index}>{stage.title[language]}</li>
+                  ))}
+                </ol>
+              </>
+            )}
+            <h4>{t(language, "Compare.transferQuestion")}</h4>
+            <p>{demo.transfer.question[language]}</p>
+          </>
+        )}
+        {judge ? (
           <div className="compare-judge">
-            <h4>{t(language, "Compare.judge")}</h4>
-            <p className="fine">
-              {t(language, "Compare.judgeSkipped")}
-              {item.judgeSkipped ? ` (${item.judgeSkipped})` : ""}
-            </p>
+            <h4>
+              {t(language, "Compare.wordingRubric")} · {judge.total}/{judge.max}
+            </h4>
+            <dl className="compare-scores">
+              {RUBRIC_ITEMS.map((key) => (
+                <div key={key}>
+                  <dt>{t(language, rubricKey[key])}</dt>
+                  <dd aria-label={`${judge.scores[key] ?? 0} / 2`}>
+                    <span
+                      className={`score-dots score-${judge.scores[key] ?? 0}`}
+                      aria-hidden="true"
+                    />
+                    {judge.scores[key] ?? 0}/2
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {judge.issues.length > 0 ? (
+              <>
+                <h5>{t(language, "Compare.issuesTheJudgeRaised")}</h5>
+                <ul className="compare-issues">
+                  {judge.issues.map((issue, index) => (
+                    <li key={index}>{issue}</li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="fine">{t(language, "Gallery.noIssuesRaised")}</p>
+            )}
+            <p className="fine compare-judge-summary">{judge.summary}</p>
           </div>
-        )
-      )}
-      <p className="fine compare-cost">
-        {t(language, "Compare.latency")} {seconds(item.latencyMs)}
-        {item.tokens &&
-          item.tokens.input !== null &&
-          item.tokens.output !== null && (
-            <>
-              {" · "}
-              {t(language, "Compare.tokens")} {item.tokens.input}/
-              {item.tokens.output}
-            </>
-          )}
-      </p>
+        ) : (
+          item.status === "ready" && (
+            <div className="compare-judge">
+              <h4>{t(language, "Compare.wordingRubric")}</h4>
+              <p className="fine">
+                {t(language, "Compare.judgeSkipped")}
+                {item.judgeSkipped ? ` (${item.judgeSkipped})` : ""}
+              </p>
+            </div>
+          )
+        )}
+        <p className="fine compare-cost">
+          {t(language, "Compare.latency")} {seconds(item.latencyMs)}
+          {item.tokens &&
+            item.tokens.input !== null &&
+            item.tokens.output !== null && (
+              <>
+                {" · "}
+                {t(language, "Compare.tokens")} {item.tokens.input}/
+                {item.tokens.output}
+              </>
+            )}
+        </p>
+      </details>
       {openHref && item.lesson && (
         <a
           className="lesson-link"
@@ -280,6 +288,44 @@ export function ModelColumn({
   );
 }
 
+function ComparisonOverview({
+  items,
+  language,
+}: {
+  items: CompareColumnItem[];
+  language: Language;
+}) {
+  return (
+    <div className="compare-overview">
+      <table>
+        <caption>{t(language, "Compare.overview")}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t(language, "Compare.model")}</th>
+            <th scope="col">{t(language, "Compare.checks")}</th>
+            <th scope="col">{t(language, "Compare.wordingRubric")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <th scope="row">{evaluationModelLabel(item.model)}</th>
+              <td>
+                <StatusBadge language={language} item={item} />
+              </td>
+              <td>
+                {item.judge
+                  ? `${item.judge.total}/${item.judge.max}`
+                  : t(language, "Compare.judgeSkipped")}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // The frozen showcase: both models' replies to one evaluation case.
 export function Comparison({
   caseId,
@@ -297,6 +343,7 @@ export function Comparison({
   const headingId = useId();
   if (!comparison || items.length !== 2) return null;
   const [first] = items;
+  const columns = items.map((item) => columnFromEvaluation(item, language));
   return (
     <section className="comparison" aria-labelledby={headingId}>
       <PageHeader
@@ -306,7 +353,7 @@ export function Comparison({
           { label: t(language, "Gallery.compareTheTwoModels") },
         ]}
         eyebrow={t(language, "Compare.sameQuestionTwoModels")}
-        title={first.question[language]}
+        title={t(language, "Gallery.compareTheTwoModels")}
         titleId={headingId}
         meta={
           <>
@@ -317,12 +364,14 @@ export function Comparison({
           </>
         }
       />
+      <p className="comparison-question">{first.question[language]}</p>
+      <ComparisonOverview items={columns} language={language} />
       <div className="compare-grid">
-        {items.map((item) => (
+        {items.map((item, index) => (
           <ModelColumn
             key={item.id}
             language={language}
-            item={columnFromEvaluation(item, language)}
+            item={columns[index]}
             openHref={`#lesson:${item.id}`}
           />
         ))}
@@ -353,11 +402,11 @@ export function LiveComparison({
       <div className="section-title">
         <div>
           <p className="eyebrow">{t(language, "Compare.liveEyebrow")}</p>
-          <h2 id={headingId}>{reply.question}</h2>
+          <h2 id={headingId}>{t(language, "Gallery.compareTheTwoModels")}</h2>
           <p className="fine">
             {t(language, "Compare.liveNote")}
             {reply.judge
-              ? ` ${t(language, "Compare.judge")}: ${reply.judge}.`
+              ? ` ${t(language, "Compare.wordingRubric")}: ${reply.judge}.`
               : ""}
           </p>
         </div>
@@ -370,6 +419,11 @@ export function LiveComparison({
           {t(language, "Compare.discard")}
         </button>
       </div>
+      <p className="comparison-question">{reply.question}</p>
+      <ComparisonOverview
+        items={reply.replies.map(columnFromDraft)}
+        language={language}
+      />
       <div className="compare-grid">
         {reply.replies.map((draft, index) => (
           <ModelColumn

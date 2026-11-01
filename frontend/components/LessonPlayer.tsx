@@ -342,7 +342,9 @@ export function LessonPlayer({
           ? t(language, "LessonPlayer.explainTheResult")
           : state.stage === "explain"
             ? t(language, "LessonPlayer.tryAFreshCase2")
-            : t(language, "LessonPlayer.nextChapter");
+            : state.chapter === player.lesson.chapters.length - 1
+              ? t(language, "LessonPlayer.finishLesson")
+              : t(language, "LessonPlayer.nextChapter");
   const nextRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (!visible) return;
@@ -484,7 +486,7 @@ export function LessonPlayer({
           <h3 ref={heading} tabIndex={-1}>
             {stages[state.stage]}
           </h3>
-          {state.stage !== "complete" && (
+          {!["transfer", "complete"].includes(state.stage) && (
             <blockquote className="claim">
               <span className="eyebrow">
                 {t(language, "LessonPlayer.theClaim")}
@@ -522,7 +524,7 @@ export function LessonPlayer({
               </div>
             </>
           )}
-          {!["predict", "complete"].includes(state.stage) && (
+          {["experiment", "explain"].includes(state.stage) && (
             <div className="experiment-surface">
               <ExperimentView
                 experiment={e}
@@ -884,6 +886,24 @@ export function LessonPlayer({
               </p>
             </section>
           )}
+          {state.stage === "transfer" && (
+            <details className="previous-experiment">
+              <summary>
+                {t(language, "LessonPlayer.previousExperiment")}
+              </summary>
+              <p className="fine">
+                {t(language, "LessonPlayer.previousExperimentNote")}
+              </p>
+              <ExperimentView
+                experiment={e}
+                progress={1}
+                language={language}
+                interactive={false}
+                onScrub={() => {}}
+              />
+              <p className="experiment-caption">{e.caption(1)}</p>
+            </details>
+          )}
           {state.stage === "complete" && (
             <div className="completion">
               <span className="completion-mark" aria-hidden="true">
@@ -922,161 +942,172 @@ export function LessonPlayer({
             )}
           </div>
         </div>
-        <aside className="player-inspector">
-          <p className="eyebrow">
-            {t(language, "LessonPlayer.yourExperiment")}
-          </p>
-          {state.prediction && (
-            <p className="fine">
-              {t(language, "LessonPlayer.yourPrediction")}
-              {
-                {
-                  agree: t(language, "LessonPlayer.agree"),
-                  disagree: t(language, "LessonPlayer.disagree"),
-                  unsure: t(language, "LessonPlayer.notSure"),
-                }[state.prediction]
-              }
+        {state.stage !== "complete" && (
+          <aside className="player-inspector">
+            <p className="eyebrow">
+              {t(
+                language,
+                state.stage === "transfer"
+                  ? "LessonPlayer.aboutThisModel"
+                  : "LessonPlayer.yourExperiment",
+              )}
             </p>
-          )}
-          {!e.generated && (
-            <label>
-              {t(language, "LessonPlayer.compareAPresetResetsThis")}
-              <select
-                value={state.variant}
-                onChange={(event) =>
-                  act(() => player.variant(Number(event.target.value)))
-                }
-                disabled={busy}
-              >
-                {e.variants.map((v, i) => (
-                  <option key={i} value={i}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {presented.convertible && (
-            <div
-              className="unit-toggle"
-              role="group"
-              aria-label={t(language, "LessonPlayer.units")}
-            >
-              <span>{t(language, "LessonPlayer.units")}</span>
-              {(["metric", "us"] as const).map((system) => (
-                <button
-                  key={system}
-                  type="button"
-                  className="secondary"
-                  aria-pressed={units === system}
-                  disabled={busy}
-                  onClick={() => {
-                    setUnits(system);
-                    rememberUnitSystem(system);
-                  }}
-                >
-                  {t(
-                    language,
-                    system === "metric"
-                      ? "LessonPlayer.unitsMetric"
-                      : "LessonPlayer.unitsUs",
-                  )}
-                </button>
-              ))}
-              <small>{t(language, "LessonPlayer.unitsNote")}</small>
-            </div>
-          )}
-          {e.inputs?.map((input) => {
-            // The slider works on the authored grid; the number field shows display units.
-            const raw = base.inputs?.find((p) => p.id === input.id) ?? input;
-            const converted = raw.unit !== input.unit;
-            return (
-              <div className="parameter" key={input.id}>
-                <label htmlFor={`${formId}-parameter-${input.id}`}>
-                  {input.label} <span>({input.unit})</span>
-                </label>
-                <input
-                  id={`${formId}-parameter-${input.id}`}
-                  type="number"
-                  min={input.min}
-                  max={input.max}
-                  step={converted ? "any" : input.step}
-                  key={`${input.id}-${input.value}`}
-                  defaultValue={input.value}
-                  disabled={busy}
-                  onBlur={(event) => {
-                    const value = event.target.value;
-                    if (value !== "" && event.target.validity.valid) {
-                      if (
-                        Number(value) !== input.value &&
-                        !setInput(
-                          input.id,
-                          presented.toBaseInput(input.id, Number(value)),
-                        )
-                      )
-                        event.target.value = String(input.value);
-                    } else {
-                      event.target.value = String(input.value);
-                      setNotice(t(language, "LessonPlayer.useAValueWithinThe"));
-                    }
-                  }}
-                />
-                <input
-                  type="range"
-                  aria-label={`${input.label} slider`}
-                  min={raw.min}
-                  max={raw.max}
-                  step={raw.step}
-                  value={raw.value}
-                  disabled={busy}
-                  onChange={(event) =>
-                    setInput(input.id, Number(event.target.value))
-                  }
-                />
-                <small>
-                  {input.min} → {input.max} ·{" "}
-                  {t(language, "LessonPlayer.changesResetYourPrediction")}
-                </small>
-              </div>
-            );
-          })}
-          {(e.formulas?.length ?? 0) > 1 && (
-            <label>
-              {t(language, "LessonPlayer.graphOutput")}
-              <select
-                value={state.metric}
-                disabled={busy}
-                onChange={(event) => {
-                  player.output(Number(event.target.value));
-                  update();
-                }}
-              >
-                {e.formulas?.map((f, i) => (
-                  <option key={f.id} value={i}>
-                    {f.label} ({f.unit})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <details className="assumptions" open>
-            <summary>{t(language, "LessonPlayer.assumptionsLimits")}</summary>
-            <p>{e.assumptions}</p>
-            {e.generated && (
+            {state.prediction && state.stage !== "transfer" && (
               <p className="fine">
-                {say(
-                  language,
-                  e.kind === "process"
-                    ? "Authored steps and answers; not independently verified."
-                    : "Calculations follow reviewed formulas. Scientific assumptions and units still need review.",
-                  e.kind === "process"
-                    ? "步骤与答案来自创作，未经独立验证。"
-                    : "按已审阅公式计算，科学假设与单位仍需审阅。",
-                )}
+                {t(language, "LessonPlayer.yourPrediction")}
+                {
+                  {
+                    agree: t(language, "LessonPlayer.agree"),
+                    disagree: t(language, "LessonPlayer.disagree"),
+                    unsure: t(language, "LessonPlayer.notSure"),
+                  }[state.prediction]
+                }
               </p>
             )}
-          </details>
-        </aside>
+            {!e.generated && state.stage !== "transfer" && (
+              <label>
+                {t(language, "LessonPlayer.compareAPresetResetsThis")}
+                <select
+                  value={state.variant}
+                  onChange={(event) =>
+                    act(() => player.variant(Number(event.target.value)))
+                  }
+                  disabled={busy}
+                >
+                  {e.variants.map((v, i) => (
+                    <option key={i} value={i}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {presented.convertible && (
+              <div
+                className="unit-toggle"
+                role="group"
+                aria-label={t(language, "LessonPlayer.units")}
+              >
+                <span>{t(language, "LessonPlayer.units")}</span>
+                {(["metric", "us"] as const).map((system) => (
+                  <button
+                    key={system}
+                    type="button"
+                    className="secondary"
+                    aria-pressed={units === system}
+                    disabled={busy}
+                    onClick={() => {
+                      setUnits(system);
+                      rememberUnitSystem(system);
+                    }}
+                  >
+                    {t(
+                      language,
+                      system === "metric"
+                        ? "LessonPlayer.unitsMetric"
+                        : "LessonPlayer.unitsUs",
+                    )}
+                  </button>
+                ))}
+                <small>{t(language, "LessonPlayer.unitsNote")}</small>
+              </div>
+            )}
+            {state.stage !== "transfer" &&
+              e.inputs?.map((input) => {
+                // The slider works on the authored grid; the number field shows display units.
+                const raw =
+                  base.inputs?.find((p) => p.id === input.id) ?? input;
+                const converted = raw.unit !== input.unit;
+                return (
+                  <div className="parameter" key={input.id}>
+                    <label htmlFor={`${formId}-parameter-${input.id}`}>
+                      {input.label} <span>({input.unit})</span>
+                    </label>
+                    <input
+                      id={`${formId}-parameter-${input.id}`}
+                      type="number"
+                      min={input.min}
+                      max={input.max}
+                      step={converted ? "any" : input.step}
+                      key={`${input.id}-${input.value}`}
+                      defaultValue={input.value}
+                      disabled={busy}
+                      onBlur={(event) => {
+                        const value = event.target.value;
+                        if (value !== "" && event.target.validity.valid) {
+                          if (
+                            Number(value) !== input.value &&
+                            !setInput(
+                              input.id,
+                              presented.toBaseInput(input.id, Number(value)),
+                            )
+                          )
+                            event.target.value = String(input.value);
+                        } else {
+                          event.target.value = String(input.value);
+                          setNotice(
+                            t(language, "LessonPlayer.useAValueWithinThe"),
+                          );
+                        }
+                      }}
+                    />
+                    <input
+                      type="range"
+                      aria-label={`${input.label} slider`}
+                      min={raw.min}
+                      max={raw.max}
+                      step={raw.step}
+                      value={raw.value}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setInput(input.id, Number(event.target.value))
+                      }
+                    />
+                    <small>
+                      {input.min} → {input.max} ·{" "}
+                      {t(language, "LessonPlayer.changesResetYourPrediction")}
+                    </small>
+                  </div>
+                );
+              })}
+            {state.stage !== "transfer" && (e.formulas?.length ?? 0) > 1 && (
+              <label>
+                {t(language, "LessonPlayer.graphOutput")}
+                <select
+                  value={state.metric}
+                  disabled={busy}
+                  onChange={(event) => {
+                    player.output(Number(event.target.value));
+                    update();
+                  }}
+                >
+                  {e.formulas?.map((f, i) => (
+                    <option key={f.id} value={i}>
+                      {f.label} ({f.unit})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <details className="assumptions" open>
+              <summary>{t(language, "LessonPlayer.assumptionsLimits")}</summary>
+              <p>{e.assumptions}</p>
+              {e.generated && (
+                <p className="fine">
+                  {say(
+                    language,
+                    e.kind === "process"
+                      ? "Authored steps and answers; not independently verified."
+                      : "Calculations follow reviewed formulas. Scientific assumptions and units still need review.",
+                    e.kind === "process"
+                      ? "步骤与答案来自创作，未经独立验证。"
+                      : "按已审阅公式计算，科学假设与单位仍需审阅。",
+                  )}
+                </p>
+              )}
+            </details>
+          </aside>
+        )}
       </div>
     </section>
   );

@@ -1,7 +1,7 @@
 .env
 .env.*
 !.env.example
-node_modules/
+node_modules
 .vercel/
 dist/
 .DS_Store
@@ -21,6 +21,8 @@ output/
 *.log
 docs/local-evaluation.json
 docs/claim-smoke-results.json
+# Reviewed run reports belong in the private repository, not in the public docs.
+docs/evaluation/
 
 # Downloaded reference documents; authored notes and baseline source stay tracked
 docs/*.pdf
