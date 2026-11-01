@@ -575,6 +575,89 @@ describe("Creator and test learner roles", () => {
       (screen.getByLabelText(/Creator model/) as HTMLSelectElement).value,
     ).toBe("meta:wonder");
   });
+  it("creates the session with the creator model when Search first runs the tester model first", async () => {
+    const wonder = {
+      id: "meta:wonder",
+      label: "Meta · wonder",
+      provider: "meta",
+      model: "wonder",
+      configured: true,
+      timeoutMs: 100,
+    };
+    const posted: { path: string; body: Record<string, unknown> }[] = [];
+    const post: Post = async (path, body) => {
+      posted.push({ path, body: body as Record<string, unknown> });
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/ground")
+        return {
+          status: "ready",
+          asOf: "2026-10-31",
+          needsCurrent: false,
+          facts: [
+            {
+              statement: "Water boils at 100 °C at sea level.",
+              value: 100,
+              unit: "°C",
+              url: "https://example.org/boiling-point",
+              title: "Boiling point reference",
+            },
+          ],
+          sources: [],
+          note: { en: "", zh: "" },
+          searched: 1,
+          attemptsRemaining: 7,
+          model: "test",
+        } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 6,
+          model: "wonder",
+          elapsedMs: 900,
+          usage: null,
+        } as never;
+      return { records: [] } as never;
+    };
+    mount(
+      {
+        authenticated: true,
+        view: "create",
+        status: {
+          ...status,
+          models: [...status.models, wonder],
+          roles: { creator: "meta:wonder", tester: "meta:test" },
+        },
+      },
+      post,
+    );
+    expect(
+      (screen.getByLabelText(/Creator model/) as HTMLSelectElement).value,
+    ).toBe("meta:wonder");
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Boiling water" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Search first/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(posted.map((p) => p.path)).toEqual([
+      "/api/studio/session",
+      "/api/studio/ground",
+      "/api/studio/compose",
+    ]);
+    // The ground step ran first on the tester model, yet the session is the creator's.
+    expect(posted[0].body.llm).toBe("meta:wonder");
+    expect(posted[1].body.sessionId).toBe("s1");
+    expect(posted[2].body.sessionId).toBe("s1");
+    expect(
+      (posted[2].body.references as { facts: unknown[] }).facts,
+    ).toHaveLength(1);
+    await waitFor(() =>
+      expect(document.body.textContent).toMatch(/wonder drafted this lesson/),
+    );
+  });
   it("lets the test learner try a draft, shows checked answers and feeds suggestions into a revision", async () => {
     const bodies: Record<string, unknown>[] = [];
     const post: Post = async (path, body) => {

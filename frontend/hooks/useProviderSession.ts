@@ -25,18 +25,25 @@ export type RequestMetrics = {
   at: number;
 };
 
-// One provider session per Studio mount: creates it lazily, pins the chosen model,
-// invalidates pending replies (language change, model change, unmount) and keeps the
-// attempt budget. Replies that arrive after an invalidation are discarded.
+// One provider session per Studio mount: creates it lazily, pins the creator's chosen
+// model, invalidates pending replies (language change, model change, unmount) and keeps
+// the attempt budget. Replies that arrive after an invalidation are discarded.
 export function useProviderSession({
   post,
   language,
+  sessionTarget,
   onBusy,
   onInvalidate,
   onSettled,
 }: {
   post: Post;
   language: Language;
+  // The model the session is created with: the creator's selection, which the server
+  // uses for compose, revise and show. Each request still names its own target (the
+  // tester role for ground, guide and tryout) for its timeout; the server picks the
+  // tester model for those routes by mode, not by session. Without it, a session whose
+  // first request was a tester call would draft with the tester model.
+  sessionTarget?: Target | null;
   onBusy: (busy: boolean) => void;
   onInvalidate?: () => void;
   // Called after every request settles, success or failure, so the caller can refresh
@@ -55,14 +62,16 @@ export function useProviderSession({
     alive = useRef(true),
     busyRef = useRef(false),
     postRef = useRef(post),
+    sessionTargetRef = useRef(sessionTarget),
     languageRef = useRef(language),
     onInvalidateRef = useRef(onInvalidate),
     settledRef = useRef(onSettled);
   useEffect(() => {
     postRef.current = post;
+    sessionTargetRef.current = sessionTarget;
     onInvalidateRef.current = onInvalidate;
     settledRef.current = onSettled;
-  }, [post, onInvalidate, onSettled]);
+  }, [post, sessionTarget, onInvalidate, onSettled]);
   const markBusy = useCallback(
     (value: boolean) => {
       busyRef.current = value;
@@ -122,6 +131,8 @@ export function useProviderSession({
     [],
   );
   // Runs one provider request; `fn` receives the session id and must return the reply.
+  // `target` is the model this request runs on, which sets its timeout; the session
+  // itself is created with `sessionTarget` when given.
   const run = useCallback(
     async <T extends { attemptsRemaining?: number }>(
       target: Target,
@@ -155,7 +166,11 @@ export function useProviderSession({
         if (!session.current) {
           const created = await postRef.current<StudioSession>(
             "/api/studio/session",
-            { synthetic: true, language: languageRef.current, llm: target.id },
+            {
+              synthetic: true,
+              language: languageRef.current,
+              llm: (sessionTargetRef.current ?? target).id,
+            },
             options,
           );
           if (!current(token)) {
