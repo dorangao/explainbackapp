@@ -6,10 +6,12 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 
 - **Save to my lessons** sits next to Export in the review bar. It stores the checked lesson and, when the draft has a current narrated show, the show script (narration and cover prompt, never the cover image bytes). The model that drafted the lesson is recorded as a label.
 - Saving again from the same draft updates the same copy (**Save changes**); the remembered draft in this browser keeps the saved copy's id so a reload still updates rather than duplicates.
-- **Your lessons** on the Create page lists the shelf newest first with Open, Share and Delete (two-step). Opening loads the lesson into the review view with its show, the test learner's report and any explain-back grades (added October 29, 2026), all without a model request. Grades keep the client cache key they were made with, so each shows as fresh or stale against the live lesson state exactly as before.
+- **Your lessons** on the Create page lists the shelf newest first with Edit, Share and Delete (two-step). Edit loads the lesson into the review view with its show, the test learner's report and any explain-back grades (added October 29, 2026), all without a model request. Grades keep the client cache key they were made with, so each shows as fresh or stale against the live lesson state exactly as before.
 - Each creator keeps up to 50 lessons. Ownership is the invite label (`code:<label>`) or `tester` for the password account, so the same invite sees its lessons from any browser; everyone using one invite shares one shelf.
 
 ## Sharing
+
+- **Edit and delete from where the lesson is shown (added November 1, 2026 Pacific).** On a shared lesson's page and on its library card, the signed-in creator who owns it sees **Edit this lesson** and **Delete**; nobody else does. Edit opens `#edit:<id>`, which loads the saved copy into the review view on the Create page, so a save updates the same shared link. Delete asks twice, removes the lesson and its link for everyone, and the library list refreshes at once.
 
 - The **Private / Shared by link** switch on a saved lesson turns a public link on or off: `https://explainback.app/#shared:<id>`. Ids are 16 random hex characters.
 - A shared lesson opens for anyone without signing in, straight into the player, with its show when one was saved, and a provenance note saying it was shared by its creator from Lesson Studio rather than reviewed by the library's author.
@@ -30,7 +32,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 | `POST /api/lessons` | owner | Save (`{lesson, show?, model?}`) or update (`{id, …}`). Validated by the lesson schema and a show-script check. |
 | `POST /api/lessons/share` | owner | `{id, shared}` toggles the public link. |
 | `POST /api/lessons/delete` | owner | `{id}` removes the lesson and its link. |
-| `GET /api/shared` | public | Newest shared lessons (summaries). |
+| `GET /api/shared` | public | Newest shared lessons (summaries); the signed-in owner's own entries carry `mine: true`, never the owner. |
 | `GET /api/shared/:id` | public | One shared lesson with its show script; 404 when private or missing. |
 
 Storage: `src/lessons.mjs` builds and validates records; `src/state.mjs` (local memory) and `src/redis-state.mjs` (Upstash) keep one JSON record per lesson with a per-owner index and a shared index, no TTL. Mutations in Redis run as single scripts so ownership checks and index updates cannot drift.

@@ -16,8 +16,10 @@ import type {
   EvaluationItem,
   GalleryItem,
   Language,
+  Post,
 } from "../lib/types";
-import { listShared } from "../lib/library";
+import { listShared, onSharedChanged } from "../lib/library";
+import { OwnerActions } from "./OwnerActions";
 import type { CoverRecord } from "../lib/library";
 import { useCovers } from "../lib/covers";
 import { reportLessonUrl } from "../lib/evaluation";
@@ -396,10 +398,15 @@ function LibraryCard({
   language,
   entry,
   override = null,
+  post = null,
+  onDeleted,
 }: {
   language: Language;
   entry: Entry;
   override?: CoverRecord | null;
+  // Present when a creator is signed in: their own shared cards offer Edit and Delete.
+  post?: Post | null;
+  onDeleted?: (id: string) => void;
 }) {
   const title = entry.title[language];
   const cover = override ?? lessonCover(entry.id);
@@ -488,6 +495,14 @@ function LibraryCard({
             </a>
           )}
         </div>
+        {entry.shared?.mine && post && (
+          <OwnerActions
+            language={language}
+            id={entry.shared.id}
+            post={post}
+            onDeleted={onDeleted}
+          />
+        )}
         <p className="lesson-meta fine">{metaLine(entry, language)}</p>
         {entry.evaluation && (
           <p className="lesson-review-note fine">
@@ -597,7 +612,14 @@ export function FeaturedLesson({
   );
 }
 
-export function Gallery({ language }: { language: Language }) {
+export function Gallery({
+  language,
+  post = null,
+}: {
+  language: Language;
+  // The signed-in creator's poster, for Edit and Delete on their own shared cards.
+  post?: Post | null;
+}) {
   const headingId = useId(),
     searchId = useId();
   const [query, setQuery] = useState(""),
@@ -615,13 +637,18 @@ export function Gallery({ language }: { language: Language }) {
   // Shared lessons are public; a failed fetch simply leaves them out of the grid.
   useEffect(() => {
     let live = true;
-    void listShared()
-      .then((result) => {
-        if (live) setShared(result.lessons);
-      })
-      .catch(() => {});
+    const load = () =>
+      void listShared()
+        .then((result) => {
+          if (live) setShared(result.lessons);
+        })
+        .catch(() => {});
+    load();
+    // A share switched or a lesson deleted elsewhere on the page: list again.
+    const stop = onSharedChanged(load);
     return () => {
       live = false;
+      stop();
     };
   }, []);
   const entries = useMemo(
@@ -787,6 +814,10 @@ export function Gallery({ language }: { language: Language }) {
               language={language}
               entry={entry}
               override={overrides[entry.id] ?? null}
+              post={post}
+              onDeleted={(id) =>
+                setShared((list) => list.filter((item) => item.id !== id))
+              }
             />
           ))}
         </div>

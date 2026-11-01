@@ -7,6 +7,7 @@ import {
   copyText,
   deleteLesson,
   listMine,
+  notifySharedChanged,
   readMine,
   shareLesson,
   sharedUrl,
@@ -50,6 +51,7 @@ export function ShareControls({
     setWorking(true);
     try {
       onChange(await shareLesson(post, item.id, !item.shared));
+      notifySharedChanged();
       onNotice(
         t(
           language,
@@ -174,6 +176,7 @@ export function LessonShelf({
   const remove = async (item: SavedSummary) => {
     try {
       await deleteLesson(post, item.id);
+      notifySharedChanged();
       setItems((list) => (list ?? []).filter((x) => x.id !== item.id));
       setConfirming(null);
       onDeleted(item.id);

@@ -158,16 +158,18 @@ export function createHandler({
     try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
-  // Shared lessons open without signing in, like the gallery. Ids are unguessable.
-  registerSharedRoutes(app,{state,reply,tracked});
+  // A creator's identity for ownership. Reviewer invites own their lessons by label, so
+  // the same invite sees them again after signing in from another browser; the tester
+  // account shares one shelf.
+  const ownerOf=tester=>tester.audience?.label?`code:${tester.audience.label}`:tester.id===OPEN_ID?'local':'tester';
+  // Shared lessons open without signing in, like the gallery. Ids are unguessable; the
+  // signed-in owner's own entries are marked mine so the page can offer Edit and Delete.
+  registerSharedRoutes(app,{state,reply,tracked,ownerOf});
   app.use((req,res,next) => {
     if(req.path.startsWith('/api/')&&!res.locals.tester)return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     next();
   });
-  // A creator's saved lessons. Reviewer invites own their lessons by label, so the same
-  // invite sees them again after signing in from another browser; the tester account
-  // shares one shelf. Saving makes no model request.
-  const ownerOf=tester=>tester.audience?.label?`code:${tester.audience.label}`:tester.id===OPEN_ID?'local':'tester';
+  // A creator's saved lessons. Saving makes no model request.
   registerLessonRoutes(app,{state,access,imageStore,ownerOf,reply,tracked,requireOrigin,parseBody});
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);

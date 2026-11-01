@@ -26,7 +26,7 @@ import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
 import { useInstallPrompt } from "./lib/install";
-import { readShared, sharedIdFromHash } from "./lib/library";
+import { editIdFromHash, readShared, sharedIdFromHash } from "./lib/library";
 import type { SavedLesson } from "./lib/library";
 const Labs = lazy(() =>
   import("./components/labs/Labs").then((module) => ({
@@ -50,7 +50,9 @@ function readRoute() {
     showAutoplay: play && showIdFromHash(showHash) !== null,
     area: (["#physics", "#quantum", "#create"].includes(hash)
       ? hash.slice(1)
-      : "studio") as Area,
+      : editIdFromHash(hash)
+        ? "create"
+        : "studio") as Area,
     lessonId: galleryIdFromHash(hash) as string | null,
     showId: showIdFromHash(showHash) as string | null,
     sharedId: sharedIdFromHash(hash),
@@ -412,6 +414,7 @@ export function App() {
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
+          editId={area === "create" ? editIdFromHash(location.hash) : null}
           lessonId={null}
           starter={starter}
           onBusy={noop}

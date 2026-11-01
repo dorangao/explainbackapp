@@ -53,11 +53,31 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
     modelCalls.filter((u) => !/\/(session|show|illustrate)$/.test(u)),
   ).toEqual([]);
 
+  // The creator opening their own link sees Edit and Delete; Edit lands on the Create page
+  // with the saved copy open.
+  const own = await page.context().newPage();
+  await own.goto(link);
+  await expect(own.locator(".lesson-player")).toBeVisible();
+  await expect(
+    own.getByRole("link", { name: "Edit this lesson" }),
+  ).toHaveAttribute("href", /#edit:[a-f0-9]{16}$/);
+  await expect(own.getByRole("button", { name: "Delete" })).toBeVisible();
+  await own.getByRole("link", { name: "Edit this lesson" }).click();
+  await expect(own).toHaveURL(/#create$/);
+  await expect(
+    own.getByText("Opened your saved lesson", { exact: false }),
+  ).toBeVisible();
+  await expect(own.getByRole("button", { name: "Save changes" })).toBeVisible();
+  await own.close();
+
   // A fresh, signed-out browser opens the link and finds the lesson in the catalog.
   const visitor = await browser.newContext();
   const guest = await visitor.newPage();
   await guest.goto(link);
   await expect(guest.locator(".lesson-player")).toBeVisible();
+  await expect(
+    guest.getByRole("link", { name: "Edit this lesson" }),
+  ).toHaveCount(0);
   // The shared page says who made it and offers a prefilled report.
   await expect(guest.locator(".shared-notice")).toContainText(
     "An invited creator made this",

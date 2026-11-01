@@ -1320,7 +1320,7 @@ describe("Reopening a saved lesson", () => {
       return { records: [] } as never;
     };
     mount({ authenticated: true, status, view: "create" }, post);
-    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText(/Short and clear\./);
     expect(document.querySelector(".tryout-report")?.textContent).toMatch(
       /4\/5/,

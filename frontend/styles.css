@@ -3111,6 +3111,17 @@ body {
   display: flex;
   gap: 8px;
 }
+/* Edit and Delete for the creator's own shared lesson, on its page and its card. */
+.owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+}
+.owner-actions a.text-button {
+  text-decoration: underline;
+}
 .text-button.danger {
   color: #a23b2c;
 }
