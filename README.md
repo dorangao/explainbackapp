@@ -34,7 +34,7 @@ Each claim below names where to see it in the app and the check in this reposito
 
 ## Local setup
 
-Use **Node 22** and npm. From this directory:
+Use **Node 26** (the current LTS; `nvm use` reads `.nvmrc`) and npm. From this directory:
 
 ```sh
 npm ci --ignore-scripts
