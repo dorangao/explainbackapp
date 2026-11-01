@@ -100,6 +100,15 @@ for (const width of [320, 390]) {
     await expect(
       page.getByRole("button", { name: /Pause|Play/, exact: true }),
     ).toBeInViewport();
+    // The app clips page overflow, so check the presentation frame itself.
+    // Its controls and artwork must fit even on the narrowest phone.
+    await expect
+      .poll(() =>
+        page
+          .getByRole("region", { name: "Lesson show", exact: true })
+          .evaluate((frame) => frame.scrollWidth <= frame.clientWidth),
+      )
+      .toBe(true);
     await expect(
       page.getByRole("heading", {
         name: "How ExplainBack makes a lesson",
