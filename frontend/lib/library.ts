@@ -31,6 +31,8 @@ export type SavedSummary = {
   cover: string | null;
   sketch: string | null;
   shared: boolean;
+  // When the creator's own review was saved with this content; null when unreviewed.
+  reviewedAt?: number | null;
   // The author's stable-or-dated mark, when the lesson carries one.
   currency?: LessonCurrency | null;
   createdAt: number;
@@ -142,6 +144,8 @@ export const saveLesson = (
     sketch?: string | null;
     tryout?: SavedTryout | null;
     grades?: Record<string, SavedGrade> | null;
+    // The creator reviewed the definition and assumptions of this exact content.
+    reviewed?: boolean;
   },
 ) => post<SavedSummary>("/api/lessons", body);
 export const shareLesson = (post: Post, id: string, shared: boolean) =>

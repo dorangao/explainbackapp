@@ -79,6 +79,7 @@ import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
 import { EVALUATION_CARD_HASH, reportLessonUrl } from "../lib/evaluation";
+import { sharedProvenanceText } from "../lib/shared-note";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -1158,6 +1159,7 @@ export function Studio({
         coverModel: current?.coverModel ?? null,
         illustrations: current?.illustrations ?? null,
         sketch: source === "studio-sketch" ? sourceImage : null,
+        reviewed,
         tryout:
           tryout && tryout.key === tryoutKey
             ? {
@@ -1222,6 +1224,7 @@ export function Studio({
   function openSaved(record: SavedLesson) {
     const { lesson: body, show: script, ...summary } = record;
     const lesson = loadLesson(body);
+    setReviewed(Boolean(summary.reviewedAt));
     setRevision(null);
     restoreResults(lesson, record, summary.updatedAt);
     setComposeStamp(null);
@@ -1773,7 +1776,7 @@ export function Studio({
           <>
             {source === "shared" && external && (
               <p className="shared-notice" role="note">
-                {t(language, "Gallery.sharedProvenance")}{" "}
+                {sharedProvenanceText(external, language)}{" "}
                 <a
                   href={reportLessonUrl(external.id, external.title[language])}
                   target="_blank"
@@ -1845,8 +1848,8 @@ export function Studio({
                   </p>
                 )}
                 <p>
-                  {source === "shared"
-                    ? t(language, "Gallery.sharedProvenance")
+                  {source === "shared" && external
+                    ? sharedProvenanceText(external, language)
                     : source === "studio-sketch"
                       ? t(language, "Studio.sketchLessonNote")
                       : source === "evaluation" && evaluationItem

@@ -230,6 +230,11 @@ export function LessonShelf({
               <div className="shelf-main">
                 <span className="lesson-kind">
                   {kindLabel(language, item.kind)}
+                  {item.reviewedAt && (
+                    <span className="shelf-flag">
+                      {t(language, "Library.reviewedFlag")}
+                    </span>
+                  )}
                   {item.hasShow && (
                     <span className="shelf-flag">
                       {t(language, "Library.withShow")}

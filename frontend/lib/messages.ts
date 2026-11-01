@@ -1282,6 +1282,15 @@ export const messages = {
     en: "An invited creator made this in Lesson Studio and shared it by link. ExplainBack has not reviewed it: the numbers are computed by code from the creator's formulas, and the science and wording are the creator's.",
     zh: "由受邀创作者在课程工作室制作并通过链接分享。ExplainBack 未审阅：数字由代码按创作者的公式计算，科学内容与表述由创作者负责。",
   },
+  "Gallery.sharedReviewedNote": {
+    en: "Shared · reviewed by its creator",
+    zh: "已分享 · 创作者已审阅",
+  },
+  "Gallery.sharedReviewedProvenance": {
+    en: "An invited creator made this in Lesson Studio, reviewed its definition and assumptions on {date}, and shared it by link. ExplainBack has not reviewed it: the numbers are computed by code from the creator's formulas, and the science and wording are the creator's.",
+    zh: "由受邀创作者在课程工作室制作，于 {date} 审阅了定义与假设，并通过链接分享。ExplainBack 未审阅：数字由代码按创作者的公式计算，科学内容与表述由创作者负责。",
+  },
+  "Library.reviewedFlag": { en: "reviewed", zh: "已审阅" },
   "Gallery.sharedBadgeNote": {
     en: "Shared by an invited creator · not reviewed",
     zh: "受邀创作者分享 · 未经审阅",
