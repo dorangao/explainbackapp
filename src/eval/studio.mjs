@@ -97,6 +97,7 @@ export function scoreStudioCase(item,result,{references}={}){
    if(expected.outputUnit)score.checks.expectedUnit=units.some(u=>expected.outputUnit.includes(u));
   }
   if(item.reference&&demo?.kind==='model')score.reference=referenceHit(item.reference,demo);
+  score.currency=response.lesson.currency?.status??null;
  }
  score.automatedPass=Object.values(score.checks).every(Boolean);
  if(!score.automatedPass)score.failure='expectation-failed';
@@ -163,12 +164,12 @@ export async function runStudioEvaluation({cases,call,onUpdate=async()=>{},metad
 export function studioReportMarkdown(report){
  const judged=Boolean(report.judge);
  const lines=[`# ${report.suite} · generated lesson smoke evaluation${report.metadata?.model?` · ${report.metadata.model}`:''}`,'',report.limitations,'',`Complete: ${report.complete}. Attempted: ${report.attempted}/${report.planned}. Valid contracts: ${report.contractValid}/${report.attempted}. Automated checks passed: ${report.automatedPassed}/${report.planned}.`,'','Manual science/language review: required; not included in the automated score.',''];
- const max=report.judge?.grounded?12:10,refs=report.cases.some(c=>c.reference);
+ const max=report.judge?.grounded?12:10,refs=report.cases.some(c=>c.reference),cur=report.cases.some(c=>c.currency);
  if(judged)lines.push(`Rubric judge: ${report.judge.model} (${report.judge.version}); scored ${report.judge.scored}, failed ${report.judge.failed}, skipped ${report.judge.skipped}; mean ${report.judge.meanTotal??'—'}/${max}. ${report.judge.note}`,'');
  if(report.ground)lines.push('Search first: each draft was preceded by a ground step (one more request per case) whose fact sheet the author received as references.','');
  if(refs)lines.push(`Reference hits: ${report.referenceHits}/${report.referenceCases}. A hit means a declared input default or transfer value lies within the tolerance of the figure recorded with the suite; it is an observation beside the automated checks, not one of them.`,'');
- lines.push(`| Case | Contract valid | Automated checks | Failure | Latency | Tokens in/out |${refs?' Reference |':''}${judged?` Judge /${max} | Judge issues |`:''}`,`|---|---|---|---|---|---|${refs?'---|':''}${judged?'---|---|':''}`);
- for(const c of report.cases)lines.push(`| ${c.id} | ${c.contractValid} | ${c.automatedPass} | ${c.failure??'—'} | ${c.latencyMs} ms | ${c.usage?.input??'—'}/${c.usage?.output??'—'} |${refs?` ${c.reference?(c.reference.hit?'hit':'miss'):'—'} |`:''}${judged?` ${c.judge?.total??(c.judge?.failure??'—')} | ${[...(c.judge?.issues??[]),...(c.judge?.factualIssues??[]).map(f=>`figure: ${f.claim} (${f.finding})`)].map(i=>i.replace(/\|/g,'/')).join('; ')||'—'} |`:''}`);
+ lines.push(`| Case | Contract valid | Automated checks | Failure | Latency | Tokens in/out |${refs?' Reference |':''}${cur?' Currency |':''}${judged?` Judge /${max} | Judge issues |`:''}`,`|---|---|---|---|---|---|${refs?'---|':''}${cur?'---|':''}${judged?'---|---|':''}`);
+ for(const c of report.cases)lines.push(`| ${c.id} | ${c.contractValid} | ${c.automatedPass} | ${c.failure??'—'} | ${c.latencyMs} ms | ${c.usage?.input??'—'}/${c.usage?.output??'—'} |${refs?` ${c.reference?(c.reference.hit?'hit':'miss'):'—'} |`:''}${cur?` ${c.currency??'—'} |`:''}${judged?` ${c.judge?.total??(c.judge?.failure??'—')} | ${[...(c.judge?.issues??[]),...(c.judge?.factualIssues??[]).map(f=>`figure: ${f.claim} (${f.finding})`)].map(i=>i.replace(/\|/g,'/')).join('; ')||'—'} |`:''}`);
  return lines.join('\n')+'\n';
 }
 // Side-by-side view of the same frozen cases run against several models.

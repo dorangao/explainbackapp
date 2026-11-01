@@ -1091,6 +1091,14 @@ body {
 .references > .fine {
   margin: 10px 0 0;
 }
+/* The author's stable-or-dated mark; a dated lesson is amber so the date is noticed. */
+.currency-note {
+  margin: 8px 0 0;
+}
+.currency-note[data-status="dated"] {
+  color: #9a4e18;
+  font-weight: 600;
+}
 .author-privacy {
   margin: 18px 0 0;
   max-width: 650px;

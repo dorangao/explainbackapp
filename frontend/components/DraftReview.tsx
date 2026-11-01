@@ -9,6 +9,7 @@ import type {
 } from "../lib/types";
 import type { RequestMetrics } from "../hooks/useProviderSession";
 import { RequestSummary } from "./RequestSummary";
+import { CurrencyNote } from "./CurrencyNote";
 import { CacheNote, actionLabel } from "./CacheNote";
 import type { CacheState } from "./CacheNote";
 import { say } from "../lib/types";
@@ -412,6 +413,7 @@ export function DraftReview({
         </div>
       )}
       <p className="fine">{t(language, "DraftReview.thisDraftIsRemembered")}</p>
+      <CurrencyNote language={language} currency={draft.currency} />
       <SourcesPanel
         language={language}
         references={references}
