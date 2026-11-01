@@ -88,9 +88,13 @@ for (const width of [320, 390]) {
       .evaluate((body) => body.getBoundingClientRect().height);
     expect(cardHeight - bodyHeight).toBeLessThan(4);
     await expect(
-      page.getByText(
-        "Predict, test, and explain an idea in English or Chinese.",
-      ),
+      page.getByRole("heading", {
+        level: 1,
+        name: "Predict. Test. Explain. Your own explanation.",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/Every lesson is an experiment you can argue with/),
     ).toBeVisible();
     await tour.click();
     await expect(
