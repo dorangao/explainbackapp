@@ -100,7 +100,12 @@ function CircuitDrawing({
     >
       {Array.from({ length: model.n }, (_, i) => (
         <g key={`wire-${i}`}>
-          <text x={12} y={y(i) + 5} fill="#47526d" fontSize={15}>
+          <text
+            x={12}
+            y={y(i) + 5}
+            fill="var(--theme-muted, #47526d)"
+            fontSize={15}
+          >
             {`q${i} |0⟩`}
           </text>
           <line
@@ -108,7 +113,7 @@ function CircuitDrawing({
             x2={620}
             y1={y(i)}
             y2={y(i)}
-            stroke="#c0c8db"
+            stroke="var(--theme-border, #c0c8db)"
             strokeWidth={2}
           />
         </g>
@@ -117,8 +122,13 @@ function CircuitDrawing({
         const i = index + 1,
           x = gateX(i),
           active = i <= step,
-          stroke = active ? "#5151a0" : "#aeb7c9",
-          fill = i === step ? "#e2e1f4" : "#f8f8fa";
+          stroke = active
+            ? "var(--theme-purple, #5151a0)"
+            : "var(--theme-muted, #aeb7c9)",
+          fill =
+            i === step
+              ? "var(--theme-purple-bg, #e2e1f4)"
+              : "var(--theme-surface, #f8f8fa)";
         return (
           <g key={`gate-${i}`}>
             {f.gate === "CNOT" ? (
@@ -757,12 +767,12 @@ export function QuantumLab({
                           cx={50}
                           cy={44}
                           r={32}
-                          fill="#f4f3fb"
-                          stroke="#d6d7e5"
+                          fill="var(--theme-purple-bg, #f4f3fb)"
+                          stroke="var(--theme-border, #d6d7e5)"
                         />
                         <path
                           d="M 12 44 H 88 M 50 6 V 82"
-                          stroke="#d6d7e5"
+                          stroke="var(--theme-border, #d6d7e5)"
                           strokeWidth={1}
                         />
                         {visibleArrow ? (
@@ -772,14 +782,24 @@ export function QuantumLab({
                               y1={44}
                               x2={x}
                               y2={y}
-                              stroke="#5151a0"
+                              stroke="var(--theme-purple, #5151a0)"
                               strokeWidth={3}
                               strokeLinecap="round"
                             />
-                            <circle cx={x} cy={y} r={3} fill="#5151a0" />
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r={3}
+                              fill="var(--theme-purple, #5151a0)"
+                            />
                           </>
                         ) : (
-                          <circle cx={50} cy={44} r={2} fill="#9da4b7" />
+                          <circle
+                            cx={50}
+                            cy={44}
+                            r={2}
+                            fill="var(--theme-muted, #9da4b7)"
+                          />
                         )}
                       </svg>
                       <span className="q-amplitude-number">

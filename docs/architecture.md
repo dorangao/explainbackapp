@@ -37,6 +37,7 @@ The public evaluation card is built from `docs/evaluation.md` and documents meth
 | Layer | Technology and role | Source of truth |
 | --- | --- | --- |
 | Client | React 19, TypeScript, Vite; bilingual English / Simplified Chinese interface | `frontend/`, `package.json` |
+| Appearance | Paper (default), Midnight Paper, Liquid Glass and Meta Blue; semantic CSS colors and scoped material styles; a bilingual header picker stores only the selected theme and reduced-transparency preference in browser local storage | `public/appearance.js`, `public/themes.css`, `frontend/appearance.css`, `frontend/components/Appearance.tsx` |
 | Simulations and graphics | Plain ES modules, D3 scale/shape/selection; bounded expressions and predefined engines | `public/`, `frontend/components/ExperimentView.tsx` |
 | Server | Node.js 22, Express 5; shared local and Vercel API handler | `src/server.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
@@ -50,6 +51,16 @@ The public evaluation card is built from `docs/evaluation.md` and documents meth
 | Verification | Node test runner, Vitest, React Testing Library, Playwright, TypeScript, Oxlint and Prettier | `package.json`, `test/`, `frontend/`, `e2e/` |
 
 For exact installed versions, use `package-lock.json`. Keep credentials out of documentation; see `docs/repo-guidelines.md` for what stays out of this public repository.
+
+## Appearance and browser preferences
+
+The Appearance control is part of the shared header and is available inside the Menu on phones. It applies one of four named themes without remounting the lesson, changing the route, or making an API/model request. Paper remains the default, independent of the operating system's dark-mode setting. Theme selection and the explicit Liquid Glass reduced-transparency setting are stored under `explainback-appearance` in local storage for this browser; blocked storage allows changes for the current page, and unknown or malformed saved preferences fall back to Paper. This preference is not stored with a lesson or synchronized through an account.
+
+`index.html` loads the small, idempotent `public/appearance.js` classic script synchronously before the app. It validates the saved value and sets the root theme, native control color scheme, initial canvas color and browser theme color before React starts. The same script is bundled with the picker as a fallback, without reinitializing an existing preference. `public/themes.css` supplies the palettes; the existing styles retain their Paper color fallbacks. Chart SVG attributes resolve CSS variables at paint time, so changing appearance does not restart a simulation. Illustrations and image bytes are unchanged.
+
+Liquid Glass uses translucent material on the header and controls, with opaque reading and input surfaces. It falls back to opaque controls when backdrop filtering is unavailable, when the user chooses Reduce transparency, or when the browser reports a system reduced-transparency preference. Reduced motion and forced colors are respected, and print styles use a light palette. These web materials are a visual interpretation; no native Apple rendering framework or Meta UI integration is added. All themes retain the same human review requirements for lessons and model feedback.
+
+`src/static.mjs` allowlists the startup script and palette CSS for local serving and copying by `scripts/build-vercel.mjs`. The service worker's versioned shell cache includes both files so appearance initialization remains available offline.
 
 ## Meta models and where each one works
 

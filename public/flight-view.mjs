@@ -20,13 +20,13 @@ export function flightReadout(s,time,metric,language){
 export function drawFlightView(scene,plot,panel,graph,language,time=0,metric='torque'){
  const zh=language==='zh',info=flightMetrics.find(m=>m[0]===metric);if(!info)throw new Error('Unknown flight graph.');
  scene.hidden=!graph;panel.hidden=!graph;plot.classList.toggle('flight-plot',Boolean(graph));
- if(!graph){scene.replaceChildren();panel.replaceChildren();const svg=svgNode('svg',{viewBox:'0 0 640 400',role:'img','aria-label':zh?'先预测，核验后显示横滚。':'Predict first; rotation appears after checking.'});svg.append(svgNode('text',{x:320,y:190,'text-anchor':'middle',fill:'#5d6c67','font-size':18},zh?'先预测，再探索横滚与着陆。':'Predict, then explore sideways roll and landing.'));plot.replaceChildren(svg);return;}
+ if(!graph){scene.replaceChildren();panel.replaceChildren();const svg=svgNode('svg',{viewBox:'0 0 640 400',role:'img','aria-label':zh?'先预测，核验后显示横滚。':'Predict first; rotation appears after checking.'});svg.append(svgNode('text',{x:320,y:190,'text-anchor':'middle',fill:'var(--theme-muted, #5d6c67)','font-size':18},zh?'先预测，再探索横滚与着陆。':'Predict, then explore sideways roll and landing.'));plot.replaceChildren(svg);return;}
  const s=graph.scenario,r=flightSummary(s),end=s.airtime+s.stopTime,t=Math.max(0,Math.min(end,time)),flightTime=Math.min(t,s.airtime);
  const picture=svgNode('svg',{viewBox:'0 0 640 350',role:'img','aria-label':zh?'绕车身纵轴侧向翻滚。A 自由旋转，B 由相反气流的反作用力控制。':'Sideways roll about the longitudinal axis. A coasts; opposed air-jet reaction forces control B.'});
- picture.append(svgNode('text',{x:20,y:22,fill:'#20332f','font-size':14},zh?'侧向翻滚 · 绕车头到车尾的纵轴 · 图示不按比例':'Sideways roll · front-to-back axis · schematic scales'));
+ picture.append(svgNode('text',{x:20,y:22,fill:'var(--theme-ink, #20332f)','font-size':14},zh?'侧向翻滚 · 绕车头到车尾的纵轴 · 图示不按比例':'Sideways roll · front-to-back axis · schematic scales'));
  picture.append(svgNode('line',{x1:30,y1:244,x2:610,y2:244,stroke:'#9bab9f','stroke-dasharray':'4 5'}));
  const h=flightAt(s,flightTime).height,y=225-h/Math.max(.1,r.apexHeight)*90;
- for(const [mode,x,color,name]of [['coast',174,'#116d60',zh?'A · 无喷流，自由旋转':'A · unpowered coast'],['controlled',466,'#a35c32',zh?'B · 理想空气推力偶':'B · ideal air-jet couple']]){
+ for(const [mode,x,color,name]of [['coast',174,'var(--series-0, #116d60)',zh?'A · 无喷流，自由旋转':'A · unpowered coast'],['controlled',466,'var(--series-1, #a35c32)',zh?'B · 理想空气推力偶':'B · ideal air-jet couple']]){
   const p=rotationAt(s,mode,flightTime),jets=airThrustersAt(s,mode,flightTime,t<=s.airtime);
   mountRollVehicle(picture,color).set({x,y,angle:p.angle,jets,time:flightTime,opacity:t>s.airtime?.55:1});
   picture.append(svgNode('text',{x,y:49,'text-anchor':'middle',fill:color,'font-size':14},name));
@@ -34,28 +34,28 @@ export function drawFlightView(scene,plot,panel,graph,language,time=0,metric='to
  }
  const jets=airThrustersAt(s,'controlled',flightTime,t<=s.airtime);
  picture.setAttribute('aria-label',picture.getAttribute('aria-label')+' '+thrusterCaption(jets,language));
- picture.append(svgNode('text',{x:320,y:294,'text-anchor':'middle',fill:'#365c64','font-size':12},thrusterCaption(jets,language)));
- picture.append(svgNode('text',{x:320,y:318,'text-anchor':'middle',fill:'#5d6c67','font-size':12},zh?'蓝色：示意排气；橙色：反向作用在车上的力。':'Blue: illustrative exhaust. Orange: opposite force on the vehicle.'));
- picture.append(svgNode('text',{x:320,y:340,'text-anchor':'middle',fill:t>s.airtime?'#8c352b':'#5d6c67','font-size':11},t>s.airtime?(zh?'接地快照；后续旋转未模拟，A 仍有剩余角动量。':'Touchdown snapshot; later rotation unresolved, including A’s spin.'):(zh?`质心高度 h=${fmt(h)} m；气体储存、流量与执行器能力未建模。`:`COM height h=${fmt(h)} m; gas storage, flow and actuator capability unmodeled.`)));
+ picture.append(svgNode('text',{x:320,y:294,'text-anchor':'middle',fill:'var(--theme-muted, #365c64)','font-size':12},thrusterCaption(jets,language)));
+ picture.append(svgNode('text',{x:320,y:318,'text-anchor':'middle',fill:'var(--theme-muted, #5d6c67)','font-size':12},zh?'蓝色：示意排气；橙色：反向作用在车上的力。':'Blue: illustrative exhaust. Orange: opposite force on the vehicle.'));
+ picture.append(svgNode('text',{x:320,y:340,'text-anchor':'middle',fill:t>s.airtime?'var(--theme-error, #8c352b)':'var(--theme-muted, #5d6c67)','font-size':11},t>s.airtime?(zh?'接地快照；后续旋转未模拟，A 仍有剩余角动量。':'Touchdown snapshot; later rotation unresolved, including A’s spin.'):(zh?`质心高度 h=${fmt(h)} m；气体储存、流量与执行器能力未建模。`:`COM height h=${fmt(h)} m; gas storage, flow and actuator capability unmodeled.`)));
  scene.replaceChildren(picture);
  const svg=svgNode('svg',{viewBox:'0 0 640 370',role:'img','aria-label':info[zh?2:1]}),left=72,right=614,top=38,bottom=303;
  const rotational=rotationMetrics.includes(metric),contactOnly=metric==='contactForce',xStart=contactOnly?s.airtime:0,plotSpan=end-xStart,series=[];
- if(rotational){for(const [mode,color,dash]of [['coast','#116d60',''],['controlled','#a35c32','7 4']])series.push({color,dash,points:Array.from({length:121},(_,i)=>{const x=s.airtime*i/120;return [x,value(s,metric,x,mode)];})});}
+ if(rotational){for(const [mode,color,dash]of [['coast','var(--series-0, #116d60)',''],['controlled','var(--series-1, #a35c32)','7 4']])series.push({color,dash,points:Array.from({length:121},(_,i)=>{const x=s.airtime*i/120;return [x,value(s,metric,x,mode)];})});}
  else{
   // Separate paths preserve the one-sided contact-force jump at touchdown.
-  if(!contactOnly)series.push({color:'#116d60',points:Array.from({length:101},(_,i)=>{const x=s.airtime*i/100;return [x,value(s,metric,x)];})});
-  series.push({color:'#a35c32',points:Array.from({length:101},(_,i)=>{const x=s.airtime+s.stopTime*i/100;return [x,value(s,metric,x,'controlled',true)];})});
+  if(!contactOnly)series.push({color:'var(--series-0, #116d60)',points:Array.from({length:101},(_,i)=>{const x=s.airtime*i/100;return [x,value(s,metric,x)];})});
+  series.push({color:'var(--series-1, #a35c32)',points:Array.from({length:101},(_,i)=>{const x=s.airtime+s.stopTime*i/100;return [x,value(s,metric,x,'controlled',true)];})});
  }
  const ys=series.flatMap(l=>l.points.map(p=>p[1])),lo=Math.min(0,...ys),hi=Math.max(1e-6,...ys),range=hi-lo;
  const px=x=>left+(x-xStart)/plotSpan*(right-left),py=v=>bottom-(v-lo+range*.05)/(range*1.1)*(bottom-top);
  svg.append(svgNode('rect',{x:px(s.airtime),y:top,width:right-px(s.airtime),height:bottom-top,fill:'#e5dfd2',opacity:.55}));
- svg.append(svgNode('text',{x:left,y:20,fill:'#20332f','font-size':14},info[zh?2:1]));
- for(let i=0;i<=4;i++){const x=xStart+plotSpan*i/4,v=lo+range*i/4;svg.append(svgNode('line',{x1:px(x),y1:top,x2:px(x),y2:bottom,stroke:'#d6ddd5'}),svgNode('text',{x:px(x),y:bottom+20,'text-anchor':'middle',fill:'#5d6c67','font-size':11},fmt(x-xStart)),svgNode('line',{x1:left,y1:py(v),x2:right,y2:py(v),stroke:'#d6ddd5'}),svgNode('text',{x:left-7,y:py(v)+4,'text-anchor':'end',fill:'#5d6c67','font-size':11},fmt(v)));}
+ svg.append(svgNode('text',{x:left,y:20,fill:'var(--theme-ink, #20332f)','font-size':14},info[zh?2:1]));
+ for(let i=0;i<=4;i++){const x=xStart+plotSpan*i/4,v=lo+range*i/4;svg.append(svgNode('line',{x1:px(x),y1:top,x2:px(x),y2:bottom,stroke:'var(--theme-border, #d6ddd5)'}),svgNode('text',{x:px(x),y:bottom+20,'text-anchor':'middle',fill:'var(--theme-muted, #5d6c67)','font-size':11},fmt(x-xStart)),svgNode('line',{x1:left,y1:py(v),x2:right,y2:py(v),stroke:'var(--theme-border, #d6ddd5)'}),svgNode('text',{x:left-7,y:py(v)+4,'text-anchor':'end',fill:'var(--theme-muted, #5d6c67)','font-size':11},fmt(v)));}
  for(const line of series)svg.append(svgNode('path',{d:line.points.map(([x,v],i)=>`${i?'L':'M'}${px(x)},${py(v)}`).join(' '),fill:'none',stroke:line.color,'stroke-width':2.5,'stroke-dasharray':line.dash??''}));
- if(metric==='contactForce')svg.append(svgNode('line',{x1:px(s.airtime),y1:py(r.averageContactForce/1000),x2:right,y2:py(r.averageContactForce/1000),stroke:'#8c352b','stroke-dasharray':'3 4'}));
- svg.append(svgNode('line',{x1:px(s.airtime),y1:top,x2:px(s.airtime),y2:bottom,stroke:'#8c352b','stroke-dasharray':'3 5'}));
- if(t>=xStart)svg.append(svgNode('line',{x1:px(t),y1:top,x2:px(t),y2:bottom,stroke:'#20332f','stroke-width':1.5}));
- svg.append(svgNode('text',{x:right,y:346,'text-anchor':'end',fill:'#5d6c67','font-size':12},contactOnly?(zh?'接地后经过时间 t−T (s) · 接触阶段放大':'Elapsed contact time t−T (s) · contact zoom'):(zh?`时间 t (s) · 阴影：接触阶段，T=${s.airtime}`:`Time t (s) · shaded: contact, T=${s.airtime}`)));
+ if(metric==='contactForce')svg.append(svgNode('line',{x1:px(s.airtime),y1:py(r.averageContactForce/1000),x2:right,y2:py(r.averageContactForce/1000),stroke:'var(--theme-error, #8c352b)','stroke-dasharray':'3 4'}));
+ svg.append(svgNode('line',{x1:px(s.airtime),y1:top,x2:px(s.airtime),y2:bottom,stroke:'var(--theme-error, #8c352b)','stroke-dasharray':'3 5'}));
+ if(t>=xStart)svg.append(svgNode('line',{x1:px(t),y1:top,x2:px(t),y2:bottom,stroke:'var(--theme-ink, #20332f)','stroke-width':1.5}));
+ svg.append(svgNode('text',{x:right,y:346,'text-anchor':'end',fill:'var(--theme-muted, #5d6c67)','font-size':12},contactOnly?(zh?'接地后经过时间 t−T (s) · 接触阶段放大':'Elapsed contact time t−T (s) · contact zoom'):(zh?`时间 t (s) · 阴影：接触阶段，T=${s.airtime}`:`Time t (s) · shaded: contact, T=${s.airtime}`)));
  plot.replaceChildren(svg);
  renderPanel(panel,s,r,zh);
 }

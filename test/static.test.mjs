@@ -9,6 +9,8 @@ test("public brand assets are served without authentication with their real cont
   t.after(() => new Promise((r) => server.close(r)));
   const origin = `http://127.0.0.1:${server.address().port}`;
   for (const [path, type] of [
+    ["/appearance.js", "text/javascript"],
+    ["/themes.css", "text/css"],
     ["/favicon.svg", "image/svg+xml"],
     ["/favicon.ico", "image/x-icon"],
     ["/apple-touch-icon.png", "image/png"],

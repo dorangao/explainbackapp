@@ -31,7 +31,7 @@ export function mountJourney(root){
   const s=scenario,px=t=>62+t/s.end*(plotWidth-82);
   selectors.forEach(({select,plot},i)=>{
    const metric=groups[i].find(o=>o[0]===select.value),[name,,,scale]=metric;
-   const intervals=[[0,s.launch,'#176f64'],[s.launch,s.rollStart,'#367f9b'],[s.rollStart,s.landing,'#a45c31'],[s.landing,s.touchdown,'#367f9b'],[s.touchdown,s.end,'#176f64']];
+   const intervals=[[0,s.launch,'var(--series-0, #176f64)'],[s.launch,s.rollStart,'var(--series-3, #367f9b)'],[s.rollStart,s.landing,'var(--series-1, #a45c31)'],[s.landing,s.touchdown,'var(--series-3, #367f9b)'],[s.touchdown,s.end,'var(--series-0, #176f64)']];
    const series=intervals.map(([a,b,color],phase)=>({color,points:Array.from({length:101},(_,j)=>{
     const x=a+(b-a)*j/100;
     // One-sided samples keep ideal thrust switches out of line interpolation.
@@ -42,13 +42,13 @@ export function mountJourney(root){
    const py=v=>127-(v-lo)/span*92;
    const g=svg('svg',{viewBox:`0 0 ${plotWidth} 163`,role:'img','aria-label':metric[zh?2:1]});
    intervals.forEach(([a,b,color])=>g.append(svg('rect',{x:px(a),y:25,width:px(b)-px(a),height:105,fill:color,opacity:.07})));
-   for(let j=0;j<=2;j++){const v=lo+span*j/2;g.append(svg('line',{x1:62,x2:plotWidth-20,y1:py(v),y2:py(v),stroke:'#d5ddd5'}),svg('text',{x:55,y:py(v)+4,'text-anchor':'end',fill:'#5d6c67','font-size':12},fmt(v)));}
+   for(let j=0;j<=2;j++){const v=lo+span*j/2;g.append(svg('line',{x1:62,x2:plotWidth-20,y1:py(v),y2:py(v),stroke:'var(--theme-border, #d5ddd5)'}),svg('text',{x:55,y:py(v)+4,'text-anchor':'end',fill:'var(--theme-muted, #5d6c67)','font-size':12},fmt(v)));}
    for(const line of series){let path='',drawing=false;for(const[x,v]of line.points){if(v===null){drawing=false;continue;}path+=`${drawing?'L':'M'}${px(x)},${py(v)} `;drawing=true;}g.append(svg('path',{d:path,fill:'none',stroke:line.color,'stroke-width':2}));}
-   for(const x of [0,s.launch,s.rollStart,s.landing,s.touchdown,s.end])g.append(svg('line',{x1:px(x),x2:px(x),y1:25,y2:130,stroke:'#8e9e94','stroke-dasharray':'3 4'}));
+   for(const x of [0,s.launch,s.rollStart,s.landing,s.touchdown,s.end])g.append(svg('line',{x1:px(x),x2:px(x),y1:25,y2:130,stroke:'var(--theme-edge, #8e9e94)','stroke-dasharray':'3 4'}));
    // End label on its own row prevents short contact intervals overlapping.
-   for(const x of [0,s.launch,s.landing])g.append(svg('text',{x:px(x),y:147,'text-anchor':'middle',fill:'#5d6c67','font-size':12},`${fmt(x)} s`));
-   g.append(svg('text',{x:plotWidth-20,y:161,'text-anchor':'end',fill:'#5d6c67','font-size':12},`${zh?'结束':'End'} ${fmt(s.end)} s`));
-   const cursor=svg('line',{y1:22,y2:132,stroke:'#233f34','stroke-width':2});g.append(cursor);cursors.push(cursor);plot.replaceChildren(g);
+   for(const x of [0,s.launch,s.landing])g.append(svg('text',{x:px(x),y:147,'text-anchor':'middle',fill:'var(--theme-muted, #5d6c67)','font-size':12},`${fmt(x)} s`));
+   g.append(svg('text',{x:plotWidth-20,y:161,'text-anchor':'end',fill:'var(--theme-muted, #5d6c67)','font-size':12},`${zh?'结束':'End'} ${fmt(s.end)} s`));
+   const cursor=svg('line',{y1:22,y2:132,stroke:'var(--theme-ink, #233f34)','stroke-width':2});g.append(cursor);cursors.push(cursor);plot.replaceChildren(g);
   });
  }
  function update(){

@@ -1,7 +1,12 @@
 import type { Experiment, Language } from "../lib/types";
 import { t } from "../lib/messages";
 import { formatDemoNumber as fmt } from "../lib/shared";
-const colors = ["#116d60", "#ad582d", "#655598", "#456a99"];
+const colors = [
+  "var(--series-0, #116d60)",
+  "var(--series-1, #ad582d)",
+  "var(--series-2, #655598)",
+  "var(--series-3, #456a99)",
+];
 export function ExperimentView({
   experiment: e,
   progress: u,
@@ -61,13 +66,19 @@ export function ExperimentView({
             y = Y(value);
           return (
             <g key={i}>
-              <line x1={64} x2={612} y1={y} y2={y} stroke="#dce3dc" />
+              <line
+                x1={64}
+                x2={612}
+                y1={y}
+                y2={y}
+                stroke="var(--theme-border, #dce3dc)"
+              />
               <text
                 x={56}
                 y={y + 4}
                 textAnchor="end"
                 fontSize={11}
-                fill="#5d6c67"
+                fill="var(--theme-muted, #5d6c67)"
               >
                 {fmt(value)}
               </text>
@@ -93,16 +104,22 @@ export function ExperimentView({
           x2={X(u)}
           y1={30}
           y2={225}
-          stroke="#71867c"
+          stroke="var(--theme-edge, #71867c)"
           strokeDasharray="3 4"
         />
-        <text x={64} y={18} fontSize={12} fill="#354a42">
+        <text x={64} y={18} fontSize={12} fill="var(--theme-ink, #354a42)">
           {e.unit}
         </text>
-        <text x={64} y={245} fontSize={11} fill="#5d6c67">
+        <text x={64} y={245} fontSize={11} fill="var(--theme-muted, #5d6c67)">
           {e.gates?.[0] ?? e.axisEnds?.[0] ?? 0}
         </text>
-        <text x={612} y={245} textAnchor="end" fontSize={11} fill="#5d6c67">
+        <text
+          x={612}
+          y={245}
+          textAnchor="end"
+          fontSize={11}
+          fill="var(--theme-muted, #5d6c67)"
+        >
           {e.gates?.at(-1) ?? e.axisEnds?.[1] ?? 1}
         </text>
       </svg>
@@ -136,7 +153,7 @@ export function ExperimentView({
                 x2={612}
                 y1={20 + i * 32}
                 y2={20 + i * 32}
-                stroke="#ccd7cd"
+                stroke="var(--theme-border, #ccd7cd)"
               />
               <rect
                 x={64 + x * 520}
