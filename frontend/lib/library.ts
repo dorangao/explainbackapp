@@ -14,6 +14,7 @@ import type {
 } from "./types";
 import type { Cached } from "./studio-cache";
 import { fingerprint } from "./studio-cache";
+import type { LessonCurrency } from "./types";
 import { getJson } from "./api";
 export type LessonKind = "model" | "process" | "catalog";
 export type SavedSummary = {
@@ -30,6 +31,8 @@ export type SavedSummary = {
   cover: string | null;
   sketch: string | null;
   shared: boolean;
+  // The author's stable-or-dated mark, when the lesson carries one.
+  currency?: LessonCurrency | null;
   createdAt: number;
   updatedAt: number;
 };

@@ -533,6 +533,14 @@ export const messages = {
   "LessonPlayer.yourAnswer": { en: "Your answer", zh: "你的答案" },
   "LessonPlayer.yourExperiment": { en: "YOUR EXPERIMENT", zh: "你的实验" },
   "LessonPlayer.sources": { en: "Sources:", zh: "来源：" },
+  "Lesson.figuresAsOf": {
+    en: "Figures as of {date}; they may have changed since.",
+    zh: "数据截至 {date}，此后可能已变化。",
+  },
+  "Lesson.restsOnConstants": {
+    en: "Marked stable by the author: it rests on constants and relationships that do not change.",
+    zh: "作者标记为稳定：基于不随时间变化的常数与关系。",
+  },
   "LessonPlayer.setUpTheExperiment": {
     en: "SET UP THE EXPERIMENT",
     zh: "设置实验",
@@ -1191,6 +1199,7 @@ export const messages = {
   "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
   "Gallery.theSixStepTour": { en: "The 6-step tour", zh: "六步导览" },
   "Gallery.playTheTour": { en: "Play the tour", zh: "播放导览" },
+  "Gallery.figuresAsOf": { en: "figures as of {date}", zh: "数据截至 {date}" },
   "Gallery.coverNote": {
     en: "The cover was drawn by Muse Image from the title and introduction on {date}; it is decorative and was not reviewed.",
     zh: "封面由 Muse Image 于 {date} 根据标题和引言绘制；仅作装饰，未经审阅。",

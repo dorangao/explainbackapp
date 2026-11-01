@@ -115,6 +115,7 @@ const server = createApp({
               ...(input.topic?.toLowerCase().includes("web")
                 ? processLesson()
                 : coolingLesson()),
+              currency: "stable",
               // A grounded draft names the pages it relied on.
               ...(input.references
                 ? { sources: input.references.facts.map((f) => f.url) }

@@ -98,7 +98,10 @@ export type Lesson = {
   // Unit system viewers see first; numbers are converted for display only.
   units?: "metric" | "us";
   sources?: LessonSource[];
+  // The author's mark: stable, or dated with the day its figures were drafted.
+  currency?: LessonCurrency;
 };
+export type LessonCurrency = { status: "stable" | "dated"; asOf: string };
 // One figure the ground step gathered with web search: a statement, its value and unit,
 // and the page it came from. `verified` says the page was among the search results.
 export type ReferenceFact = {

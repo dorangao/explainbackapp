@@ -22,6 +22,7 @@ import { say } from "../lib/types";
 import { formatDemoNumber } from "../lib/shared";
 import { guideKey, paceFactor, paces } from "../lib/studio-cache";
 import { PageHeader } from "./PageHeader";
+import { CurrencyNote } from "./CurrencyNote";
 import type { Cached, Pace } from "../lib/studio-cache";
 import { CacheNote, actionLabel } from "./CacheNote";
 import { measureQuantum, sampleQuantum } from "../../public/quantum.mjs";
@@ -1164,6 +1165,10 @@ export function LessonPlayer({
             <details className="assumptions" open={state.stage !== "predict"}>
               <summary>{t(language, "LessonPlayer.assumptionsLimits")}</summary>
               <p>{e.assumptions}</p>
+              <CurrencyNote
+                language={language}
+                currency={player.lesson.currency}
+              />
               {player.lesson.sources && player.lesson.sources.length > 0 && (
                 <p className="fine lesson-sources">
                   {t(language, "LessonPlayer.sources")}{" "}

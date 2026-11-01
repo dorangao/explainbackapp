@@ -79,7 +79,25 @@ value lands within the tolerance; it is an observation beside the automated chec
 part of them. `--ground` runs the Search first step before each draft, so the same suite
 run with and without it shows what grounding changes. See [evaluation.md](evaluation.md).
 
-## Not yet
+## Date awareness (phase 3)
 
-- Date awareness in the author and judge instructions (phase 3), so a lesson can be
-  marked stable or dated.
+Added October 31, 2026 Pacific. The author and both judges are told today's date. For a
+new topic demo the author must mark the lesson `stable` (it rests on constants and
+relationships that do not change) or `dated` (a default value, rate, price, population,
+version, record or date it names changes over time); the server turns that word into
+`lesson.currency = {status, asOf}` with its own date, so the author cannot backdate a
+lesson. The contract validates the mark like every other field; catalog lessons, which
+rest on fixed experiments, carry none.
+
+A dated lesson says so where its figures are read: the review and the lesson player show
+"Figures as of {date}; they may have changed since", the library's shared-lesson cards
+carry "figures as of {date}", and evaluation reports list the mark in a Currency column
+beside the checks (it is never a check). The grounded judge receives the mark with the
+lesson, so it knows which drafting day a figure was current for.
+
+## Maintenance
+
+The three phases are in. What remains is upkeep: the reference figures in
+`studio-current-v1` were recorded on October 31, 2026 and will drift, so a later run
+should read its reference hits against the sources named in the suite before drawing a
+conclusion, and a new frozen suite should replace it when the figures move.

@@ -359,6 +359,12 @@ function metaLine(entry: Entry, language: Language): string {
       date,
       item.model,
       item.hasShow ? t(language, "Library.withShow") : null,
+      item.currency?.status === "dated"
+        ? t(language, "Gallery.figuresAsOf").replace(
+            "{date}",
+            item.currency.asOf,
+          )
+        : null,
     ]
       .filter(Boolean)
       .join(" · ");
