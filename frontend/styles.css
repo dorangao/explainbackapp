@@ -4220,3 +4220,129 @@ body {
     min-height: 0;
   }
 }
+
+/* A lesson's editor and tryout share stable navigation and preserve their state. */
+.create-workspace-header {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  background: var(--paper);
+  padding: 1rem 0 0;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.5rem;
+}
+.workspace-topline,
+.workspace-title-row,
+.workspace-resume {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.workspace-title-row {
+  margin-top: 0.75rem;
+  align-items: flex-start;
+}
+.workspace-title-row h1 {
+  flex: 1 1 24rem;
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2rem);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.workspace-title-row .actions {
+  margin: 0;
+  flex-shrink: 0;
+}
+.workspace-tabs {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.app-shell .workspace-tabs button {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  color: var(--muted);
+  padding: 0.8rem 1rem;
+}
+.app-shell .workspace-tabs button[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.workspace-resume {
+  padding: 1.5rem 0;
+  margin: 1.5rem 0;
+  border-block: 1px solid var(--line);
+}
+.workspace-resume h2 {
+  margin: 0.35rem 0;
+  font-size: 1.2rem;
+}
+.workspace-tour {
+  margin: 1.5rem 0;
+}
+.workspace-tour > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+.workspace-tour .judge-path {
+  margin-top: 1rem;
+}
+.workspace-gate,
+.workspace-transition {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  margin: 1rem 0;
+}
+.workspace-gate h2,
+.workspace-transition h2 {
+  margin-top: 0;
+}
+.workspace-gate .actions,
+.workspace-transition .actions {
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+.workspace-transition {
+  border-color: var(--accent);
+}
+.workspace-tryout .lesson-player .page-header {
+  margin-top: 0;
+}
+.workspace-tryout .page-header-title h2 {
+  font-size: 1.4rem;
+}
+@media (max-width: 600px) {
+  .workspace-title-row {
+    gap: 0.75rem;
+  }
+  .workspace-title-row .actions {
+    width: 100%;
+    display: flex;
+  }
+  .workspace-title-row .actions button {
+    flex: 1;
+  }
+  .create-workspace-header {
+    padding-top: 0.5rem;
+  }
+  .workspace-topline {
+    gap: 0.25rem 0.75rem;
+  }
+  .workspace-topline .fine {
+    font-size: 0.75rem;
+  }
+  .workspace-resume .actions {
+    width: 100%;
+  }
+  .workspace-transition .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

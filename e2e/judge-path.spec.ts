@@ -16,9 +16,14 @@ test("the judge path runs the whole creation story in order and reports its cost
     page.getByText("Requests the remaining steps will make: 4"),
   ).toBeVisible();
   await page.getByRole("button", { name: /Run all remaining/ }).click();
-  await expect(page.getByText(/All steps done/)).toBeVisible({
+  await expect(page.locator(".judge-foot")).toHaveText(/All steps done/, {
     timeout: 30_000,
   });
+  if (!(await page.getByText(/All steps done/).isVisible()))
+    await page
+      .getByText("Guided creation · the 6-step tour", { exact: true })
+      .click();
+  await expect(page.getByText(/All steps done/)).toBeVisible();
   await expect(page.locator('.judge-steps li[data-state="done"]')).toHaveCount(
     6,
   );
@@ -76,11 +81,14 @@ test("the judge path runs the whole creation story in order and reports its cost
       saved: !!document.querySelector(".saved-bar"),
     })),
   );
+  await page
+    .getByText("Guided creation · the 6-step tour", { exact: true })
+    .click();
   await expect(page.getByText(/All steps done/)).toBeVisible({
     timeout: 15_000,
   });
   // Leave the fixture as it was found: the tour's saved, shared copy is removed.
-  await page.getByRole("button", { name: "Start a new lesson" }).click();
+  await page.getByRole("button", { name: "New lesson" }).click();
   await page.getByRole("button", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Yes, delete" }).click();
   await expect(page.getByText(/Nothing saved yet/)).toBeVisible();

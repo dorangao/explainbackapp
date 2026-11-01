@@ -84,8 +84,8 @@ test("reviewer entry creates a lesson and requires review again after editing", 
   await expect(present).toBeEnabled();
   await page.getByText("Edit lesson text", { exact: true }).click();
   await page
-    .getByLabel("Lesson title", { exact: true })
-    .fill("My cooling lesson");
+    .getByRole("textbox", { name: "Scene / question", exact: true })
+    .fill("A cup starts warmer than its room.");
   await expect(present).toBeDisabled();
   await page
     .getByLabel(

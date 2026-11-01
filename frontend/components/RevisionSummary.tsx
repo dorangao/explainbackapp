@@ -15,7 +15,9 @@ export function RevisionSummary({
   metrics,
   onDismiss,
   onRestore,
+  busy = false,
 }: {
+  busy?: boolean;
   before: Lesson;
   after: Lesson;
   language: Language;
@@ -47,7 +49,12 @@ export function RevisionSummary({
           <RequestSummary metrics={metrics} language={language} />
         </div>
         <div className="revision-actions">
-          <button type="button" className="secondary" onClick={onRestore}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={onRestore}
+            disabled={busy}
+          >
             {t(language, "RevisionSummary.restorePreviousDraft")}
           </button>
           <button type="button" className="text-button" onClick={onDismiss}>

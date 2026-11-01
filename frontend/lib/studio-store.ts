@@ -16,9 +16,17 @@ import { paces } from "./studio-cache";
 import { createLessonPlayer, validateLesson } from "./shared";
 import { validateDrawing } from "../../public/lesson-canvas.mjs";
 
+import type { WorkspaceArea, TryoutUI } from "./workspace";
+
 export const storageKey = "explainback-studio-draft";
 export type StoredStudio = {
   version: 1;
+  workspace?: WorkspaceArea;
+  attemptLesson?: Lesson | null;
+  tryoutUI?: TryoutUI;
+  pendingDefinitions?: Record<number, string>;
+  savedFingerprint?: string | null;
+  newTopic?: string;
   savedAt: number;
   draft: Lesson;
   topic: string;
@@ -66,7 +74,7 @@ export function saveStudio(
   },
 ) {
   const store = storage();
-  if (!store) return;
+  if (!store) return false;
   const record = scrub({
     savedId: null,
     ...value,
@@ -75,6 +83,7 @@ export function saveStudio(
   });
   try {
     store.setItem(storageKey, JSON.stringify(record));
+    return true;
   } catch {
     // Quota: keep the lesson and drop the show (its cover is the large part).
     try {
@@ -86,7 +95,10 @@ export function saveStudio(
           sourceImage: null,
         }),
       );
-    } catch {}
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
 export function clearStudio() {
@@ -123,7 +135,52 @@ export function loadStudio(): StoredStudio | null {
       const c = cached<Feedback>(v);
       if (c) guide[k] = c;
     }
+    let attemptLesson: Lesson | null = null;
+    try {
+      if (value.attemptLesson)
+        attemptLesson = validateLesson(value.attemptLesson);
+    } catch {
+      /* Drop corrupt attempts, never the working draft. */
+    }
+    const ui = value.tryoutUI;
     return {
+      workspace: ["home", "create", "tryout"].includes(String(value.workspace))
+        ? value.workspace
+        : value.presenting
+          ? "tryout"
+          : "create",
+      attemptLesson: attemptLesson ?? (value.player ? draft : null),
+      tryoutUI: {
+        answer: typeof ui?.answer === "string" ? ui.answer.slice(0, 200) : "",
+        result:
+          typeof ui?.result === "boolean" || ui?.result === "invalid"
+            ? ui.result
+            : null,
+        observation:
+          ui?.observation && typeof ui.observation.outcome === "number"
+            ? ui.observation
+            : null,
+        counts:
+          Array.isArray(ui?.counts) &&
+          ui.counts.every((n) => Number.isFinite(n))
+            ? ui.counts.slice(0, 64)
+            : null,
+      },
+      pendingDefinitions: Object.fromEntries(
+        Object.entries(value.pendingDefinitions ?? {}).filter(
+          ([k, v]) =>
+            /^\d+$/.test(k) &&
+            Number(k) < draft.chapters.length &&
+            typeof v === "string" &&
+            v.length <= 24000,
+        ),
+      ),
+      savedFingerprint:
+        typeof value.savedFingerprint === "string"
+          ? value.savedFingerprint
+          : null,
+      newTopic:
+        typeof value.newTopic === "string" ? value.newTopic.slice(0, 600) : "",
       version: 1,
       savedAt: typeof value.savedAt === "number" ? value.savedAt : Date.now(),
       draft,

@@ -38,9 +38,12 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   const link = await page.getByLabel("Share link").inputValue();
   expect(link).toMatch(/#shared:[a-f0-9]{16}$/);
   // Saving again updates the same copy: the shelf still lists one lesson.
-  await page.getByRole("button", { name: "Save changes" }).click();
+  await page
+    .getByRole("tabpanel", { name: "Create", exact: true })
+    .getByRole("button", { name: "Save changes" })
+    .click();
   await expect(page.getByText("Saved changes.")).toBeVisible();
-  await page.getByRole("button", { name: "Start a new lesson" }).click();
+  await page.getByRole("button", { name: "New lesson" }).click();
   await expect(page.getByText("1 / 50")).toBeVisible();
   await expect(page.locator(".shelf-thumb")).toBeVisible();
   // The three image requests were the show (with its cover) and the illustration.
@@ -67,7 +70,11 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(
     own.getByText("Opened your saved lesson", { exact: false }),
   ).toBeVisible();
-  await expect(own.getByRole("button", { name: "Save changes" })).toBeVisible();
+  await expect(
+    own
+      .getByRole("tabpanel", { name: "Create", exact: true })
+      .getByRole("button", { name: "Save changes" }),
+  ).toBeVisible();
   await own.close();
 
   // A fresh, signed-out browser opens the link and finds the lesson in the catalog.

@@ -322,7 +322,15 @@ export function DraftReview({
   sourceImage,
   detection,
   onFind,
+  pending: controlledPending,
+  onPending,
+  workspace = false,
+  recoveryAvailable = true,
 }: {
+  pending?: Record<number, string>;
+  onPending?: (value: Record<number, string>) => void;
+  workspace?: boolean;
+  recoveryAvailable?: boolean;
   draft: Lesson;
   references?: References | null;
   language: Language;
@@ -364,9 +372,17 @@ export function DraftReview({
   onFind?: (concept: string) => void;
 }) {
   const formId = useId();
-  const [pending, setPending] = useState<Record<number, string>>({}),
+  const [localPending, setLocalPending] = useState<Record<number, string>>({}),
     [error, setError] = useState(""),
     [connectionRemoved, setConnectionRemoved] = useState(false);
+  const pending = controlledPending ?? localPending;
+  const setPending = (
+    change: (previous: Record<number, string>) => Record<number, string>,
+  ) => {
+    const next = change(pending);
+    if (onPending) onPending(next);
+    else setLocalPending(next);
+  };
   const generated = draft.chapters.some((c) => c.demo),
     hasPending = Object.keys(pending).length > 0,
     warnings = lessonLanguageWarnings(draft);
@@ -413,11 +429,17 @@ export function DraftReview({
       <div className="workspace-heading">
         <div>
           <p className="eyebrow">{t(language, "DraftReview.02ReviewRefine")}</p>
-          <h2 id={`${formId}-title`}>{draft.title[language]}</h2>
+          <h2 id={`${formId}-title`}>
+            {workspace
+              ? say(language, "Review and refine", "审阅与完善")
+              : draft.title[language]}
+          </h2>
         </div>
-        <button className="text-button" disabled={busy} onClick={onClose}>
-          {t(language, "DraftReview.startANewLesson")}
-        </button>
+        {!workspace && (
+          <button className="text-button" disabled={busy} onClick={onClose}>
+            {t(language, "DraftReview.startANewLesson")}
+          </button>
+        )}
       </div>
       <p className="lead-small">{draft.intro[language]}</p>
       {caches.compose && (
@@ -436,7 +458,11 @@ export function DraftReview({
           )}
         </div>
       )}
-      <p className="fine">{t(language, "DraftReview.thisDraftIsRemembered")}</p>
+      {recoveryAvailable && (
+        <p className="fine">
+          {t(language, "DraftReview.thisDraftIsRemembered")}
+        </p>
+      )}
       <CurrencyNote language={language} currency={draft.currency} />
       <SourcesPanel
         language={language}

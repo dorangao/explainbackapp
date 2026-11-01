@@ -13,7 +13,9 @@ export function PageHeader({
   titleId,
   meta,
   actions,
+  headingLevel = 1,
 }: {
+  headingLevel?: 1 | 2;
   language: Language;
   crumbs: Crumb[];
   eyebrow?: string;
@@ -22,6 +24,7 @@ export function PageHeader({
   meta?: ReactNode;
   actions?: ReactNode;
 }) {
+  const Heading = headingLevel === 1 ? "h1" : "h2";
   return (
     <div className="page-header">
       {crumbs.length > 0 && (
@@ -47,7 +50,7 @@ export function PageHeader({
       <div className="page-header-row">
         <div className="page-header-title">
           {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-          <h1 id={titleId}>{title}</h1>
+          <Heading id={titleId}>{title}</Heading>
           {meta && <p className="page-meta">{meta}</p>}
         </div>
         {actions && <div className="page-actions">{actions}</div>}

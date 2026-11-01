@@ -24,9 +24,22 @@ async function choose(page: Page, name: string, mode = "Light") {
   await page.keyboard.press("Escape");
 }
 async function audit(page: Page, label: string) {
-  await page.evaluate(() =>
-    Promise.all(document.getAnimations().map((a) => a.finished)),
-  );
+  // Read the current animation list: replacing or hiding a mounted panel can
+  // leave an earlier animation's finished promise pending in Chromium.
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        document
+          .getAnimations()
+          .filter(
+            (a) =>
+              a.playState === "running" &&
+              a.effect?.getComputedTiming().iterations !== Infinity,
+          )
+          .map((a) => ({ type: a.constructor.name, time: a.currentTime })),
+      ),
+    )
+    .toEqual([]);
   const result = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
