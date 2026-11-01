@@ -1397,51 +1397,194 @@ body {
   font-size: 1rem;
   color: var(--muted);
 }
-.learning-steps {
+/* The learning flow: four keywords in connected bubbles. Finished ones fill with a
+   check, the current one is solid; what each holds sits in a hover tip and a disclosure. */
+.learning-flow {
+  margin: 26px 0 28px;
+}
+.learning-flow ol {
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  margin: 30px 0 36px;
+  display: flex;
+  align-items: center;
+  margin: 0;
   padding: 0;
 }
-.learning-steps li {
-  border-top: 2px solid var(--line);
-  padding-top: 12px;
-  font-size: 0.8rem;
-  color: var(--muted);
+.learning-flow li {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
 }
-.learning-steps li > span {
-  font-size: 0.67rem;
+.learning-flow li:last-child {
+  flex: 0 0 auto;
 }
-.learning-steps li[aria-current="step"] {
+.learning-flow li:not(:last-child)::after {
+  content: "";
+  flex: 1 1 24px;
+  height: 2px;
+  background: var(--line);
+  margin: 0 14px;
+}
+.learning-flow li.is-complete::after {
+  background: #8aaf97;
+}
+.flow-node {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #c9d4cc;
+  background: var(--surface);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex: none;
+}
+.is-current .flow-node {
   border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 650;
+  background: var(--accent);
+  color: var(--surface);
+  box-shadow: 0 0 0 4px #d7e6e0;
 }
-.learning-steps li.is-complete {
-  border-color: #8aaf97;
+.is-complete .flow-node {
+  border-color: #44755d;
+  background: #e4eee6;
   color: #44755d;
+}
+.flow-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.is-current .flow-label {
+  color: var(--accent);
+  font-weight: 700;
+}
+.is-complete .flow-label {
+  color: #44755d;
+}
+.flow-tip {
+  display: none;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  z-index: 2;
+  width: 220px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.flow-tip::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+.learning-flow li:hover .flow-tip {
+  display: block;
+}
+.flow-details {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.flow-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  width: max-content;
+}
+.flow-details div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 0 4px;
+}
+.flow-details p {
+  margin: 0;
+}
+.flow-details strong {
+  color: var(--ink);
 }
 .player-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 32px;
   align-items: start;
 }
 .player-main {
   min-width: 0;
 }
-.player-main > h3 {
-  font-size: 1.6rem;
-  margin: 0 0 20px;
+/* The stage card: the step's heading, the claim and its action row. */
+.stage-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 24px;
+}
+.stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.stage-head h3 {
+  font-size: 1.5rem;
+  margin: 0;
   outline: none;
 }
+.stage-head > .fine {
+  margin: 0;
+}
+.prediction-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.prediction-prompt {
+  font-weight: 650;
+  margin-right: 4px;
+}
+.prediction-row > button:last-child {
+  margin-left: auto;
+}
+.prediction-row + .fine {
+  margin: 14px 0 0;
+}
+.experiment-preview {
+  margin: 18px 0 0;
+}
+.preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.preview-head > .fine {
+  margin: 0;
+}
+.experiment-drawing[data-preview] .chart-legend {
+  opacity: 0.8;
+}
 .claim {
-  margin: 0 0 20px;
+  margin: 0;
   padding: 20px 24px;
   background: #e9eee4;
   border-left: 3px solid #8cab94;
@@ -1460,18 +1603,32 @@ body {
   font-size: 0.6rem;
   margin-bottom: 8px;
 }
-.prediction-options {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 24px 0 36px;
-}
-.prediction-options button {
-  min-width: 110px;
-}
 .player-inspector {
-  border-left: 1px solid var(--line);
-  padding-left: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+}
+.player-inspector > .eyebrow {
+  margin-top: 0;
+}
+.parameter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.parameter-head label {
+  margin: 0;
+  flex: 1 1 auto;
+}
+.parameter-head input[type="number"] {
+  width: 84px;
+  max-width: 84px;
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  flex: 0 0 84px;
 }
 .player-inspector select {
   width: 100%;
@@ -2034,11 +2191,11 @@ body {
     display: none;
   }
   .player-layout {
-    gap: 28px;
-    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) 250px;
   }
   .player-inspector {
-    padding-left: 20px;
+    padding: 16px;
   }
 }
 @media (max-width: 800px) {
@@ -2103,9 +2260,7 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
   .player-inspector {
-    border: 0;
-    border-top: 1px solid var(--line);
-    padding: 24px 0 0;
+    padding: 18px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 24px;
@@ -2338,33 +2493,58 @@ body {
   .player-toolbar > .back-link {
     font-size: 0.74rem;
   }
-  .learning-steps {
-    margin: 24px 0;
+  .learning-flow {
+    margin: 20px 0 22px;
+  }
+  .learning-flow li {
+    gap: 6px;
+  }
+  .learning-flow li:not(:last-child)::after {
+    margin: 0 8px;
+  }
+  .flow-node {
+    width: 30px;
+    height: 30px;
+    font-size: 0.72rem;
+  }
+  .flow-label {
+    display: none;
+  }
+  .is-current .flow-label {
+    display: inline;
+    font-size: 0.82rem;
+  }
+  .flow-tip {
+    display: none !important;
+  }
+  .flow-details div {
+    grid-template-columns: 1fr;
     gap: 8px;
   }
-  .learning-steps li {
-    font-size: 0.68rem;
-    display: block;
-    line-height: 1.4;
+  .stage-card {
+    padding: 16px;
   }
-  .learning-steps li > span {
-    display: block;
-    margin-bottom: 5px;
-  }
-  .player-main > h3 {
-    font-size: 1.4rem;
+  .stage-head h3 {
+    font-size: 1.3rem;
   }
   .claim {
     padding: 18px;
     font-size: 1.22rem;
   }
-  .prediction-options {
+  .prediction-row {
     gap: 8px;
   }
-  .prediction-options button {
+  .prediction-prompt {
+    width: 100%;
+  }
+  .prediction-row > button {
     flex: 1;
     min-width: 80px;
     padding: 0.75rem 0.65rem;
+  }
+  .prediction-row > button:last-child {
+    flex: 1 1 100%;
+    margin-left: 0;
   }
   .experiment-surface {
     padding: 12px;
@@ -3734,7 +3914,7 @@ li[data-state="done"] .judge-mark {
     align-items: center;
   }
   .studio-stepper li,
-  .learning-steps li {
+  .learning-flow li {
     min-height: 44px;
   }
 }

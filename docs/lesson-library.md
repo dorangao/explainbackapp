@@ -98,6 +98,8 @@ Next to **Create a lesson**, a signed-in creator sees **Compare two models** whe
 
 ## Learning and show layout
 
+The lesson page is a stage (October 31, 2026 Pacific). The four steps sit at the top as a flow of numbered bubbles joined by a line: finished steps fill with a check, the current one is solid, and what each step holds appears on hover and in a **What happens at each step** disclosure. The main column holds a stage card (the step's heading, the claim, and at Predict the three calls with **Test this claim** on the same row) and, from the Predict step on, the experiment canvas: before the prediction it draws the axes and the starting point only, with the result area hatched over, so the curve stays hidden until the learner has chosen. Process lessons have no such preview, since the steps themselves are the result. The setup is a card beside the stage, each slider with its number field on the same line, assumptions collapsed until the experiment starts.
+
 The transfer step puts its new question and settings first. The earlier experiment is available only in a collapsed, labelled reference; controls that would reset the prediction return on replay. Unit switching and assumptions remain available. The final chapter action says **Finish lesson**.
 
 Narrated shows place playback controls before the slide. Gallery shows use the existing page title and introduction instead of repeating them inside the cover. The library retains a compact six-step tour and a short explanation on phones.
