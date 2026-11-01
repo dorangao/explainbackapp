@@ -136,6 +136,33 @@ describe("phone menu", () => {
   });
 });
 
+describe("back to top", () => {
+  it("appears after a long scroll, scrolls the page up and hands focus to the content", async () => {
+    render(<App />);
+    expect(screen.queryByRole("button", { name: "Back to top" })).toBeNull();
+    Object.defineProperty(window, "innerHeight", {
+      value: 800,
+      configurable: true,
+    });
+    Object.defineProperty(window, "scrollY", {
+      value: 2000,
+      configurable: true,
+    });
+    const scrollTo = vi.fn();
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Back to top" }));
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }));
+    expect(document.activeElement?.id).toBe("main-content");
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(screen.queryByRole("button", { name: "Back to top" })).toBeNull();
+  });
+});
 describe("the tour's play link", () => {
   it("opens the gallery show already playing when the hash ends in /play", async () => {
     location.hash = "#show:explainback/play";
