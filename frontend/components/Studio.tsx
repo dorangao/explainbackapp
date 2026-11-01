@@ -13,6 +13,7 @@ import type {
   ComposeReply,
   CoverReply,
   GroundReply,
+  JudgeReply,
   References,
   CompareDraft,
   CompareReply,
@@ -75,6 +76,7 @@ import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
 import { CoverTool } from "./CoverTool";
+import { FigureCheck } from "./FigureCheck";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
@@ -772,10 +774,12 @@ export function Studio({
       ),
     );
   }
-  // A library cover for the open reviewed lesson, drawn by Muse Image: one image request.
-  async function drawCover(): Promise<CoverReply | null> {
+  // A library cover drawn by Muse Image, one image request: for the open reviewed lesson,
+  // or for the creator's own saved lesson (whose card then shows it).
+  async function drawCover(
+    which: { lessonId: string } | { savedId: string },
+  ): Promise<CoverReply | null> {
     if (
-      !lessonId ||
       busyRef.current ||
       !authenticated ||
       !target?.configured ||
@@ -785,9 +789,54 @@ export function Studio({
     const result = await run<CoverReply>(target, "cover", (id, options) =>
       post<CoverReply>(
         "/api/studio/cover",
-        { sessionId: id, lessonId },
+        { sessionId: id, ...which },
         { ...options, timeoutMs: options.timeoutMs + 60_000 },
       ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return null;
+    }
+    if ("savedId" in which) {
+      const { cover, model } = result.reply;
+      setSavedItem((item) =>
+        item ? { ...item, cover, coverModel: model } : item,
+      );
+      setShelfRefresh((n) => n + 1);
+    }
+    return result.reply;
+  }
+  // Check figures against the web: the grounded rubric judge on the open lesson, one
+  // request on the test-learner model. Read-only; the lesson is unchanged.
+  async function checkFigures(): Promise<JudgeReply | null> {
+    if (
+      !player ||
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      remaining === 0
+    )
+      return null;
+    let lesson: Lesson;
+    try {
+      lesson = validateLesson(player.lesson);
+    } catch {
+      return null;
+    }
+    const result = await run<JudgeReply>(
+      tester ?? target,
+      "judge",
+      (id, options) =>
+        post<JudgeReply>(
+          "/api/studio/judge",
+          {
+            sessionId: id,
+            lesson,
+            topic: lesson.title[language],
+            language,
+          },
+          { ...options, timeoutMs: options.timeoutMs + 60_000 },
+        ),
     );
     if (!result.ok) {
       if (!result.stale) setMessage(failureMessage(result.error));
@@ -1770,6 +1819,19 @@ export function Studio({
               savedId={savedId}
               saving={saving}
             />
+            {savedId &&
+              savedItem &&
+              authenticated &&
+              providerStatus?.images &&
+              target?.configured && (
+                <CoverTool
+                  key={`saved-${savedId}`}
+                  language={language}
+                  saved={savedItem}
+                  busy={busy || saving}
+                  onDraw={() => drawCover({ savedId })}
+                />
+              )}
           </Suspense>
         )}
         {presenting && player && (
@@ -1806,6 +1868,7 @@ export function Studio({
               onState={onPlayerState}
             />
             {lessonId &&
+              !lessonId.startsWith("shared:") &&
               authenticated &&
               providerStatus?.images &&
               target?.configured && (
@@ -1814,9 +1877,17 @@ export function Studio({
                   language={language}
                   lessonId={lessonId}
                   busy={busy}
-                  onDraw={drawCover}
+                  onDraw={() => drawCover({ lessonId })}
                 />
               )}
+            {lessonId && authenticated && target?.configured && (
+              <FigureCheck
+                key={`figures-${lessonId}`}
+                language={language}
+                busy={busy}
+                onCheck={checkFigures}
+              />
+            )}
             {((feedback && metrics?.mode === "guide") ||
               metrics?.mode === "transcribe") && (
               <RequestSummary metrics={metrics} language={language} />

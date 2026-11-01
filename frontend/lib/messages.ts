@@ -667,6 +667,10 @@ export const messages = {
     en: "The model's own account of its reasoning, unverified:",
     zh: "模型对自身推理的说明（未经核验）：",
   },
+  "RevisionSummary.checkedTheFiguresOf": {
+    en: "checked the figures of",
+    zh: "核对了数值",
+  },
   "RevisionSummary.drewACoverFor": {
     en: "drew a library cover for",
     zh: "绘制了课程库封面",
@@ -1228,9 +1232,35 @@ export const messages = {
     en: "Muse Image draws one from the title and introduction; one image request. The library shows the new cover to everyone from then on. Covers are decorative and not reviewed.",
     zh: "Muse Image 根据标题和引言绘制一张；一次图片请求。此后课程库对所有人显示新封面。封面仅作装饰，未经审阅。",
   },
+  "Cover.fromTheShow": { en: "from the narrated show", zh: "来自讲解秀" },
+  "Cover.noteSaved": {
+    en: "Muse Image draws one from the title and introduction; one image request. Your lesson's card shows it, and it stays through later saves unless a show cover replaces it. Covers are decorative and not reviewed.",
+    zh: "Muse Image 根据标题和引言绘制一张；一次图片请求。你的课程卡片会显示它，之后的保存也会保留，除非讲解秀封面将其替换。封面仅作装饰，未经审阅。",
+  },
+  "Figures.eyebrow": { en: "FIGURES", zh: "数值核对" },
+  "Figures.title": {
+    en: "Check figures against the web",
+    zh: "联网核对数值",
+  },
+  "Figures.note": {
+    en: "Muse Spark reads the lesson, searches for every figure it names and reports any that disagree with current pages, with the page it read. One request; the lesson is unchanged, and the result is one model's opinion.",
+    zh: "Muse Spark 读取课程，搜索其中的每个数值，并报告与当前网页不符之处及其来源页面。一次请求；课程内容不变，结果仅是一个模型的看法。",
+  },
+  "Figures.check": { en: "Check figures", zh: "核对数值" },
+  "Figures.checkAgain": { en: "Check again", zh: "再次核对" },
+  "Figures.checking": {
+    en: "Muse Spark is checking…",
+    zh: "Muse Spark 正在核对…",
+  },
+  "Figures.pageRead": { en: "1 page read", zh: "读取了 1 个页面" },
+  "Figures.pagesRead": { en: "{n} pages read", zh: "读取了 {n} 个页面" },
   "Cover.draw": { en: "Draw a cover", zh: "绘制封面" },
   "Cover.redraw": { en: "Redraw the cover", zh: "重新绘制封面" },
   "Cover.drawing": { en: "Muse Image is drawing…", zh: "Muse Image 正在绘制…" },
+  "Cover.drawnNoteSaved": {
+    en: "New cover drawn. Your lesson's card shows it now; the lesson is unchanged.",
+    zh: "新封面已绘制。你的课程卡片现已显示；课程内容不变。",
+  },
   "Cover.drawnNote": {
     en: "New cover drawn. The library shows it now; this lesson is unchanged.",
     zh: "新封面已绘制。课程库现已显示；本课内容不变。",

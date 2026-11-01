@@ -86,7 +86,12 @@ export async function attachImages(record,body,{store=null,owner,previous=null}=
   if(value.startsWith('data:'))return store.putImage({owner,...decodeImageDataUrl(value)});
   throw new Error('Invalid image.');
  };
- record.cover=record.show?await resolve(body.cover):null;
+ // A cover drawn for this saved lesson (Draw a cover on the Create page) outlives saves
+ // that carry no show cover; a show cover sent with the save replaces it.
+ const keepDrawn=previous?.coverDrawn===true&&Boolean(previous.cover)&&(body.cover===undefined||body.cover===null||body.cover===previous.cover);
+ record.cover=keepDrawn?previous.cover:(record.show?await resolve(body.cover):null);
+ record.coverDrawn=keepDrawn;
+ if(keepDrawn)record.coverModel=previous.coverModel??null;
  if(!record.cover)record.coverModel=null;
  record.sketch=await resolve(body.sketch);
  record.illustrations={};
@@ -103,5 +108,5 @@ export async function attachImages(record,body,{store=null,owner,previous=null}=
  return recordImageUrls(previous).filter(url=>!kept.has(url));
 }
 // What lists and public readers see. The owner id never leaves the server.
-export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,cover:r.cover??null,sketch:r.sketch??null,shared:r.shared===true,reviewedAt:r.reviewedAt??null,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});
-export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,coverModel:r.coverModel??null,illustrations:r.illustrations??{},tryout:r.tryout??null,grades:r.grades??{}});
+export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,cover:r.cover??null,coverModel:r.coverModel??null,sketch:r.sketch??null,shared:r.shared===true,reviewedAt:r.reviewedAt??null,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});
+export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,illustrations:r.illustrations??{},tryout:r.tryout??null,grades:r.grades??{}});

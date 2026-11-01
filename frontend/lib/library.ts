@@ -29,6 +29,8 @@ export type SavedSummary = {
   model: string | null;
   // Image URLs kept in Blob storage; null when none was saved.
   cover: string | null;
+  // Which model drew the cover: Muse Image, or null for a show cover of the shipped style.
+  coverModel?: string | null;
   sketch: string | null;
   shared: boolean;
   // When the creator's own review was saved with this content; null when unreviewed.

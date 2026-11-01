@@ -11,6 +11,7 @@ ExplainBack uses it in one place so far, before the author drafts a new topic de
 | --- | --- | --- |
 | Ground (new, `/api/studio/ground`) | Yes | Gathers a few sourced figures for the topic before the draft. |
 | Draft and revise (`/api/studio/compose`) | No search of its own | Receives the fact sheet as `references`; may name only its pages as sources. |
+| Check figures (any lesson page, signed in) | Yes (`studio-judge-v2`) | One request: the grounded judge on the open lesson, with the figures it disputed and the pages it read. |
 | Rubric judge (Compare, eval harness) | Optional (`studio-judge-v2`) | A separate request; with **Check figures against the web** (Compare) or `--grounded-judge` (harness) it searches and scores factual currency, citing pages. |
 | Narrated show, illustrations | No | Written and drawn from the checked lesson. |
 | Learner tryout, explain-back guide, bench coach, quantum coach | Never | The learner must know only the lesson; the guide and coaches judge against checked facts. |

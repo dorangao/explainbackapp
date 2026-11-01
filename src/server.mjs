@@ -16,6 +16,7 @@ import {createMemoryState} from './state.mjs';
 import {RequestError} from './request-error.mjs';
 import {registerSharedRoutes,registerLessonRoutes} from './lesson-routes.mjs';
 import {detectInImage,illustrateSlide,drawCover} from './studio-images.mjs';
+import {judgeLesson} from './studio-judge.mjs';
 import {compareDrafts} from './studio-compare.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
@@ -114,7 +115,7 @@ export function createHandler({
     if (req.headers.origin !== res.locals.origin) return next(new RequestError(403, 'This action must come from this app.'));
     next();
   };
-  const bodyLimit = path => ['/api/studio/compose','/api/studio/detect'].includes(path) ? 1_400_000 : path === '/api/lessons' ? 3_000_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate'].includes(path) ? 48_000 : 16_384;
+  const bodyLimit = path => ['/api/studio/compose','/api/studio/detect'].includes(path) ? 1_400_000 : path === '/api/lessons' ? 3_000_000 : path === '/api/studio/transcribe' ? 2_700_000 : ['/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/judge'].includes(path) ? 48_000 : 16_384;
   const parseBody = (req, res, next) => {
     if (!req.headers['content-type']?.startsWith('application/json')) return next(new RequestError(415, 'Use JSON for this request.'));
     if (req.headers['content-encoding'] && req.headers['content-encoding'].toLowerCase() !== 'identity') return next(new RequestError(415, 'Compressed request encoding is not supported.'));
@@ -173,7 +174,7 @@ export function createHandler({
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/cover','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/cover','/api/studio/judge','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -258,7 +259,7 @@ export function createHandler({
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
-        const mode=path==='/api/studio/ground'?'ground':path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/cover'?'cover':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
+        const mode=path==='/api/studio/ground'?'ground':path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/cover'?'cover':path==='/api/studio/judge'?'judge':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
         // Image routes (SAM 3.1 detection, Muse Image illustration) live in studio-images.mjs
         // and share this handler's session, budget and trace plumbing through `ctx`.
@@ -269,6 +270,8 @@ export function createHandler({
         // The compare route (studio-compare.mjs) drafts the same question with both Muse text
         // models and has the judge (the tester role unless the body names the other model)
         // score the ready lessons: up to four requests.
+        // Check figures (studio-judge.mjs): the grounded rubric judge on one lesson, one request.
+        if(mode==='judge'){await judgeLesson({...ctx,judge:selected(roles.tester),invoke:(target,o)=>modelCall?modelCall(o,target.id):router.call(target.id,o)});return;}
         if(mode==='compare'){await compareDrafts({...ctx,models:[selected(roles.creator),selected(roles.tester)],judge:selected(roles.tester),invoke:(target,o)=>modelCall?modelCall(o,target.id):router.call(target.id,o)});return;}
         // Quick learner feedback and the test learner use Spark regardless of the creator model.
         const llm=['tryout','guide','ground'].includes(mode)?selected(roles.tester):s.llm;
