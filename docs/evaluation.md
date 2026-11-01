@@ -56,7 +56,7 @@ Without `--live` the command prints the case list and sends nothing. With `--liv
 
 ## What these checks do not establish
 
-- Not scientific validity. A formula that compiles, stays finite and matches a probe is consistent with the lesson's own assumptions, nothing more. Human review of the science is still required before a lesson is presented, and the app says so on every generated lesson.
+- Not scientific validity. A formula that compiles, stays finite and matches a probe is consistent with the lesson's own assumptions, nothing more. Human review of the science is still required before a lesson is presented, and the app says so on every generated lesson. A written review of the fourteen showcase lessons, formula by formula, is kept in [showcase-science-review.md](showcase-science-review.md); it is an AI model's second opinion with a countersignature table for human reviewers, and the label on the cards stays until a person signs.
 - Not learning effectiveness. No learner study has been run.
 - Not a ranking of the models. A sample is an observation about this pipeline, its selected cases and its prompt version. It is not a general comparison of the models.
 - Not an independent rubric comparison. The chosen judge can also be one of the author models, including when it scores its own draft. Deterministic checks stay separate; rubric scores are one model's view of wording, with that bias in mind.
