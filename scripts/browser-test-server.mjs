@@ -213,6 +213,12 @@ const server = createApp({
         arguments: JSON.stringify({
           explanation:
             "The values follow the reviewed model. Its assumptions need review.",
+          ...(input.learnerExplanation ? {
+            verdict: "partly",
+            followUp: input.drawnPrediction
+              ? "Where does your drawn prediction differ most from the calculated curve?"
+              : "How does the temperature gap affect the rate?",
+          } : {}),
           nextAction: "replay",
         }),
       },

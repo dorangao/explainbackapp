@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { fingerprint, guideKey, isStale } from "./studio-cache";
+import { drawingKey, fingerprint, guideKey, isStale } from "./studio-cache";
 import {
   clearStudio,
   loadStudio,
@@ -9,7 +9,10 @@ import {
 } from "./studio-store";
 import { createLessonPlayer } from "./shared";
 import type { Lesson, TryoutReply } from "./types";
-import { coolingLesson } from "../../test-support/generated-lessons.mjs";
+import {
+  coolingLesson,
+  tinyPng,
+} from "../../test-support/generated-lessons.mjs";
 
 afterEach(() => localStorage.clear());
 const lesson = () => coolingLesson() as unknown as Lesson;
@@ -44,6 +47,24 @@ const base = () => ({
 });
 
 describe("fingerprint", () => {
+  it("keeps a drawing through playback but invalidates it after a parameter edit", () => {
+    const player = createLessonPlayer(lesson());
+    const key = drawingKey(player);
+    const drawing = {
+      points: [
+        { x: 0, y: 0.8 },
+        { x: 1, y: 0.2 },
+      ],
+    };
+    const without = guideKey(player, "en", "because");
+    expect(guideKey(player, "en", "because", drawing)).not.toBe(without);
+    player.predict("agree");
+    player.next();
+    player.scrub(1);
+    expect(drawingKey(player)).toBe(key);
+    player.input("initial", 90);
+    expect(drawingKey(player)).not.toBe(key);
+  });
   it("is stable across key order and changes with any value", () => {
     expect(fingerprint({ a: 1, b: [1, 2] })).toBe(
       fingerprint({ b: [1, 2], a: 1 }),
@@ -67,6 +88,22 @@ describe("fingerprint", () => {
 });
 
 describe("studio store", () => {
+  it("restores canvas source and valid predictions, discarding malformed predictions", () => {
+    const drawing = {
+      points: [
+        { x: 0, y: 0.8 },
+        { x: 1, y: 0.2 },
+      ],
+    };
+    saveStudio({
+      ...base(),
+      sourceImage: tinyPng,
+      drawings: { good: drawing, broken: { points: [] } },
+    });
+    const saved = loadStudio()!;
+    expect(saved.sourceImage).toBe(tinyPng);
+    expect(saved.drawings).toEqual({ good: drawing });
+  });
   it("round-trips the draft, review state, cached results and pace", () => {
     saveStudio(base());
     const saved = loadStudio()!;

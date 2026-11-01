@@ -113,6 +113,60 @@ describe("Studio gallery playback", () => {
 });
 
 describe("Studio authoring", () => {
+  it("applies valid definition edits that rename a connected control and requires a new connection", async () => {
+    const { saveStudio } = await import("../lib/studio-store");
+    const draft = coolingLesson() as Lesson;
+    draft.chapters[0].canvas = {
+      concept: "cup",
+      input: "initial",
+      box: { x: 0, y: 0, width: 1, height: 1 },
+    };
+    saveStudio({
+      draft,
+      topic: "Cooling",
+      creation: "generated",
+      reviewed: true,
+      revisionPrompt: "",
+      compose: null,
+      revise: null,
+      tryout: null,
+      show: null,
+      guide: {},
+      explanations: {},
+      player: null,
+      presenting: false,
+      pace: "off",
+      sourceImage: "/gallery/pendulum-sketch.png",
+    });
+    mount({ authenticated: true, status, view: "create" });
+    expect(
+      await screen.findByRole("button", { name: "Remove connection" }),
+    ).toBeTruthy();
+    const renamed = JSON.stringify(draft.chapters[0].demo).replaceAll(
+      "initial",
+      "start",
+    );
+    fireEvent.change(screen.getByLabelText("Bilingual demo definition"), {
+      target: { value: renamed },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Validate & apply definition" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Remove connection" }),
+    ).toBeNull();
+    expect(
+      (screen.getByRole("checkbox", { name: /I reviewed/ }) as HTMLInputElement)
+        .checked,
+    ).toBe(false);
+    expect(
+      (
+        screen.getByLabelText(
+          "Bilingual demo definition",
+        ) as HTMLTextAreaElement
+      ).value,
+    ).toContain('"start"');
+  });
   it("polls a background Wonder creation and opens the finished draft", async () => {
     const paths: string[] = [];
     const wonder = {

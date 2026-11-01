@@ -1,4 +1,6 @@
 import { useState, useId } from "react";
+import { CanvasBindingEditor } from "./CanvasBindingEditor";
+import type { Detection } from "./Spotlight";
 import { t } from "../lib/messages";
 import type {
   Lesson,
@@ -317,6 +319,9 @@ export function DraftReview({
   onSave,
   savedId,
   saving,
+  sourceImage,
+  detection,
+  onFind,
 }: {
   draft: Lesson;
   references?: References | null;
@@ -354,10 +359,14 @@ export function DraftReview({
   onSave?: () => void;
   savedId: string | null;
   saving: boolean;
+  sourceImage?: string | null;
+  detection?: Detection | null;
+  onFind?: (concept: string) => void;
 }) {
   const formId = useId();
   const [pending, setPending] = useState<Record<number, string>>({}),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [connectionRemoved, setConnectionRemoved] = useState(false);
   const generated = draft.chapters.some((c) => c.demo),
     hasPending = Object.keys(pending).length > 0,
     warnings = lessonLanguageWarnings(draft);
@@ -369,8 +378,18 @@ export function DraftReview({
   function apply(index: number) {
     try {
       const next = structuredClone(draft);
+      const binding = next.chapters[index].canvas;
+      delete next.chapters[index].canvas;
       next.chapters[index].demo = JSON.parse(pending[index]);
-      onChange(validateLesson(next));
+      const valid = validateLesson(next),
+        demo = valid.chapters[index].demo;
+      const keepBinding =
+        binding &&
+        demo?.kind === "model" &&
+        demo.inputs.some((i) => i.id === binding.input);
+      if (keepBinding) valid.chapters[index].canvas = binding;
+      onChange(valid);
+      setConnectionRemoved(Boolean(binding && !keepBinding));
       setPending((p) => {
         const n = { ...p };
         delete n[index];
@@ -427,6 +446,15 @@ export function DraftReview({
       <p className="review-notice">
         {t(language, "DraftReview.checkTheTeachingTextFormulas")}
       </p>
+      {connectionRemoved && (
+        <p className="notice" role="status">
+          {say(
+            language,
+            "The previous picture connection no longer matches this definition. Select and confirm a new connection if needed.",
+            "原来的图片关联不再匹配此定义。如有需要，请重新选择并确认关联。",
+          )}
+        </p>
+      )}
       {warnings.length > 0 && (
         <p className="notice" role="status">
           {t(language, "DraftReview.checkBothTranslationsUnexpectedCyrillic")}
@@ -475,6 +503,24 @@ export function DraftReview({
                 </button>
               </div>
             </div>
+            {sourceImage && chapter.demo?.kind === "model" && (
+              <CanvasBindingEditor
+                key={`${sourceImage}-${JSON.stringify(chapter.canvas)}-${JSON.stringify(chapter.demo.inputs)}`}
+                image={sourceImage}
+                language={language}
+                demo={chapter.demo}
+                value={chapter.canvas}
+                detection={detection}
+                onFind={onFind}
+                busy={busy || hasPending}
+                onChange={(binding) =>
+                  change((next) => {
+                    if (binding) next.chapters[index].canvas = binding;
+                    else delete next.chapters[index].canvas;
+                  })
+                }
+              />
+            )}
             <p>{chapter.framing[language]}</p>
             <blockquote>
               {chapter.demo?.claim[language] ??

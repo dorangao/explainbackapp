@@ -17,10 +17,11 @@ import {
 } from "../lib/units";
 import { MicrophoneError, startRecording } from "../lib/recorder";
 import type { Recording } from "../lib/recorder";
-import type { Feedback, Language, Player } from "../lib/types";
+import type { Drawing, Feedback, Language, Player } from "../lib/types";
 import { say } from "../lib/types";
 import { formatDemoNumber, shownUnit } from "../lib/shared";
-import { guideKey, paceFactor, paces } from "../lib/studio-cache";
+import { drawingKey, guideKey, paceFactor, paces } from "../lib/studio-cache";
+import { PredictionCanvas } from "./PredictionCanvas";
 import { PageHeader } from "./PageHeader";
 import { CurrencyNote } from "./CurrencyNote";
 import type { Cached, Pace } from "../lib/studio-cache";
@@ -56,6 +57,9 @@ export function LessonPlayer({
   pace = "off",
   onPace,
   onState,
+  sourceImage,
+  drawings,
+  onDrawings,
 }: {
   player: Player;
   language: Language;
@@ -65,7 +69,7 @@ export function LessonPlayer({
   working?: boolean;
   canAsk: boolean;
   feedback: Feedback | null;
-  onGuide: (explanation?: string) => void;
+  onGuide: (explanation?: string, drawing?: Drawing | null) => void;
   // Speech to text for the explain-back; absent when the server has no voice model.
   onTranscribe?: (wav: Blob) => Promise<string | null>;
   onClearFeedback: () => void;
@@ -82,8 +86,14 @@ export function LessonPlayer({
   onPace?: (pace: Pace) => void;
   // Reports the engine's state after each change so the draft memory can keep it.
   onState?: (state: Player["state"]) => void;
+  sourceImage?: string | null;
+  drawings?: Record<string, Drawing>;
+  onDrawings?: (drawings: Record<string, Drawing>) => void;
 }) {
   const formId = useId();
+  const [localDrawings, setLocalDrawings] = useState<Record<string, Drawing>>(
+    {},
+  );
   const [, update] = useReducer((n) => n + 1, 0),
     [playing, setPlaying] = useState(false),
     [answer, setAnswer] = useState(""),
@@ -190,10 +200,25 @@ export function LessonPlayer({
   const e = presented.experiment;
   const chapter = player.lesson.chapters[state.chapter],
     ownText = own[state.chapter] ?? "";
+  const canvas = chapter.canvas;
+  const predictionKey = drawingKey(player);
+  const allDrawings = drawings ?? localDrawings;
+  const drawing = canvas ? (allDrawings[predictionKey] ?? null) : null;
+  const changeDrawing = (value: Drawing | null) => {
+    manual();
+    const next = { ...allDrawings };
+    if (value) next[predictionKey] = value;
+    else delete next[predictionKey];
+    // A small bounded history allows a learner to revisit earlier settings.
+    const bounded = Object.fromEntries(Object.entries(next).slice(-24));
+    setLocalDrawings(bounded);
+    onDrawings?.(bounded);
+    onClearFeedback();
+  };
   const ownRef = useRef(own);
   ownRef.current = own;
   // The remembered feedback is current only while its inputs still fingerprint the same.
-  const currentGuideKey = guideKey(player, language, ownText);
+  const currentGuideKey = guideKey(player, language, ownText, drawing);
   const cachedFeedback =
     guideCache && !feedback
       ? { at: guideCache.at, stale: guideCache.key !== currentGuideKey }
@@ -588,7 +613,20 @@ export function LessonPlayer({
               </>
             )}
           </div>
-          {state.stage === "predict" && e.kind !== "process" && (
+          {canvas &&
+            ["predict", "experiment", "explain"].includes(state.stage) && (
+              <PredictionCanvas
+                key={predictionKey}
+                experiment={base}
+                language={language}
+                drawing={drawing}
+                onChange={changeDrawing}
+                preview={state.stage === "predict"}
+                progress={state.progress}
+                busy={busy}
+              />
+            )}
+          {state.stage === "predict" && e.kind !== "process" && !canvas && (
             <div className="experiment-surface experiment-preview">
               <div className="preview-head">
                 <span className="eyebrow">
@@ -608,13 +646,15 @@ export function LessonPlayer({
           )}
           {["experiment", "explain"].includes(state.stage) && (
             <div className="experiment-surface">
-              <ExperimentView
-                experiment={e}
-                progress={state.progress}
-                language={language}
-                interactive={!busy && state.stage === "experiment"}
-                onScrub={(v) => act(() => player.scrub(v))}
-              />
+              {!canvas && (
+                <ExperimentView
+                  experiment={e}
+                  progress={state.progress}
+                  language={language}
+                  interactive={!busy && state.stage === "experiment"}
+                  onScrub={(v) => act(() => player.scrub(v))}
+                />
+              )}
               <p className="experiment-caption">{e.caption(state.progress)}</p>
               <label className="scrub-label">
                 {t(language, "LessonPlayer.experimentProgress")}
@@ -797,7 +837,7 @@ export function LessonPlayer({
                   {canAsk ? (
                     <button
                       disabled={busy || !ownText.trim()}
-                      onClick={() => onGuide(ownText.trim())}
+                      onClick={() => onGuide(ownText.trim(), drawing)}
                     >
                       {busy
                         ? t(language, "LessonPlayer.museIsWorking")
@@ -835,7 +875,7 @@ export function LessonPlayer({
                 <button
                   className="secondary"
                   disabled={busy}
-                  onClick={() => onGuide()}
+                  onClick={() => onGuide(undefined, drawing)}
                 >
                   {say(
                     language,
@@ -1023,6 +1063,53 @@ export function LessonPlayer({
         </div>
         {state.stage !== "complete" && (
           <aside className="player-inspector">
+            {canvas && state.stage !== "transfer" && (
+              <div className="canvas-object">
+                <p className="eyebrow">
+                  {say(language, "From your picture", "来自你的图片")}
+                </p>
+                {sourceImage && (
+                  <div className="canvas-image">
+                    <img src={sourceImage} alt={canvas.concept} />
+                    <svg
+                      className="canvas-regions"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                      aria-hidden="true"
+                    >
+                      <rect
+                        x={canvas.box.x * 100}
+                        y={canvas.box.y * 100}
+                        width={canvas.box.width * 100}
+                        height={canvas.box.height * 100}
+                        className="canvas-selection"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    </svg>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() =>
+                    document
+                      .getElementById(`${formId}-parameter-${canvas.input}`)
+                      ?.focus()
+                  }
+                >
+                  {canvas.concept} →{" "}
+                  {e.inputs?.find((i) => i.id === canvas.input)?.label}
+                </button>
+                <p className="fine">
+                  {say(
+                    language,
+                    "Creator-confirmed connection. Image size does not set the parameter value.",
+                    "创作者确认的关联。图片尺寸不决定参数值。",
+                  )}
+                </p>
+              </div>
+            )}
             <p className="eyebrow">
               {t(
                 language,
@@ -1166,8 +1253,16 @@ export function LessonPlayer({
                   value={state.metric}
                   disabled={busy}
                   onChange={(event) => {
-                    player.output(Number(event.target.value));
-                    update();
+                    act(() => {
+                      player.output(Number(event.target.value));
+                      // A new quantity needs its own prediction before revealing it.
+                      if (canvas) {
+                        const control = base.inputs?.find(
+                          (i) => i.id === canvas.input,
+                        );
+                        if (control) player.input(control.id, control.value);
+                      }
+                    });
                   }}
                 >
                   {e.formulas?.map((f, i) => (

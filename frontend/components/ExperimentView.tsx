@@ -1,4 +1,6 @@
-import type { Experiment, Language } from "../lib/types";
+import type { Drawing, Experiment, Language } from "../lib/types";
+import { chartDomain } from "../../public/lesson-canvas.mjs";
+import { PredictionLayer } from "./PredictionLayer";
 import { t } from "../lib/messages";
 import { formatDemoNumber as fmt, shownUnit } from "../lib/shared";
 const colors = [
@@ -14,6 +16,8 @@ export function ExperimentView({
   interactive,
   onScrub,
   preview = false,
+  drawing = null,
+  onDrawing,
 }: {
   experiment: Experiment;
   progress: number;
@@ -23,6 +27,8 @@ export function ExperimentView({
   // The Predict step shows the setup only: the start of each series, no curve, the
   // area where the result will draw hatched over.
   preview?: boolean;
+  drawing?: Drawing | null;
+  onDrawing?: (drawing: Drawing) => void;
 }) {
   if (e.kind === "process")
     return (
@@ -50,11 +56,7 @@ export function ExperimentView({
   const points = Array.from({ length: e.steps + 1 }, (_, i) =>
     e.sample(i / e.steps),
   );
-  const min = Math.min(0, ...points.flat()),
-    max = Math.max(0, ...points.flat()),
-    spread = max === min ? 1 : max - min,
-    low = min < 0 ? min - spread * 0.04 : 0,
-    high = max + spread * 0.08;
+  const { low, high } = chartDomain(e);
   const X = (v: number) => 64 + v * 548,
     Y = (v: number) => 224 - ((v - low) / (high - low)) * 188,
     values = e.sample(u);
@@ -129,6 +131,7 @@ export function ExperimentView({
           <g key={j}>
             {!preview && (
               <path
+                className="calculated-curve"
                 d={points
                   .map(
                     (p, i) => `${i ? "L" : "M"} ${X(i / e.steps)} ${Y(p[j])}`,
@@ -148,7 +151,7 @@ export function ExperimentView({
             />
           </g>
         ))}
-        {preview ? (
+        {preview && !onDrawing && !drawing ? (
           <text
             x={338}
             y={140}
@@ -159,7 +162,7 @@ export function ExperimentView({
           >
             {t(language, "ExperimentView.theCurveAppearsAfterYouPredict")}
           </text>
-        ) : (
+        ) : !preview ? (
           <line
             x1={X(u)}
             x2={X(u)}
@@ -168,7 +171,7 @@ export function ExperimentView({
             stroke="var(--theme-edge, #71867c)"
             strokeDasharray="3 4"
           />
-        )}
+        ) : null}
         <text x={64} y={18} fontSize={12} fill="var(--theme-ink, #354a42)">
           {shownUnit(e.unit)}
         </text>
@@ -184,6 +187,7 @@ export function ExperimentView({
         >
           {e.gates?.at(-1) ?? e.axisEnds?.[1] ?? 1}
         </text>
+        <PredictionLayer drawing={drawing} onChange={onDrawing} />
       </svg>
       <p className="chart-axis">{e.axis}</p>
       <div className="chart-legend">

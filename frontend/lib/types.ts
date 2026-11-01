@@ -82,11 +82,18 @@ export type ProcessDemo = {
   };
 };
 export type Demo = ModelDemo | ProcessDemo;
+export type CanvasBinding = {
+  concept: string;
+  input: string;
+  box: { x: number; y: number; width: number; height: number };
+};
+export type Drawing = { points: { x: number; y: number }[] };
 export type Chapter = {
   experiment: string;
   framing: Bilingual;
   explanation: Bilingual;
   demo?: Demo;
+  canvas?: CanvasBinding;
 };
 // A page a grounded draft relied on. Provenance for the reader; nothing is computed from it.
 export type LessonSource = { url: string; title: string };
