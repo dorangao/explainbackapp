@@ -6,13 +6,14 @@ How ExplainBack evaluates generated lesson contracts, what the checks cover, and
 
 The Studio pipeline turns a learner-phrased topic into a bilingual lesson contract: a title, an introduction, one or two chapters, and either an adjustable numerical model (inputs with ranges and units, a time axis, output formulas, a numeric transfer case) or an ordered process with stages and a choice question. The app never executes model-written code; it compiles the declared formulas, checks them for finiteness across every input range, and computes every number itself.
 
-Three frozen suites exist. A suite is a JSON file under `eval/` whose SHA-256 is checked before any case runs; a changed byte stops the run.
+Four frozen suites exist. A suite is a JSON file under `eval/` whose SHA-256 is checked before any case runs; a changed byte stops the run.
 
 | Suite | Cases | What it asks | Checksum (SHA-256) |
 |---|---|---|---|
 | `studio-v1` | 12 | Six bilingual pairs: two specified models (cooling, pendulum), two processes (web cache, water cycle), one ambiguous request, one request that cannot be modelled responsibly (CFD). Model cases name input ids, ranges and probe values, so the scorer can check the computed numbers. | `e2817e2c4cd6ea4550ca96c455e4a7242d391af25111cdbeed68ddac961683aa` |
 | `studio-image-v1` | 2 | A hand-drawn sketch (bytes hashed) becomes a model lesson with a unit-labelled output. | `08d89c800c82059e3c8f114a414a5a7bc8e78f3856d2a376397fc09136a9e7e8` |
 | `studio-breadth-v1` | 24 | Twelve bilingual pairs phrased as a learner would ask, not as specifications: nine adjustable models across physics, nuclear chemistry, biology, pharmacology, finance, networking, earth science, road safety and electronics; two ordered processes (immunology, and a DNS lookup, so networking appears once as a model and once as a process); one request that should be declined (a stock pick with buy advice). | `d297c2235e8ff567a5589a8c78392a22fa459fbc16cd70c96956cd3614710c43` |
+| `studio-current-v1` | 12 | Six bilingual pairs whose lesson needs a figure from the world as it is now: four depend on current values (the US federal funds target range, the US 30-year mortgage rate, the Mauna Loa CO2 concentration, the world population) and two are stable controls (the US federal minimum wage, the carbon-14 half-life). Each case carries a reference figure recorded on October 31, 2026 with its source and a tolerance, in one or more units. | `b0cc38050b173989daceb6fdcdbc7c2d459e0ccf5e530c1929b36745fe826016` |
 
 ## How a case is scored
 
@@ -20,6 +21,10 @@ Two layers, kept apart on purpose.
 
 1. **Deterministic checks (code).** Contract valid (the reply parses, validates and its formulas compile and stay finite across all ranges); status as expected (ready, or declined); renderer kind as expected (model or process); chapter count within the limit; for specified models, the declared input ids, axis, output and probe values at given settings, including an independently computed transfer answer; for learner-phrased models, at least one output carrying a non-dimensionless unit label and, where the suite names a quantity, a unit from that family. A case passes "automated checks" only when every check holds. One attempt per case, sequential, no retries, no repair of a rejected reply.
 2. **Rubric judge (a model's opinion).** A Muse rubric judge scores each ready lesson 0 to 2 on five fixed items: neutral framing, precise quantity names and units, a transfer question that asks for exactly what the renderer checks, bilingual parity, and explicit assumptions without invented sources. The judge never contributes to the automated pass and is reported as a judgment of wording and pedagogy, not of scientific validity.
+3. **Reference hit (code, `studio-current-v1` only).** Whether any declared input default or transfer value lies within the tolerance of the figure recorded with the case. An observation reported beside the automated checks, never part of them, so a stale figure in an otherwise valid lesson stays visible.
+4. **Grounded judge (`studio-judge-v2`, optional).** With `--grounded-judge` the rubric judge may search the web before scoring and gains a sixth item, factual currency (so the total is out of 12), plus a list of the figures it disputed, each with the page it cites. A citation is marked verified only when that page was among the judge's own search results. Still one model's opinion, kept apart from the automated pass.
+
+**Search first in the harness.** `--ground` runs the app's ground step before each draft (one more request per case): Spark gathers a dated fact sheet with web search and the author receives it as references, exactly as the Create page's Search first option does. The report records the sheet's size and how many of its pages were verified, so a grounded run and an ungrounded run of `studio-current-v1` can be compared on reference hits. See [search-grounding.md](search-grounding.md).
 
 Every report records the suite checksum, the SHA-256 of the scorer and judge source files, the author prompt version, the model names, the per-request latency and token counts, and the hash of each prompt sent. Failures are kept in the table with their reason category (contract rejected, expectation failed, provider or transport); the raw provider text is never recorded.
 
@@ -37,6 +42,13 @@ This card itself is a page of the app (`/#evaluation`, linked from every showcas
 
 ```sh
 npm run eval:studio -- --suite=studio-breadth-v1 --models=meta:muse-wonder-1.0,meta:muse-spark-1.3 --judge=meta:muse-spark-1.3
+```
+
+To compare drafts written from memory with drafts grounded on a web search, run the current-information suite twice, once with `--ground`, and read the reference hits in each `report.md`; `--grounded-judge` lets the judge check the figures as well:
+
+```sh
+npm run eval:studio -- --live --suite=studio-current-v1 --models=meta:muse-spark-1.3 --judge=meta:muse-spark-1.3 --grounded-judge
+npm run eval:studio -- --live --suite=studio-current-v1 --models=meta:muse-spark-1.3 --judge=meta:muse-spark-1.3 --grounded-judge --ground
 ```
 
 Without `--live` the command prints the case list and sends nothing. With `--live` and a configured `MODEL_API_KEY` it runs every case once per model, writes `report.json` and `report.md` per model and a `comparison.md` under `output/eval/` (ignored by git), and exits non-zero if any automated check failed. `--samples=N` repeats each case to expose run-to-run variance. The same command with `--suite=studio-v1` runs the specified suite.

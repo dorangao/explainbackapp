@@ -2,7 +2,7 @@ import {performance} from 'node:perf_hooks';
 import {RequestError} from './request-error.mjs';
 import {createTrace} from './trace.mjs';
 import {lessonAuthorRequest,authorPromptVersion} from './lesson-author.mjs';
-import {lessonJudgeRequest,readLessonJudge,studioJudgeVersion} from './eval/judge.mjs';
+import {lessonJudgeRequest,readLessonJudge,judgeVersionFor} from './eval/judge.mjs';
 import {scoreOpenReply} from './eval/studio.mjs';
 // The compare route of a Lesson Studio session: the creator's question goes to both Muse
 // text models at once, each reply is checked by the same validator and open-question
@@ -19,6 +19,9 @@ export async function compareDrafts(ctx){
   if(body.judge!==undefined&&typeof body.judge!=='boolean'&&typeof body.judge!=='string')throw new RequestError(400,'Invalid judge flag.');
   const judgeTarget=typeof body.judge==='string'?ctx.models.find(m=>m.id===body.judge):ctx.judge;
   if(typeof body.judge==='string'&&!judgeTarget)throw new RequestError(400,'The judge must be one of the two compared models.');
+  // Grounded: the judge may search the web and scores factual currency too (judge v2).
+  if(body.grounded!==undefined&&typeof body.grounded!=='boolean')throw new RequestError(400,'Invalid grounded flag.');
+  const grounded=body.grounded===true;
   let args;try{args=lessonAuthorRequest({topic:body.topic,creation:'generated'},'compose');}catch{throw new RequestError(400,'Use a short topic under 600 characters.');}
   const topic=body.topic.trim(),wantJudge=body.judge!==false;
   // Both drafts are charged up front so a half-finished comparison cannot run on credit.
@@ -58,12 +61,12 @@ export async function compareDrafts(ctx){
       if(!await hasBudget(ctx)){reply.judge={failure:'budget',reason:'No request left for the judge.'};return;}
       s.attempts++;
       const item={topic,language:/[㐀-鿿]/.test(topic)?'zh':'en',category:reply.kind};
-      const request=lessonJudgeRequest(item,reply.response);
+      const request=lessonJudgeRequest(item,reply.response,{grounded});
       const call=trace?.start({provider:judgeTarget.provider,model:judgeTarget.model,input:request.input,instructions:request.instructions});
       try{
         await trace?.flush();
         const raw=await ctx.invoke(judgeTarget,{...request,promptCacheKey:'explainback-judge',...(call?{onTrace:call.event}:{})});
-        reply.judge={...readLessonJudge(raw),model:raw.model??judgeTarget.model,version:studioJudgeVersion};call?.finish('accepted');
+        reply.judge={...readLessonJudge(raw,{grounded}),model:raw.model??judgeTarget.model,version:judgeVersionFor(grounded)};call?.finish('accepted');
       }catch(error){
         if(error instanceof RequestError)throw error;
         call?.finish('failed or rejected');reply.judge={failure:'judge-failed',reason:String(error?.message??'').slice(0,120)};
@@ -73,7 +76,7 @@ export async function compareDrafts(ctx){
     try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
     for(const reply of replies)delete reply.response;
-    ctx.json(200,{question:topic,promptVersion:authorPromptVersion,judgeVersion:studioJudgeVersion,judge:wantJudge?judgeTarget?.model??null:null,replies,model:`${first.model} · ${second.model}`,elapsedMs:Math.round(performance.now()-startedAt),usage:null,llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{question:topic,promptVersion:authorPromptVersion,judgeVersion:judgeVersionFor(grounded),grounded:wantJudge&&grounded,judge:wantJudge?judgeTarget?.model??null:null,replies,model:`${first.model} · ${second.model}`,elapsedMs:Math.round(performance.now()-startedAt),usage:null,llm:s.llm,attemptsRemaining:8-s.attempts});
   }catch(error){
     if(error instanceof RequestError)throw error;
     const failure=new RequestError(502,'The comparison could not be completed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;

@@ -1336,6 +1336,28 @@ export const messages = {
   "Compare.stages": { en: "Stages", zh: "阶段" },
   "Compare.transferQuestion": { en: "Transfer question", zh: "迁移题" },
   "Compare.judge": { en: "Rubric judge", zh: "评分模型" },
+  "Compare.checkFiguresOnline": {
+    en: "Check figures against the web",
+    zh: "联网核对数值",
+  },
+  "Compare.factualCurrency": { en: "Figures up to date", zh: "数值是否最新" },
+  "Compare.figuresTheJudgeDisputed": {
+    en: "Figures the judge disputed",
+    zh: "评分模型质疑的数值",
+  },
+  "Compare.noFiguresDisputed": {
+    en: "The judge found no figure that disagrees with the pages it read.",
+    zh: "评分模型未发现与其查阅页面不符的数值。",
+  },
+  "Compare.source": { en: "source", zh: "来源" },
+  "Compare.notInTheSearchResults": {
+    en: "page not among the search results",
+    zh: "该页面不在搜索结果中",
+  },
+  "Compare.groundedNote": {
+    en: "The judge searched the web before scoring; a cited page was only among its search results, not reviewed, and this is still one model's opinion.",
+    zh: "评分模型在评分前进行了网络搜索；所引页面只是出现在其搜索结果中，未经审阅，这仍是一个模型的看法。",
+  },
   "Compare.issuesTheJudgeRaised": {
     en: "Issues the judge raised",
     zh: "评分模型提出的问题",
