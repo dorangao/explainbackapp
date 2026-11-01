@@ -181,9 +181,17 @@ export function App() {
       firstAuth.current = false;
     }
   }, [auth.info.authenticated]);
+  // Sign in: show the access panel (it sits at the end of the page), fold the phone menu,
+  // then bring the panel into view and focus the code field. Phones do not scroll to a
+  // field focused after the tap, so the scroll is explicit and the focus skips its own.
   const openAccess = useCallback(() => {
     setShowAccess(true);
-    setTimeout(() => accessRef.current?.querySelector("input")?.focus(), 0);
+    setMenuOpen(false);
+    setTimeout(() => {
+      const panel = accessRef.current;
+      panel?.scrollIntoView?.({ block: "start" });
+      panel?.querySelector("input")?.focus({ preventScroll: true });
+    }, 0);
   }, []);
   const login = async (body: unknown) => {
     const ok = await auth.login(body);
