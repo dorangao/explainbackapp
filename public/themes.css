@@ -1,0 +1,104 @@
+/* Loaded in the head for the saved appearance's first paint. Paper's existing
+   values remain in the original stylesheets, including per-component fallbacks. */
+:root {
+  --on-accent: #fff;
+  --glass-material: #f8fcfd;
+  --glass-filter: none;
+}
+:root[data-theme="midnight"] {
+  --paper: #14241f;
+  --surface: #1d312a;
+  --ink: #f2f2e8;
+  --muted: #b4c4ba;
+  --accent: #96d9ba;
+  --accent-deep: #b3e7ce;
+  --on-accent: #14241f;
+  --line: #385347;
+  --light: #293f35;
+  --error: #ffb3a6;
+  --focus-ring: #96d9ba;
+  --field-edge: #789989;
+  --field-paper: #182a23;
+  --series-0: #96d9ba;
+  --series-1: #f1ac7e;
+  --series-2: #c4b4f4;
+  --series-3: #9bbfee;
+  --theme-warning: #f0cc86;
+  --theme-warning-bg: #3d3423;
+  --theme-error-bg: #422b28;
+  --theme-success: #a2dfb6;
+  --theme-success-bg: #253e30;
+  --theme-purple: #c4b4f4;
+  --theme-purple-bg: #302c43;
+}
+:root[data-theme="glass"] {
+  --paper: #f1f6f8;
+  --surface: #fcfefe;
+  --ink: #20313a;
+  --muted: #52656d;
+  --accent: #126e72;
+  --accent-deep: #0e5559;
+  --line: #c8dce1;
+  --light: #e2eff2;
+  --error: #8c352b;
+  --focus-ring: #126e72;
+  --field-edge: #819fa8;
+  --field-paper: #fcfefe;
+}
+:root[data-theme="meta"] {
+  --paper: #f5f7fc;
+  --surface: #fff;
+  --ink: #1c2b33;
+  --muted: #526274;
+  --accent: #0866d9;
+  --accent-deep: #0754b4;
+  --line: #ced9e9;
+  --light: #e8f0ff;
+  --error: #8c352b;
+  --focus-ring: #0866d9;
+  --field-edge: #8b9fb9;
+  --field-paper: #fff;
+}
+/* Semantic replacements for old literal UI colors. Undefined in Paper so every
+   original value survives. Subject-specific chart colors are kept distinct. */
+:root:is([data-theme="midnight"], [data-theme="glass"], [data-theme="meta"]) {
+  --theme-surface: var(--surface);
+  --theme-input: var(--field-paper);
+  --theme-soft: var(--light);
+  --theme-border: var(--line);
+  --theme-edge: var(--field-edge);
+  --theme-ink: var(--ink);
+  --theme-muted: var(--muted);
+  --theme-accent: var(--accent);
+  --theme-accent-deep: var(--accent-deep);
+  --theme-error: var(--error);
+  --theme-focus: var(--focus-ring);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="glass"] {
+    --glass-material: rgb(248 252 253 / 78%);
+    --glass-filter: blur(18px) saturate(135%);
+  }
+}
+:root[data-reduce-transparency="true"] {
+  --glass-material: #f8fcfd;
+  --glass-filter: none;
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root[data-theme="glass"] {
+    --glass-material: #f8fcfd;
+    --glass-filter: none;
+  }
+}
+@media print {
+  :root:root {
+    --paper: #fff; --surface: #fff; --ink: #20332f; --muted: #5d6c67;
+    --accent: #116d60; --accent-deep: #0d554a; --on-accent: #fff;
+    --line: #d6ddd5; --light: #e9eee7; --error: #8c352b;
+    --field-paper: #fff; --field-edge: #b9c8bd;
+    --series-0: #116d60; --series-1: #ad582d; --series-2: #655598; --series-3: #456a99;
+    --theme-warning: #7a5a16; --theme-warning-bg: #fbf0d9;
+    --theme-error-bg: #fbe7e2; --theme-success: #145a4e; --theme-success-bg: #dff0e6;
+    --theme-purple: #4b3f7a; --theme-purple-bg: #e9e4f3;
+  }
+}

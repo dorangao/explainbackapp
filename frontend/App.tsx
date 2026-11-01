@@ -23,6 +23,7 @@ import { About } from "./components/About";
 import { PageHeader } from "./components/PageHeader";
 import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
+import { Appearance } from "./components/Appearance";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
 import { BackToTop } from "./components/BackToTop";
@@ -311,6 +312,7 @@ export function App() {
             </a>
           </nav>
           <div className="header-tools">
+            <Appearance language={language} />
             <label className="language-switch">
               <span className="sr-only">Language / 语言</span>
               <select

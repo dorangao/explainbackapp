@@ -1,7 +1,9 @@
 // ExplainBack service worker: makes the site installable and keeps the shell and
 // hashed assets available offline. Model requests (/api/*) and analytics are never cached.
+// This is an additive shell update: retain hashed app assets already fetched by
+// the controlling worker. Changed script bytes still trigger installation.
 const VERSION = "explainback-shell-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
+const SHELL = ["/", "/appearance.js", "/themes.css", "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

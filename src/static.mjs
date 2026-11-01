@@ -2,6 +2,8 @@ import { readFile } from "node:fs/promises";
 import { galleryShows } from "../public/gallery-shows.mjs";
 import { lessonCovers } from "../public/lesson-covers.mjs";
 export const brandFiles = new Map([
+  ["/appearance.js", "text/javascript; charset=utf-8"],
+  ["/themes.css", "text/css; charset=utf-8"],
   ["/favicon.svg", "image/svg+xml"],
   ["/favicon.ico", "image/x-icon"],
   ["/apple-touch-icon.png", "image/png"],

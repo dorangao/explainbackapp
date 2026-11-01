@@ -7,6 +7,8 @@ import { registerServiceWorker } from "./lib/install";
 import "../public/style.css";
 // oxlint-disable-next-line import/no-unassigned-import -- global stylesheet
 import "./styles.css";
+// oxlint-disable-next-line import/no-unassigned-import -- appearance control and material styles
+import "./appearance.css";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
