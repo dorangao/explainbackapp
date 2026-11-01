@@ -424,7 +424,8 @@ for (const [id, name, mode] of choices) {
     await page.setViewportSize({ width: 1440, height: 1024 });
     await page.goto("/");
     await choose(page, name, mode);
-    await audit(page, `${id} library`);
+    await page.getByRole("button", { name: "Sign in", exact: true }).hover();
+    await audit(page, `${id} ${mode} library with sign-in hovered`);
     await page.screenshot({
       path: `output/appearance-modes/${id}-${mode.toLowerCase()}-library.png`,
       fullPage: false,
