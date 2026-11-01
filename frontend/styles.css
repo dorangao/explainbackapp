@@ -1099,6 +1099,54 @@ body {
   color: #9a4e18;
   font-weight: 600;
 }
+/* Draw a cover: on a reviewed lesson's page, for signed-in creators. */
+.cover-tool {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin: 28px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.cover-tool-art img,
+.cover-tool-empty {
+  width: 240px;
+  height: 160px;
+  border-radius: 10px;
+  display: block;
+  object-fit: cover;
+  flex: none;
+}
+.cover-tool-empty {
+  background: var(--light);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.cover-tool-body {
+  min-width: 0;
+}
+.cover-tool-body h3 {
+  margin: 4px 0 8px;
+  font-size: 1.1rem;
+}
+.cover-tool-body .fine {
+  max-width: 56ch;
+}
+@media (max-width: 720px) {
+  .cover-tool {
+    flex-direction: column;
+  }
+  .cover-tool-art img,
+  .cover-tool-empty {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
+}
 .author-privacy {
   margin: 18px 0 0;
   max-width: 650px;

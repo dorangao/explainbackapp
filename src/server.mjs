@@ -15,7 +15,7 @@ import {createBlobStore,decodeImageDataUrl} from './blob.mjs';
 import {createMemoryState} from './state.mjs';
 import {RequestError} from './request-error.mjs';
 import {registerSharedRoutes,registerLessonRoutes} from './lesson-routes.mjs';
-import {detectInImage,illustrateSlide} from './studio-images.mjs';
+import {detectInImage,illustrateSlide,drawCover} from './studio-images.mjs';
 import {compareDrafts} from './studio-compare.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
@@ -173,7 +173,7 @@ export function createHandler({
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/cover','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -258,13 +258,14 @@ export function createHandler({
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
-        const mode=path==='/api/studio/ground'?'ground':path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
+        const mode=path==='/api/studio/ground'?'ground':path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/cover'?'cover':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
         // Image routes (SAM 3.1 detection, Muse Image illustration) live in studio-images.mjs
         // and share this handler's session, budget and trace plumbing through `ctx`.
-        const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageBudgetMs,owner:ownerOf(tester)};
+        const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageStore,imageBudgetMs,owner:ownerOf(tester)};
         if(mode==='detect'){await detectInImage(ctx);return;}
         if(mode==='illustrate'){await illustrateSlide(ctx);return;}
+        if(mode==='cover'){await drawCover(ctx);return;}
         // The compare route (studio-compare.mjs) drafts the same question with both Muse text
         // models and has the judge (the tester role unless the body names the other model)
         // score the ready lessons: up to four requests.

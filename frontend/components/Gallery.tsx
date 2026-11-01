@@ -18,6 +18,8 @@ import type {
   Language,
 } from "../lib/types";
 import { listShared } from "../lib/library";
+import type { CoverRecord } from "../lib/library";
+import { useCovers } from "../lib/covers";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
 function LessonArt({ id }: { id: string }) {
@@ -391,13 +393,17 @@ function provenance(entry: Entry, language: Language): string {
 function LibraryCard({
   language,
   entry,
+  override = null,
 }: {
   language: Language;
   entry: Entry;
+  override?: CoverRecord | null;
 }) {
   const title = entry.title[language];
-  const cover = lessonCover(entry.id);
+  const cover = override ?? lessonCover(entry.id);
+  // A creator-drawn cover wins over everything shipped, including a show's cover.
   const art =
+    override?.src ??
     entry.image ??
     cover?.src ??
     (entry.reviewed ? (galleryShow(entry.id)?.cover ?? null) : null);
@@ -491,7 +497,7 @@ function LibraryCard({
           <p>
             {provenance(entry, language)}
             {cover &&
-              ` ${t(language, "Gallery.coverNote").replace("{date}", cover.createdAt)}`}
+              ` ${t(language, override ? "Gallery.creatorCoverNote" : "Gallery.coverNote").replace("{date}", cover.createdAt)}`}
           </p>
         </details>
       </div>
@@ -579,6 +585,9 @@ export function Gallery({ language }: { language: Language }) {
     [withShow, setWithShow] = useState(false),
     [fromSketch, setFromSketch] = useState(false),
     [shared, setShared] = useState<SavedSummary[]>([]);
+  // Creator-drawn covers for reviewed lessons, from the shared store; they win over the
+  // shipped manifest and update in place when a creator draws one.
+  const overrides = useCovers();
   // Shared lessons are public; a failed fetch simply leaves them out of the grid.
   useEffect(() => {
     let live = true;
@@ -749,7 +758,12 @@ export function Gallery({ language }: { language: Language }) {
       ) : (
         <div className="gallery-grid">
           {shown.map((entry) => (
-            <LibraryCard key={entry.id} language={language} entry={entry} />
+            <LibraryCard
+              key={entry.id}
+              language={language}
+              entry={entry}
+              override={overrides[entry.id] ?? null}
+            />
           ))}
         </div>
       )}

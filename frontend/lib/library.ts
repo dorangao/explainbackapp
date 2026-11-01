@@ -118,6 +118,15 @@ export const readMine = (id: string) =>
   getJson<SavedLesson>(`/api/lessons/${id}`);
 export const listShared = () =>
   getJson<{ lessons: SavedSummary[] }>("/api/shared");
+// A creator-drawn library cover for a reviewed lesson, as the app serves it.
+export type CoverRecord = {
+  src: string;
+  model: string;
+  createdAt: string;
+  promptVersion: string;
+};
+export const listCovers = () =>
+  getJson<{ covers: Record<string, CoverRecord> }>("/api/covers");
 export const readShared = (id: string) =>
   getJson<SavedLesson>(`/api/shared/${id}`);
 export const saveLesson = (

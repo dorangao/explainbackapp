@@ -332,6 +332,15 @@ export type GroundReply = ReplyMetrics & {
   searched: number;
   attemptsRemaining: number;
 };
+// A library cover drawn for a reviewed lesson at a creator's request.
+export type CoverReply = ReplyMetrics & {
+  lessonId: string;
+  cover: string;
+  model: string;
+  createdAt: string;
+  promptVersion: string;
+  attemptsRemaining: number;
+};
 export type ComposeReply = ReplyMetrics & {
   status: "ready" | "unsupported";
   lesson: Lesson | null;

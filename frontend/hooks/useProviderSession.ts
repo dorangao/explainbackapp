@@ -17,6 +17,7 @@ export type RequestMetrics = {
     | "tryout"
     | "show"
     | "illustrate"
+    | "cover"
     | "detect"
     | "transcribe"
     | "compare";
