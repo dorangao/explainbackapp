@@ -40,7 +40,6 @@ const reply: JudgeReply = {
   grounded: true,
   elapsedMs: 4200,
   usage: { input: 900, output: 120 },
-  llm: "meta:muse-spark-1.3",
   attemptsRemaining: 7,
 };
 

@@ -22,7 +22,7 @@ export function CoverTool({
   // A reviewed lesson's id, or...
   lessonId?: string;
   // ...the creator's own saved lesson.
-  saved?: { cover: string | null; coverModel: string | null } | null;
+  saved?: { cover: string | null; coverModel?: string | null } | null;
 }) {
   const headingId = useId();
   const overrides = useCovers();
