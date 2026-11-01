@@ -78,6 +78,32 @@ const server = createApp({
     const name = args.tools?.[0]?.name;
     if (failing(name)) throw new Error("fixture failure");
     const input = JSON.parse(args.input);
+    if (name === "ground_topic")
+      return {
+        structured: {
+          name,
+          value: {
+            status: "ready",
+            asOf: "2026-10-31",
+            needsCurrent: false,
+            facts: [
+              {
+                statement: {
+                  en: "Water boils at 100 °C at sea level.",
+                  zh: "海平面上水在 100 °C 沸腾。",
+                },
+                value: "100",
+                unit: "°C",
+                url: "https://example.org/boiling-point",
+              },
+            ],
+            note: { en: "One reference figure.", zh: "一个参考数值。" },
+          },
+        },
+        sources: [
+          { url: "https://example.org/boiling-point", title: "Boiling point reference" },
+        ],
+      };
     if (name === "compose_lesson")
       return {
         toolCall: {
@@ -85,9 +111,15 @@ const server = createApp({
           arguments: JSON.stringify({
             status: "ready",
             message: { en: "Fixture draft ready.", zh: "示例草稿已就绪。" },
-            lesson: input.topic?.toLowerCase().includes("web")
-              ? processLesson()
-              : coolingLesson(),
+            lesson: {
+              ...(input.topic?.toLowerCase().includes("web")
+                ? processLesson()
+                : coolingLesson()),
+              // A grounded draft names the pages it relied on.
+              ...(input.references
+                ? { sources: input.references.facts.map((f) => f.url) }
+                : {}),
+            },
           }),
         },
       };

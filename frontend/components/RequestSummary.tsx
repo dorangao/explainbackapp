@@ -13,6 +13,7 @@ export function RequestSummary({
   if (!metrics) return null;
   const seconds = (metrics.elapsedMs / 1000).toFixed(1);
   const verb = {
+    ground: t(language, "RevisionSummary.gatheredSourcesFor"),
     compose: t(language, "RevisionSummary.draftedThisLesson"),
     revise: t(language, "RevisionSummary.revisedThisLesson"),
     guide: t(language, "RevisionSummary.explainedThisResult"),

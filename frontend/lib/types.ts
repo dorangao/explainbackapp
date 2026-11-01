@@ -88,6 +88,8 @@ export type Chapter = {
   explanation: Bilingual;
   demo?: Demo;
 };
+// A page a grounded draft relied on. Provenance for the reader; nothing is computed from it.
+export type LessonSource = { url: string; title: string };
 export type Lesson = {
   version: 1 | 2;
   title: Bilingual;
@@ -95,7 +97,20 @@ export type Lesson = {
   chapters: Chapter[];
   // Unit system viewers see first; numbers are converted for display only.
   units?: "metric" | "us";
+  sources?: LessonSource[];
 };
+// One figure the ground step gathered with web search: a statement, its value and unit,
+// and the page it came from. `verified` says the page was among the search results.
+export type ReferenceFact = {
+  statement: Bilingual;
+  value: string;
+  unit: string;
+  url: string;
+  title: string | null;
+  verified?: boolean;
+};
+// The fact sheet as the author receives it.
+export type References = { asOf: string; facts: ReferenceFact[] };
 export type GalleryItem = {
   id: string;
   kind: "model" | "process" | "catalog";
@@ -303,6 +318,16 @@ export type GalleryShow = {
   model: string;
   coverModel: string | null;
   createdAt: string;
+};
+export type GroundReply = ReplyMetrics & {
+  status: "ready" | "none";
+  asOf: string;
+  needsCurrent: boolean;
+  facts: ReferenceFact[];
+  sources: LessonSource[];
+  note: Bilingual;
+  searched: number;
+  attemptsRemaining: number;
 };
 export type ComposeReply = ReplyMetrics & {
   status: "ready" | "unsupported";

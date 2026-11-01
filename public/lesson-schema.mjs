@@ -24,12 +24,27 @@ function bilingual(value,max,field='text'){
 // A creator may set the unit system viewers see first ('metric' as authored, or 'us'); the
 // browser converts numbers for display and the computation stays in the authored units.
 export const unitSystems=Object.freeze(['metric','us']);
+// Sources a grounded draft relied on: a few public https pages with a title. Decorative
+// provenance for the reader; nothing in the lesson is computed from them.
+export const MAX_SOURCES=6;
+function validateSources(value){
+ if(!Array.isArray(value)||value.length<1||value.length>MAX_SOURCES)throw new Error(`sources is a list of 1–${MAX_SOURCES} pages.`);
+ const seen=new Set();
+ return value.map(s=>{
+  let url;try{url=new URL(s?.url);}catch{throw new Error('Each source needs an https URL.');}
+  if(!shape(s,['url','title'])||s.url.length>300||url.protocol!=='https:'||url.username||url.password||typeof s.title!=='string'||!s.title.trim()||s.title.length>200||seen.has(s.url))throw new Error('Each source needs a distinct https URL and a title under 200 characters.');
+  seen.add(s.url);return {url:s.url,title:s.title.trim()};
+ });
+}
 export function validateLesson(value){
- const withUnits=shape(value,['version','title','intro','chapters','units']);
- if(!(withUnits||shape(value,['version','title','intro','chapters']))||![1,2].includes(value.version)||!Array.isArray(value.chapters)||value.chapters.length<1||value.chapters.length>3)throw new Error('Use a version 1 or 2 lesson with 1–3 chapters.');
+ const base=['version','title','intro','chapters'];
+ const extras=value&&typeof value==='object'&&!Array.isArray(value)?Object.keys(value).filter(k=>!base.includes(k)):[];
+ if(!shape(value,[...base,...extras])||extras.some(k=>!['units','sources'].includes(k))||![1,2].includes(value.version)||!Array.isArray(value.chapters)||value.chapters.length<1||value.chapters.length>3)throw new Error('Use a version 1 or 2 lesson with 1–3 chapters.');
+ const withUnits=extras.includes('units'),withSources=extras.includes('sources');
  if(withUnits&&!unitSystems.includes(value.units))throw new Error('units must be metric or us.');
+ const sources=withSources?validateSources(value.sources):null;
  const ids=new Set();
- const lesson={version:value.version,...(withUnits?{units:value.units}:{}),title:bilingual(value.title,80,'title'),intro:bilingual(value.intro,200,'intro'),chapters:value.chapters.map((c,i)=>{
+ const lesson={version:value.version,...(withUnits?{units:value.units}:{}),...(sources?{sources}:{}),title:bilingual(value.title,80,'title'),intro:bilingual(value.intro,200,'intro'),chapters:value.chapters.map((c,i)=>{
   if(value.version===2&&c?.experiment==='generated'){
    if(!shape(c,['experiment','framing','explanation','demo']))throw new Error('Invalid generated chapter.');
    return {experiment:'generated',framing:bilingual(c.framing,180,`chapter ${i+1} framing`),explanation:bilingual(c.explanation,260,`chapter ${i+1} explanation`),demo:validateDemo(c.demo)};
@@ -41,5 +56,8 @@ export function validateLesson(value){
  return lesson;
 }
 export const bilingualSchema={type:'object',properties:{en:{type:'string'},zh:{type:'string'}},required:['en','zh'],additionalProperties:false};
+// The author's lesson schema with a required sources list of URL strings, used only when
+// references were supplied; the server maps the strings back to titled sources.
+export const withSources=schema=>({...schema,properties:{...schema.properties,sources:{type:'array',items:{type:'string'}}},required:[...(schema.required??[]),'sources']});
 export const lessonSchema={type:'object',properties:{version:{type:'integer',enum:[1]},title:bilingualSchema,intro:bilingualSchema,chapters:{type:'array',items:{type:'object',properties:{experiment:{type:'string',enum:experimentIds},framing:bilingualSchema,explanation:bilingualSchema},required:['experiment','framing','explanation'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};
 export const generatedLessonSchema={type:'object',properties:{version:{type:'integer',enum:[2]},title:bilingualSchema,intro:bilingualSchema,chapters:{type:'array',items:{type:'object',properties:{experiment:{type:'string',enum:['generated']},framing:bilingualSchema,explanation:bilingualSchema,demo:demoSchema},required:['experiment','framing','explanation','demo'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};

@@ -1158,6 +1158,108 @@ describe("Judge path", () => {
   });
 });
 
+describe("Search first", () => {
+  const page = "https://example.org/boiling-point";
+  const fact = {
+    statement: {
+      en: "Water boils at 100 °C at sea level.",
+      zh: "海平面上水在 100 °C 沸腾。",
+    },
+    value: "100",
+    unit: "°C",
+    url: page,
+    title: "Boiling point reference",
+  };
+  it("gathers a sourced fact sheet before the draft, hands it to the author without the verified flag, and shows the sources", async () => {
+    const posted: { path: string; body: unknown }[] = [];
+    const post: Post = async (path, body) => {
+      posted.push({ path, body });
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/ground")
+        return {
+          status: "ready",
+          asOf: "2026-10-31",
+          needsCurrent: false,
+          facts: [{ ...fact, verified: true }],
+          sources: [{ url: page, title: fact.title }],
+          note: { en: "One reference figure.", zh: "一个参考数值。" },
+          searched: 3,
+          attemptsRemaining: 7,
+          model: "test",
+          elapsedMs: 900,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: {
+            ...coolingLesson(),
+            sources: [{ url: page, title: fact.title }],
+          },
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 6,
+          model: "test",
+          elapsedMs: 1200,
+          usage: { input: 10, output: 20 },
+        } as never;
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Boiling water" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Search first/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(posted.map((p) => p.path)).toEqual([
+      "/api/studio/session",
+      "/api/studio/ground",
+      "/api/studio/compose",
+    ]);
+    expect(posted[1].body).toEqual({ sessionId: "s1", topic: "Boiling water" });
+    expect((posted[2].body as { references: unknown }).references).toEqual({
+      asOf: "2026-10-31",
+      facts: [fact],
+    });
+    expect(
+      screen.getByText(/Grounded on one sourced figure as of 2026-10-31/),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/gathered by a web search on 2026-10-31/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Water boils at 100 °C/)).toBeTruthy();
+    // The fact's page and the lesson's own source list both link to it.
+    expect(
+      screen.getAllByRole("link", { name: "Boiling point reference" }),
+    ).toHaveLength(2);
+  });
+  it("stays off by default, so a draft makes no ground request", async () => {
+    const posted: string[] = [];
+    const post: Post = async (path) => {
+      posted.push(path);
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 7,
+        } as never;
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Boiling water" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(posted).toEqual(["/api/studio/session", "/api/studio/compose"]);
+    expect(screen.queryByText(/Sources/)).toBeNull();
+  });
+});
+
 describe("Reopening a saved lesson", () => {
   it("restores the learner tryout and an explain-back grade without any provider request", async () => {
     const lesson = coolingLesson();

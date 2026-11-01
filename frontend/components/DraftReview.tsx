@@ -1,6 +1,12 @@
 import { useState, useId } from "react";
 import { t } from "../lib/messages";
-import type { Lesson, Language, Demo, TryoutReply } from "../lib/types";
+import type {
+  Lesson,
+  Language,
+  Demo,
+  References,
+  TryoutReply,
+} from "../lib/types";
 import type { RequestMetrics } from "../hooks/useProviderSession";
 import { RequestSummary } from "./RequestSummary";
 import { CacheNote, actionLabel } from "./CacheNote";
@@ -216,8 +222,73 @@ function TryoutReport({
     </div>
   );
 }
+const host = (url: string) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+};
+// The pages a grounded draft rests on: the sheet's figures with their sources, and the
+// sources the lesson itself names. Shown in the review and kept with the saved lesson.
+export function SourcesPanel({
+  language,
+  references,
+  sources,
+}: {
+  language: Language;
+  references: References | null;
+  sources: Lesson["sources"];
+}) {
+  if (!references && !sources?.length) return null;
+  return (
+    <details className="references" open>
+      <summary>
+        {t(language, "DraftReview.sources")}
+        {references &&
+          ` · ${t(language, "DraftReview.gatheredOn")} ${references.asOf}`}
+      </summary>
+      {references && (
+        <ol className="reference-list">
+          {references.facts.map((f) => (
+            <li key={f.url + f.value}>
+              <span>{f.statement[language]}</span>{" "}
+              <strong>
+                {f.value} {f.unit}
+              </strong>{" "}
+              <a href={f.url} target="_blank" rel="noopener noreferrer">
+                {f.title ?? host(f.url)}
+              </a>
+              {f.verified === false && (
+                <span className="fine">
+                  {" "}
+                  · {t(language, "DraftReview.notInTheSearchResults")}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {sources && sources.length > 0 && (
+        <p className="fine lesson-sources">
+          {t(language, "DraftReview.theLessonNames")}{" "}
+          {sources.map((s, i) => (
+            <span key={s.url}>
+              {i > 0 && " · "}
+              <a href={s.url} target="_blank" rel="noopener noreferrer">
+                {s.title}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      <p className="fine">{t(language, "DraftReview.sourcesNote")}</p>
+    </details>
+  );
+}
 export function DraftReview({
   draft,
+  references = null,
   language,
   busy,
   reviewed,
@@ -244,6 +315,7 @@ export function DraftReview({
   saving,
 }: {
   draft: Lesson;
+  references?: References | null;
   language: Language;
   busy: boolean;
   reviewed: boolean;
@@ -340,6 +412,11 @@ export function DraftReview({
         </div>
       )}
       <p className="fine">{t(language, "DraftReview.thisDraftIsRemembered")}</p>
+      <SourcesPanel
+        language={language}
+        references={references}
+        sources={draft.sources}
+      />
       <p className="review-notice">
         {t(language, "DraftReview.checkTheTeachingTextFormulas")}
       </p>
