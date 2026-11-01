@@ -1,11 +1,18 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { Appearance } from "./Appearance";
 
 beforeEach(() => {
   localStorage.clear();
   window.explainbackAppearance.select({
     theme: "paper",
+    mode: "system",
     reduceTransparency: false,
   });
 });
@@ -23,17 +30,19 @@ test("chooses a persistent appearance without remounting sibling content", () =>
   );
   const draft = screen.getByRole("textbox", { name: "Draft" });
   fireEvent.click(screen.getByRole("button", { name: "Appearance" }));
-  fireEvent.click(screen.getByRole("radio", { name: "Midnight Paper" }));
-  expect(document.documentElement.dataset.theme).toBe("midnight");
-  expect(
-    JSON.parse(localStorage.getItem("explainback-appearance")!).theme,
-  ).toBe("midnight");
+  fireEvent.click(screen.getByRole("radio", { name: "Dark" }));
+  fireEvent.click(screen.getByRole("radio", { name: "Meta Blue" }));
+  expect(document.documentElement.dataset.theme).toBe("meta");
+  expect(document.documentElement.dataset.colorScheme).toBe("dark");
+  expect(JSON.parse(localStorage.getItem("explainback-appearance")!).mode).toBe(
+    "dark",
+  );
   expect(screen.getByRole("textbox", { name: "Draft" })).toBe(draft);
   expect((draft as HTMLInputElement).value).toBe("Unsaved lesson");
   fireEvent.keyDown(screen.getByRole("group", { name: "Theme" }), {
     key: "Escape",
   });
-  expect(screen.queryByRole("radio")).toBeNull();
+  expect(screen.queryAllByRole("radio")).toHaveLength(0);
   expect(document.activeElement).toBe(
     screen.getByRole("button", { name: "Appearance" }),
   );
@@ -49,7 +58,9 @@ test("offers translated names and a persisted glass transparency preference", ()
     JSON.parse(localStorage.getItem("explainback-appearance")!)
       .reduceTransparency,
   ).toBe(true);
-  fireEvent.click(screen.getByRole("radio", { name: "纸感 默认" }));
+  fireEvent.click(screen.getByRole("radio", { name: "深色" }));
+  expect(screen.getByRole("status").textContent).toContain("手动");
+  fireEvent.click(screen.getByRole("radio", { name: "纸感" }));
   expect(screen.queryByRole("checkbox")).toBeNull();
 });
 
@@ -62,5 +73,42 @@ test("dismisses outside the picker and remains usable if storage throws", () => 
   fireEvent.click(screen.getByRole("radio", { name: "Meta Blue" }));
   expect(document.documentElement.dataset.theme).toBe("meta");
   fireEvent.pointerDown(document.body);
-  expect(screen.queryByRole("radio")).toBeNull();
+  expect(screen.queryAllByRole("radio")).toHaveLength(0);
+});
+
+test("external preference changes update the selected mode, theme and status", () => {
+  render(<Appearance language="en" />);
+  fireEvent.click(screen.getByRole("button", { name: "Appearance" }));
+  act(() => {
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "explainback-appearance",
+        newValue: JSON.stringify({
+          theme: "glass",
+          mode: "dark",
+          reduceTransparency: true,
+        }),
+        storageArea: localStorage,
+      }),
+    );
+  });
+  expect(
+    (
+      screen.getByRole("radio", {
+        name: "Dark",
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
+  expect(
+    (screen.getByRole("radio", { name: "Liquid Glass" }) as HTMLInputElement)
+      .checked,
+  ).toBe(true);
+  expect(
+    (
+      screen.getByRole("checkbox", {
+        name: "Reduce transparency",
+      }) as HTMLInputElement
+    ).checked,
+  ).toBe(true);
+  expect(screen.getByRole("status").textContent).toContain("Dark");
 });

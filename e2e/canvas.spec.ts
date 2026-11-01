@@ -129,28 +129,34 @@ test("keyboard prediction and mobile themes remain usable", async ({
   await page.getByLabel("Middle prediction", { exact: true }).fill("50");
   await page.getByLabel("End prediction", { exact: true }).fill("20");
   await page.getByRole("button", { name: "Use these points" }).click();
-  for (const theme of ["paper", "midnight", "glass", "meta"]) {
-    await page.evaluate(
-      (value) => (document.documentElement.dataset.theme = value),
-      theme,
-    );
-    expect(
+  for (const theme of ["paper", "glass", "meta"] as const) {
+    for (const mode of ["light", "dark"] as const) {
       await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth + 1,
-      ),
-    ).toBe(true);
-    const audit = await new AxeBuilder({ page })
-      .include(".prediction-canvas")
-      .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-      .analyze();
-    expect(
-      audit.violations
-        .filter((v) => ["serious", "critical"].includes(v.impact ?? ""))
-        .map((v) => ({
-          id: v.id,
-          nodes: v.nodes.map((n) => n.failureSummary),
-        })),
-    ).toEqual([]);
+        (value) =>
+          window.explainbackAppearance.select({
+            ...value,
+            reduceTransparency: false,
+          }),
+        { theme, mode },
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+      ).toBe(true);
+      const audit = await new AxeBuilder({ page })
+        .include(".prediction-canvas")
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze();
+      expect(
+        audit.violations
+          .filter((v) => ["serious", "critical"].includes(v.impact ?? ""))
+          .map((v) => ({
+            id: v.id,
+            nodes: v.nodes.map((n) => n.failureSummary),
+          })),
+      ).toEqual([]);
+    }
   }
   await page.screenshot({
     path: "output/playwright/canvas-mobile.png",

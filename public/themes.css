@@ -2,34 +2,13 @@
    values remain in the original stylesheets, including per-component fallbacks. */
 :root {
   --on-accent: #fff;
-  --glass-material: #f8fcfd;
+  --glass-material: rgb(var(--glass-tint));
   --glass-filter: none;
-}
-:root[data-theme="midnight"] {
-  --paper: #14241f;
-  --surface: #1d312a;
-  --ink: #f2f2e8;
-  --muted: #b4c4ba;
-  --accent: #96d9ba;
-  --accent-deep: #b3e7ce;
-  --on-accent: #14241f;
-  --line: #385347;
-  --light: #293f35;
-  --error: #ffb3a6;
-  --focus-ring: #96d9ba;
-  --field-edge: #789989;
-  --field-paper: #182a23;
-  --series-0: #96d9ba;
-  --series-1: #f1ac7e;
-  --series-2: #c4b4f4;
-  --series-3: #9bbfee;
-  --theme-warning: #f0cc86;
-  --theme-warning-bg: #3d3423;
-  --theme-error-bg: #422b28;
-  --theme-success: #a2dfb6;
-  --theme-success-bg: #253e30;
-  --theme-purple: #c4b4f4;
-  --theme-purple-bg: #302c43;
+  --glass-tint: 248 252 253;
+  --glass-glow-start: #dceff5;
+  --glass-glow-end: #e0eff2;
+  --glass-highlight: white;
+  --meta-gradient-end: #5543c4;
 }
 :root[data-theme="glass"] {
   --paper: #f1f6f8;
@@ -59,9 +38,68 @@
   --field-edge: #8b9fb9;
   --field-paper: #fff;
 }
-/* Semantic replacements for old literal UI colors. Undefined in Paper so every
+:root[data-color-scheme="dark"] {
+  --paper: #14241f;
+  --surface: #1d312a;
+  --ink: #f2f2e8;
+  --muted: #b4c4ba;
+  --accent: #96d9ba;
+  --accent-deep: #b3e7ce;
+  --on-accent: #14241f;
+  --line: #385347;
+  --light: #293f35;
+  --error: #ffb3a6;
+  --focus-ring: #96d9ba;
+  --field-edge: #789989;
+  --field-paper: #182a23;
+  --series-0: #96d9ba;
+  --series-1: #f1ac7e;
+  --series-2: #c4b4f4;
+  --series-3: #9bbfee;
+  --theme-warning: #f0cc86;
+  --theme-warning-bg: #3d3423;
+  --theme-error-bg: #422b28;
+  --theme-success: #a2dfb6;
+  --theme-success-bg: #253e30;
+  --theme-purple: #c4b4f4;
+  --theme-purple-bg: #302c43;
+}
+:root[data-theme="glass"][data-color-scheme="dark"] {
+  --paper: #10232c;
+  --surface: #1a303a;
+  --ink: #edf5f8;
+  --muted: #afc5cf;
+  --accent: #8cdbdc;
+  --accent-deep: #b5eded;
+  --on-accent: #10232c;
+  --line: #3a5663;
+  --light: #26434d;
+  --focus-ring: #8cdbdc;
+  --field-edge: #7f9fab;
+  --field-paper: #142a34;
+  --glass-tint: 26 48 58;
+  --glass-glow-start: #1b3949;
+  --glass-glow-end: #183b40;
+  --glass-highlight: rgb(204 238 250 / 15%);
+}
+:root[data-theme="meta"][data-color-scheme="dark"] {
+  --paper: #141f30;
+  --surface: #1e2c42;
+  --ink: #eef3fc;
+  --muted: #b4c4dc;
+  --accent: #9bc3ff;
+  --accent-deep: #c2dbff;
+  --on-accent: #141f30;
+  --line: #3c506e;
+  --light: #2a405f;
+  --focus-ring: #9bc3ff;
+  --field-edge: #8ca2c3;
+  --field-paper: #18263c;
+  --meta-gradient-end: #cfbcff;
+}
+/* Semantic replacements for old literal UI colors. Undefined in light Paper so every
    original value survives. Subject-specific chart colors are kept distinct. */
-:root:is([data-theme="midnight"], [data-theme="glass"], [data-theme="meta"]) {
+:root:is([data-color-scheme="dark"], [data-theme="glass"], [data-theme="meta"]) {
   --theme-surface: var(--surface);
   --theme-input: var(--field-paper);
   --theme-soft: var(--light);
@@ -76,22 +114,22 @@
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root[data-theme="glass"] {
-    --glass-material: rgb(248 252 253 / 78%);
+    --glass-material: rgb(var(--glass-tint) / 78%);
     --glass-filter: blur(18px) saturate(135%);
   }
 }
 :root[data-reduce-transparency="true"] {
-  --glass-material: #f8fcfd;
+  --glass-material: rgb(var(--glass-tint));
   --glass-filter: none;
 }
 @media (prefers-reduced-transparency: reduce) {
   :root[data-theme="glass"] {
-    --glass-material: #f8fcfd;
+    --glass-material: rgb(var(--glass-tint));
     --glass-filter: none;
   }
 }
 @media print {
-  :root:root {
+  :root:root:root {
     --paper: #fff; --surface: #fff; --ink: #20332f; --muted: #5d6c67;
     --accent: #116d60; --accent-deep: #0d554a; --on-accent: #fff;
     --line: #d6ddd5; --light: #e9eee7; --error: #8c352b;

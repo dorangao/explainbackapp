@@ -1,20 +1,25 @@
-export type Theme = "paper" | "midnight" | "glass" | "meta";
+export type Theme = "paper" | "glass" | "meta";
+export type AppearanceMode = "system" | "light" | "dark";
 export type AppearancePreference = Readonly<{
   theme: Theme;
+  mode: AppearanceMode;
   reduceTransparency: boolean;
 }>;
+export type AppearanceState = AppearancePreference & Readonly<{ scheme: "light" | "dark" }>;
 declare global {
   interface Window {
     explainbackAppearance: {
+      readonly version: 2;
       readonly options: readonly {
         id: Theme;
         en: string;
         zh: string;
-        background: string;
-        scheme: string;
+        light: string;
+        dark: string;
       }[];
-      read(): AppearancePreference;
-      select(value: AppearancePreference): AppearancePreference;
+      read(): AppearanceState;
+      subscribe(listener: () => void): () => void;
+      select(value: AppearancePreference): AppearanceState;
     };
   }
 }

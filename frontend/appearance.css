@@ -1,4 +1,4 @@
-/* The picker is an ordinary radio group; Tab, arrow keys and Space stay native. */
+/* Native radio groups keep Tab, arrow keys and Space behavior. */
 .appearance {
   position: relative;
   flex-shrink: 0;
@@ -21,21 +21,26 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--swatch-accent);
+  background: var(--accent);
   border: 1px solid currentColor;
 }
 .appearance-panel {
   position: absolute;
   inset: calc(100% + 10px) 0 auto auto;
-  width: 274px;
+  width: 336px;
   max-width: calc(100vw - 32px);
   z-index: 30;
-  padding: 18px;
+  padding: 20px;
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgb(0 0 0 / 16%);
+  border-radius: 18px;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+}
+.app-shell .appearance-panel h3 {
+  margin: 0 0 20px;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 .appearance-panel fieldset {
   padding: 0;
@@ -46,28 +51,195 @@
 .appearance-panel legend {
   padding: 0;
   margin-bottom: 10px;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 650;
 }
-.appearance-option {
+.appearance-modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--light);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+/* These scoped selectors take precedence over the general form label styles. */
+.app-shell .appearance-mode {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 58px;
+  padding: 7px 2px;
+  margin: 0;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.appearance-mode svg {
+  width: 19px;
+  height: 19px;
+}
+.appearance-mode-check {
+  display: none;
+}
+.app-shell .appearance-mode:has(:checked) {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
+  color: var(--accent);
+}
+.app-shell .appearance-panel input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.app-shell :is(.appearance-mode, .appearance-option):has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.app-shell .appearance-status {
+  margin: 9px 0 22px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+.appearance-themes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.app-shell .appearance-option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 110px;
+  padding: 7px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.app-shell .appearance-option:hover,
+.app-shell .appearance-mode:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.app-shell .appearance-option:has(:checked) {
+  background: var(--light);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.appearance-name {
+  padding: 0 1px;
+}
+.appearance-selected {
+  display: none;
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 17px;
+  height: 17px;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: 50%;
+  font-size: 11px;
+}
+.appearance-option:has(:checked) .appearance-selected {
+  display: flex;
+}
+.appearance-swatch {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 48px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--swatch-accent) 25%, transparent);
+  border-radius: 6px;
+  background: var(--swatch-paper);
+}
+.appearance-swatch::before,
+.appearance-swatch::after,
+.appearance-swatch i {
+  content: "";
+  position: absolute;
+  left: 8px;
+  border-radius: 2px;
+  background: var(--swatch-accent);
+}
+.appearance-swatch::before {
+  top: 9px;
+  width: 52%;
+  height: 4px;
+}
+.appearance-swatch::after {
+  top: 19px;
+  width: 68%;
+  height: 2px;
+  opacity: 0.3;
+  box-shadow: 0 5px 0 var(--swatch-accent);
+}
+.appearance-swatch i {
+  top: 33px;
+  width: 28%;
+  height: 6px;
+}
+.theme-paper {
+  --swatch-paper: #f6f5ef;
+  --swatch-accent: #116d60;
+}
+.theme-glass {
+  --swatch-paper: linear-gradient(135deg, #dceff5, #fcfefe 65%, #e0eff2);
+  --swatch-accent: #126e72;
+}
+.theme-meta {
+  --swatch-paper: #f5f7fc;
+  --swatch-accent: #0866d9;
+}
+:root[data-color-scheme="dark"] .theme-paper {
+  --swatch-paper: #14241f;
+  --swatch-accent: #96d9ba;
+}
+:root[data-color-scheme="dark"] .theme-glass {
+  --swatch-paper: linear-gradient(135deg, #26434d, #10232c 65%, #1a303a);
+  --swatch-accent: #8cdbdc;
+}
+:root[data-color-scheme="dark"] .theme-meta {
+  --swatch-paper: #141f30;
+  --swatch-accent: #9bc3ff;
+}
+.app-shell .appearance-transparency {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 50px;
-  padding: 7px 8px;
-  border-radius: 8px;
+  border-top: 1px solid var(--line);
+  margin: 16px 0 0;
+  padding: 16px 0 0;
+  font-size: 0.75rem;
   cursor: pointer;
-  font-size: 0.82rem;
 }
-.appearance-option:hover,
-.appearance-option:has(:checked) {
-  background: var(--light);
-}
-.appearance-option:focus-within {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.appearance-panel input {
+.app-shell .appearance-transparency input {
   width: 16px;
   height: 16px;
   min-height: 0;
@@ -76,52 +248,9 @@
   flex-shrink: 0;
   accent-color: var(--accent);
 }
-.appearance-option small {
-  display: block;
-  font-size: 0.68rem;
-  color: var(--muted);
-}
-.appearance-swatch {
-  width: 30px;
-  height: 24px;
-  border: 1px solid var(--swatch-accent);
-  border-radius: 6px;
-  background: linear-gradient(
-    145deg,
-    var(--swatch-paper) 60%,
-    var(--swatch-accent) 60%
-  );
-  flex-shrink: 0;
-}
-.theme-paper {
-  --swatch-paper: #f6f5ef;
-  --swatch-accent: #116d60;
-}
-.theme-midnight {
-  --swatch-paper: #14241f;
-  --swatch-accent: #96d9ba;
-}
-.theme-glass {
-  --swatch-paper: #f1f6f8;
-  --swatch-accent: #126e72;
-}
-.theme-meta {
-  --swatch-paper: #f5f7fc;
-  --swatch-accent: #0866d9;
-}
-.appearance-transparency {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid var(--line);
-  margin-top: 12px;
-  padding: 16px 0 4px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
 .appearance-panel .fine {
-  margin: 12px 0 0;
-  font-size: 0.72rem;
+  margin: 18px 0 0;
+  font-size: 0.68rem;
 }
 
 /* Shape and material are independent of the underlying content and workflow. */
@@ -136,8 +265,9 @@
 }
 :root[data-theme="glass"] body {
   background:
-    radial-gradient(ellipse at 2% 8%, #dceff5, transparent 48%),
-    radial-gradient(ellipse at 98% 45%, #e0eff2, transparent 45%), var(--paper);
+    radial-gradient(ellipse at 2% 8%, var(--glass-glow-start), transparent 48%),
+    radial-gradient(ellipse at 98% 45%, var(--glass-glow-end), transparent 45%),
+    var(--paper);
 }
 :root[data-theme="glass"] .site-header {
   position: relative;
@@ -146,7 +276,7 @@
   border: 1px solid var(--line);
   border-radius: 22px;
   box-shadow:
-    inset 0 1px 0 white,
+    inset 0 1px 0 var(--glass-highlight),
     0 4px 18px rgb(28 82 96 / 7%);
   backdrop-filter: var(--glass-filter);
   -webkit-backdrop-filter: var(--glass-filter);
@@ -154,17 +284,17 @@
 :root[data-theme="glass"] .app-shell .appearance-trigger {
   background: var(--glass-material);
   box-shadow:
-    inset 0 1px 0 white,
+    inset 0 1px 0 var(--glass-highlight),
     0 3px 10px rgb(28 82 96 / 8%);
 }
 :root[data-theme="meta"] .intro-studio h1 span {
   color: var(--accent);
-  background: linear-gradient(100deg, #0866d9, #5543c4);
+  background: linear-gradient(100deg, var(--accent), var(--meta-gradient-end));
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-:root[data-theme="midnight"] .brand-mark path {
+:root[data-color-scheme="dark"] .brand-mark path {
   stroke: var(--on-accent);
 }
 /* Code traces keep their intentionally dark surface; diagrams inherit ink. */
@@ -178,7 +308,7 @@
   --q-accent: var(--theme-purple, #5151a0);
   --q-line: var(--theme-border, #d8dae5);
 }
-:root[data-theme="midnight"]
+:root[data-color-scheme="dark"]
   .process-step[aria-current="step"]
   .process-number {
   color: var(--on-accent);
@@ -204,7 +334,9 @@
     flex-wrap: wrap;
   }
 }
-:root:not([data-theme="paper"]) .app-shell :is(input, textarea)::placeholder {
+:root:is([data-color-scheme="dark"], [data-theme="glass"], [data-theme="meta"])
+  .app-shell
+  :is(input, textarea)::placeholder {
   color: var(--muted);
   opacity: 1;
 }
@@ -220,7 +352,7 @@
   }
   .appearance-panel {
     inset: 100% 0 auto;
-    width: min(274px, calc(100vw - 32px));
+    width: min(336px, calc(100vw - 32px));
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -235,6 +367,12 @@
   }
 }
 @media (forced-colors: active) {
+  .appearance-mode:has(:checked) .appearance-mode-check {
+    display: block;
+    position: absolute;
+    top: 2px;
+    right: 4px;
+  }
   :root .site-header {
     box-shadow: none;
     backdrop-filter: none;
@@ -249,6 +387,10 @@
   }
 }
 @media print {
+  :root[data-theme="meta"] .intro-studio h1 span {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+  }
   :root:root {
     color-scheme: light !important;
     background: white !important;
