@@ -53,8 +53,13 @@ browser and travels with revisions.
   were gathered by Muse Spark with web search and are not reviewed.
 - Traces record each search as a `web_search_call` with its status and result count,
   never the page text.
-- The option is off by default and only applies to new topic demos; catalog lessons and
-  image-led drafts make no search.
+- The option is off by default and only applies to a new generated demo with a typed
+  question: catalog lessons make no search, a revision keeps the first draft's sheet,
+  and an attached sketch or photo does not change this. A draft made from an image
+  with no typed question has no topic to search for, so it makes no search.
+- The ground step runs on Spark even when the creator picked Wonder: the server chooses
+  the tester model for that route by mode, while the session itself is created with the
+  creator's model, so the draft that follows is still written by the chosen model.
 
 ## Cost
 

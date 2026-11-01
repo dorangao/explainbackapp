@@ -239,9 +239,26 @@ export function Studio({
     }
   }, [contentFingerprint]);
   const clearFeedback = useCallback(() => setFeedback(null), []);
+  const targets = useMemo(
+    () => providerStatus?.models ?? [],
+    [providerStatus?.models],
+  );
+  // The creator role (Wonder when configured) is the initial choice; the tester role is fixed.
+  const target =
+    targets.find((m) => m.id === modelId) ??
+    targets.find(
+      (m) => m.id === providerStatus?.roles?.creator && m.configured,
+    ) ??
+    targets.find((m) => m.id === providerStatus?.defaultModel) ??
+    targets[0];
+  const tester =
+    targets.find((m) => m.id === providerStatus?.roles?.tester) ?? null;
+  // The session is created with the creator's model so compose, revise and show use it,
+  // whichever request comes first (a Search first ground step runs on the tester role).
   const provider = useProviderSession({
     post,
     language,
+    sessionTarget: target ?? null,
     onBusy,
     onInvalidate: clearFeedback,
     onSettled: onRequestSettled,
@@ -264,20 +281,6 @@ export function Studio({
     playerState.current = state;
     setPlayerTick((n) => n + 1);
   }, []);
-  const targets = useMemo(
-    () => providerStatus?.models ?? [],
-    [providerStatus?.models],
-  );
-  // The creator role (Wonder when configured) is the initial choice; the tester role is fixed.
-  const target =
-    targets.find((m) => m.id === modelId) ??
-    targets.find(
-      (m) => m.id === providerStatus?.roles?.creator && m.configured,
-    ) ??
-    targets.find((m) => m.id === providerStatus?.defaultModel) ??
-    targets[0];
-  const tester =
-    targets.find((m) => m.id === providerStatus?.roles?.tester) ?? null;
   // Comparing needs both roles configured and different (Wonder and Spark).
   const creatorRole =
     targets.find((m) => m.id === providerStatus?.roles?.creator) ?? null;
