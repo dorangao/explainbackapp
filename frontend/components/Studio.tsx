@@ -11,6 +11,8 @@ import {
 } from "react";
 import type {
   ComposeReply,
+  GroundReply,
+  References,
   CompareDraft,
   CompareReply,
   Feedback,
@@ -123,6 +125,10 @@ export function Studio({
   const formId = useId();
   const [topic, setTopic] = useState(""),
     [creation, setCreation] = useState("generated"),
+    // Search first: Spark gathers sourced figures before the draft (one extra request);
+    // the sheet travels with revisions and is remembered with the draft.
+    [searchFirst, setSearchFirst] = useState(false),
+    [references, setReferences] = useState<References | null>(null),
     [modelId, setModelId] = useState(""),
     [draft, setDraft] = useState<Lesson | null>(null),
     [revisionKey, setRevisionKey] = useState(0),
@@ -240,6 +246,7 @@ export function Studio({
     setSource(null);
     setFeedback(null);
     setRevision(null);
+    setReferences(null);
     setTryout(null);
     setShow(null);
     setGuide({});
@@ -275,6 +282,7 @@ export function Studio({
     setExplanations(saved.explanations);
     setPace(saved.pace);
     setSavedId(saved.savedId);
+    setReferences(saved.references ?? null);
     setRevisionKey((k) => k + 1);
     if (saved.presenting) {
       setPlayer(restorePlayer(saved.draft, saved.player));
@@ -303,6 +311,7 @@ export function Studio({
           presenting,
           pace,
           savedId,
+          references,
         }),
       250,
     );
@@ -325,6 +334,7 @@ export function Studio({
     pace,
     playerTick,
     savedId,
+    references,
   ]);
   // The share controls need the saved copy's summary; a restored draft fetches it once.
   useEffect(() => {
@@ -449,6 +459,53 @@ export function Studio({
       setMessage(t(language, "Studio.chooseAMetaModelFor"));
       return false;
     }
+    // The sheet a new grounded draft is written from, or the one a revision keeps.
+    let sheet: References | null =
+      mode === "compose" && revisionText ? references : null;
+    if (
+      mode === "compose" &&
+      !revisionText &&
+      searchFirst &&
+      creation === "generated" &&
+      asked
+    ) {
+      const grounded = await run<GroundReply>(
+        tester ?? target,
+        "ground",
+        (id, options) =>
+          post<GroundReply>(
+            "/api/studio/ground",
+            { sessionId: id, topic: asked },
+            options,
+          ),
+      );
+      if (!grounded.ok) {
+        if (!grounded.stale) setMessage(failureMessage(grounded.error));
+        return false;
+      }
+      sheet =
+        grounded.reply.status === "ready" && grounded.reply.facts.length > 0
+          ? { asOf: grounded.reply.asOf, facts: grounded.reply.facts }
+          : null;
+      if (!sheet) setMessage(grounded.reply.note[language]);
+    }
+    const forAuthor = (value: References | null) =>
+      value && creation === "generated"
+        ? {
+            references: {
+              asOf: value.asOf,
+              facts: value.facts.map(
+                ({ statement, value: v, unit, url, title }) => ({
+                  statement,
+                  value: v,
+                  unit,
+                  url,
+                  title,
+                }),
+              ),
+            },
+          }
+        : {};
     let body: Record<string, unknown>;
     try {
       body =
@@ -460,6 +517,7 @@ export function Studio({
                   ? ""
                   : (draft?.title[language] ?? "")),
               creation,
+              ...forAuthor(sheet),
               ...(!revisionText && attached ? { image: attached.dataUrl } : {}),
               ...(revisionText
                 ? {
@@ -600,6 +658,7 @@ export function Studio({
             }),
           });
         else setComposeStamp({ at: Date.now(), key: requestKey });
+        if (!before) setReferences(sheet);
         setMessage(
           say(
             language,
@@ -610,6 +669,16 @@ export function Studio({
               ? "修改已就绪。先查看改动，再审阅后演示。"
               : "草稿已就绪，演示前请审阅模型与假设。",
           ) +
+            (!before && sheet
+              ? ` ${t(
+                  language,
+                  sheet.facts.length === 1
+                    ? "Studio.groundedOnOne"
+                    : "Studio.groundedOn",
+                )
+                  .replace("{n}", String(sheet.facts.length))
+                  .replace("{date}", sheet.asOf)}`
+              : "") +
             (composed.message?.[language]
               ? `\n${composed.message[language]}`
               : ""),
@@ -1446,6 +1515,20 @@ export function Studio({
                     </div>
                   )}
                 </div>
+                <label className="search-first">
+                  <input
+                    type="checkbox"
+                    checked={searchFirst}
+                    disabled={busy || creation !== "generated"}
+                    onChange={(event) => setSearchFirst(event.target.checked)}
+                  />
+                  <span>
+                    {t(language, "Studio.searchFirst")}
+                    <span className="fine">
+                      {t(language, "Studio.searchFirstNote")}
+                    </span>
+                  </span>
+                </label>
                 <div className="author-submit">
                   <button
                     type="submit"
@@ -1502,6 +1585,9 @@ export function Studio({
                 </div>
                 <p className="fine author-privacy">
                   {t(language, "Studio.oneModelRequestWhenYou")}
+                  {searchFirst &&
+                    creation === "generated" &&
+                    ` ${t(language, "Studio.searchFirstCost")}`}
                   {canCompare && ` ${t(language, "Studio.compareNote")}`}
                 </p>
               </form>
@@ -1604,6 +1690,7 @@ export function Studio({
             <DraftReview
               key={revisionKey}
               draft={draft}
+              references={references}
               language={language}
               busy={busy}
               reviewed={reviewed}

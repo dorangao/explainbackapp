@@ -1164,6 +1164,19 @@ export function LessonPlayer({
             <details className="assumptions" open={state.stage !== "predict"}>
               <summary>{t(language, "LessonPlayer.assumptionsLimits")}</summary>
               <p>{e.assumptions}</p>
+              {player.lesson.sources && player.lesson.sources.length > 0 && (
+                <p className="fine lesson-sources">
+                  {t(language, "LessonPlayer.sources")}{" "}
+                  {player.lesson.sources.map((s, i) => (
+                    <span key={s.url}>
+                      {i > 0 && " · "}
+                      <a href={s.url} target="_blank" rel="noopener noreferrer">
+                        {s.title}
+                      </a>
+                    </span>
+                  ))}
+                </p>
+              )}
               {e.generated && (
                 <p className="fine">
                   {say(

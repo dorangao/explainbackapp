@@ -1,6 +1,7 @@
 import express from 'express';
 import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
+import {groundRequest,readGround} from './lesson-ground.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
 import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
 import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,usageSummary} from './meta.mjs';
@@ -172,7 +173,7 @@ export function createHandler({
     const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
-  const actions=['/api/studio/session','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
@@ -224,7 +225,7 @@ export function createHandler({
         if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
         if(raw.pending){json(200,{pending:true,attemptsRemaining:8-s.attempts});return;}
         if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=8-s.attempts;throw failure;}
-        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
+        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation,false,s.background.references);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
         if(typeof raw?.id==='string'&&/^resp_/.test(raw.id))s.chains={...(s.chains??{}),[`${s.llm.id}:author`]:raw.id};
         const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),reasoning:raw.reasoning??null,llm:s.llm,attemptsRemaining:8-s.attempts};
         s.background={result:answer};await save();json(200,answer);return;
@@ -257,7 +258,7 @@ export function createHandler({
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
-        const mode=path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
+        const mode=path==='/api/studio/ground'?'ground':path==='/api/studio/compose'?'compose':path==='/api/studio/guide'?'guide':path==='/api/studio/tryout'?'tryout':path==='/api/studio/show'?'show':path==='/api/studio/illustrate'?'illustrate':path==='/api/studio/detect'?'detect':path==='/api/studio/compare'?'compare':null;
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
         // Image routes (SAM 3.1 detection, Muse Image illustration) live in studio-images.mjs
         // and share this handler's session, budget and trace plumbing through `ctx`.
@@ -269,9 +270,9 @@ export function createHandler({
         // score the ready lessons: up to four requests.
         if(mode==='compare'){await compareDrafts({...ctx,models:[selected(roles.creator),selected(roles.tester)],judge:selected(roles.tester),invoke:(target,o)=>modelCall?modelCall(o,target.id):router.call(target.id,o)});return;}
         // Quick learner feedback and the test learner use Spark regardless of the creator model.
-        const llm=['tryout','guide'].includes(mode)?selected(roles.tester):s.llm;
+        const llm=['tryout','guide','ground'].includes(mode)?selected(roles.tester):s.llm;
         if(!llm.configured)throw new RequestError(503,'The selected model is not configured.');
-        let args;try{args=mode==='tryout'?learnerTryoutRequest(body):mode==='show'?showRequest(body):lessonAuthorRequest(body,mode);}catch{throw new RequestError(400,'Use a short topic or a valid lesson and experiment.');}
+        let args;try{args=mode==='ground'?groundRequest(body):mode==='tryout'?learnerTryoutRequest(body):mode==='show'?showRequest(body):lessonAuthorRequest(body,mode);}catch{throw new RequestError(400,'Use a short topic or a valid lesson and experiment.');}
         const background=mode==='compose'&&body.background===true&&s.llm.provider==='meta'&&s.llm.model.startsWith('muse-wonder')&&typeof router.startBackground==='function';
         if(body.background!==undefined&&typeof body.background!=='boolean')throw new RequestError(400,'Invalid background request.');
         if(background&&args.images?.some(image=>image.length>800_000))throw new RequestError(413,'Use a smaller image for background creation.');
@@ -284,8 +285,8 @@ export function createHandler({
           try{
             const startedAt=Date.now(),started=await router.startBackground(s.llm.id,{...args,promptCacheKey:`explainback-${mode}`,reasoningSummary:'auto'});
             if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
-            if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
-            s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt};await save();
+            if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation,false,body.references);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
+            s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt,...(body.references!==undefined?{references:body.references}:{})};await save();
             json(202,{pending:true,attemptsRemaining:8-s.attempts});return;
           }catch(error){if(error instanceof RequestError)throw error;const failure=new RequestError(502,'Background lesson could not be started. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;}
         }
@@ -301,16 +302,17 @@ export function createHandler({
           // how the lesson was written. If the earlier response is gone, the turn runs once
           // unchained.
           const chainKey=`${llm.id}:${['tryout','guide'].includes(mode)?'learner':'author'}`;
-          const chain=llm.provider==='meta'?(s.chains?.[chainKey]??null):null;
+          // The ground step stands alone: it never inherits a conversation or starts one.
+          const chain=llm.provider==='meta'&&mode!=='ground'?(s.chains?.[chainKey]??null):null;
           const meta=llm.provider==='meta'?{store:true,promptCacheKey:`explainback-${mode}`,reasoningSummary:'auto'}:{};
           const options={...args,...meta,...(chain?{previousResponseId:chain}:{}),...(call?{onTrace:call.event}:{})};
           const invoke=o=>modelCall?modelCall(o,llm.id):router.call(llm.id,o);
           const startedAt=performance.now();
           let raw,chained=Boolean(chain);try{raw=await invoke(options);}
           catch(error){if(chain&&[400,404].includes(error?.status)){delete s.chains[chainKey];chained=false;const {previousResponseId,...unchained}=options;raw=await invoke(unchained);}else throw error;}
-          if(llm.provider==='meta'&&typeof raw?.id==='string'&&/^resp_/.test(raw.id)){s.chains={...(s.chains??{}),[chainKey]:raw.id};}
+          if(llm.provider==='meta'&&mode!=='ground'&&typeof raw?.id==='string'&&/^resp_/.test(raw.id)){s.chains={...(s.chains??{}),[chainKey]:raw.id};}
           let result=null;
-          try{result=mode==='tryout'?readLearnerTryout(raw,validateLesson(body.lesson),body.language):mode==='show'?{show:readShow(raw,validateLesson(body.lesson))}:readLessonAuthor(raw,mode,body.creation,mode==='guide'&&body.explanation!==undefined);}catch(error){throw tagRejection(error);}
+          try{result=mode==='ground'?readGround(raw):mode==='tryout'?readLearnerTryout(raw,validateLesson(body.lesson),body.language):mode==='show'?{show:readShow(raw,validateLesson(body.lesson))}:readLessonAuthor(raw,mode,body.creation,mode==='guide'&&body.explanation!==undefined,mode==='compose'?body.references:undefined);}catch(error){throw tagRejection(error);}
           const metrics={model:raw.model??llm.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usageSummary(raw.usage),chained,effort:args.reasoningEffort??null,reasoning:raw.reasoning??null};
           // A show gets one cover illustration from Muse Image when Meta is configured; a failed
           // or missing image never fails the show. Image bytes go to the client only.

@@ -532,6 +532,7 @@ export const messages = {
   },
   "LessonPlayer.yourAnswer": { en: "Your answer", zh: "你的答案" },
   "LessonPlayer.yourExperiment": { en: "YOUR EXPERIMENT", zh: "你的实验" },
+  "LessonPlayer.sources": { en: "Sources:", zh: "来源：" },
   "LessonPlayer.setUpTheExperiment": {
     en: "SET UP THE EXPERIMENT",
     zh: "设置实验",
@@ -580,6 +581,10 @@ export const messages = {
     zh: "按当前语言逐字段比较。切换语言可比较另一种译文。列出的修改并不代表经过验证的改进，演示前请审阅。",
   },
   "RevisionSummary.dismiss": { en: "Dismiss", zh: "关闭" },
+  "RevisionSummary.gatheredSourcesFor": {
+    en: "gathered sources for this topic",
+    zh: "为该主题收集了来源",
+  },
   "RevisionSummary.draftedThisLesson": {
     en: "drafted this lesson",
     zh: "起草了这堂课",
@@ -811,6 +816,23 @@ export const messages = {
     zh: "Muse 正在处理，响应通过验证前，现有草稿会保留。",
   },
   "Studio.newTopicDemo": { en: "New topic demo", zh: "新主题演示" },
+  "Studio.searchFirst": { en: "Search first", zh: "先搜索" },
+  "Studio.searchFirstNote": {
+    en: "Spark gathers a few sourced figures for the topic before the draft. One extra request; new topic demos only.",
+    zh: "起草前先由 Spark 为该主题收集几条带来源的数据。多用一次请求；仅限新主题演示。",
+  },
+  "Studio.searchFirstCost": {
+    en: "Search first adds one request before the draft; Spark reads only the pages the search returns, and the lesson lists the ones it relied on.",
+    zh: "先搜索会在起草前多用一次请求；Spark 只读取搜索返回的页面，课程会列出其依据的页面。",
+  },
+  "Studio.groundedOn": {
+    en: "Grounded on {n} sourced figures as of {date}; see Sources below.",
+    zh: "已依据 {n} 条带来源的数据（截至 {date}），见下方“来源”。",
+  },
+  "Studio.groundedOnOne": {
+    en: "Grounded on one sourced figure as of {date}; see Sources below.",
+    zh: "已依据 1 条带来源的数据（截至 {date}），见下方“来源”。",
+  },
   "Studio.oneModelRequestWhenYou": {
     en: "One model request when you click Create. Wonder runs in the background: Meta stores the request and response, including any image. Use synthetic examples and export a lesson to keep it.",
     zh: "点击创建时调用一次模型。Wonder 在后台运行：Meta 会存储请求和响应，包括图片。请使用虚构示例，导出课程以便保留。",
@@ -1080,6 +1102,23 @@ export const messages = {
   "DraftReview.startANewLesson": {
     en: "Start a new lesson",
     zh: "开始新课程",
+  },
+  "DraftReview.sources": { en: "Sources", zh: "来源" },
+  "DraftReview.gatheredOn": {
+    en: "gathered by a web search on",
+    zh: "由网络搜索收集于",
+  },
+  "DraftReview.notInTheSearchResults": {
+    en: "page not among the search results",
+    zh: "该页面不在搜索结果中",
+  },
+  "DraftReview.theLessonNames": {
+    en: "The lesson names:",
+    zh: "课程引用：",
+  },
+  "DraftReview.sourcesNote": {
+    en: "Figures and pages were gathered by Muse Spark with web search and are not reviewed; the lesson's numbers are still computed by code from its own formulas.",
+    zh: "数据与页面由 Muse Spark 通过网络搜索收集，未经审阅；课程中的数字仍由代码按其公式计算。",
   },
   "DraftReview.thisDraftIsRemembered": {
     en: "This draft is remembered in this browser only. Export JSON to keep a copy.",

@@ -10,6 +10,7 @@ export type RequestMetrics = {
   // The model's own one-line account of its reasoning, when it gave one. Unverified.
   reasoning?: string | null;
   mode:
+    | "ground"
     | "compose"
     | "revise"
     | "guide"
