@@ -12,12 +12,15 @@ import { galleryShow, lessonCover } from "../lib/shared";
 export function CoverTool({
   language,
   busy,
+  working = false,
   onDraw,
   lessonId,
   saved = null,
 }: {
   language: Language;
+  // Disabled while any Muse request runs; the drawing wording only while this one does.
   busy: boolean;
+  working?: boolean;
   onDraw: () => Promise<CoverReply | null>;
   // A reviewed lesson's id, or...
   lessonId?: string;
@@ -78,7 +81,7 @@ export function CoverTool({
             })
           }
         >
-          {busy
+          {working
             ? t(language, "Cover.drawing")
             : t(language, current ? "Cover.redraw" : "Cover.draw")}
         </button>

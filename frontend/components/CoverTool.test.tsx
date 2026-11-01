@@ -69,6 +69,7 @@ describe("CoverTool", () => {
         language="en"
         lessonId="no-such-lesson"
         busy={true}
+        working={true}
         onDraw={async () => null}
       />,
     );
@@ -124,6 +125,34 @@ describe("CoverTool for a saved lesson", () => {
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Redraw the cover" }),
+    ).toBeTruthy();
+  });
+});
+
+describe("CoverTool while another Muse request runs", () => {
+  it("is disabled with its plain label, and says it is drawing only for its own request", () => {
+    const onDraw = vi.fn(async () => null);
+    const { rerender } = render(
+      <CoverTool
+        language="en"
+        saved={{ cover: null, coverModel: null }}
+        busy={true}
+        onDraw={onDraw}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Draw a cover" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    rerender(
+      <CoverTool
+        language="en"
+        saved={{ cover: null, coverModel: null }}
+        busy={true}
+        working={true}
+        onDraw={onDraw}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Muse Image is drawing…" }),
     ).toBeTruthy();
   });
 });

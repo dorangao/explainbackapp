@@ -10,10 +10,13 @@ import { evaluationModelLabel } from "../lib/shared";
 export function FigureCheck({
   language,
   busy,
+  working = false,
   onCheck,
 }: {
   language: Language;
+  // Disabled while any Muse request runs; the checking wording only while this one does.
   busy: boolean;
+  working?: boolean;
   onCheck: () => Promise<JudgeReply | null>;
 }) {
   const headingId = useId();
@@ -35,7 +38,7 @@ export function FigureCheck({
           })
         }
       >
-        {busy
+        {working
           ? t(language, "Figures.checking")
           : t(language, result ? "Figures.checkAgain" : "Figures.check")}
       </button>

@@ -88,3 +88,25 @@ describe("FigureCheck", () => {
     expect(screen.getByText(/未发现/)).toBeTruthy();
   });
 });
+
+describe("FigureCheck while another Muse request runs", () => {
+  it("keeps its plain label while disabled, and says it is checking only for its own request", () => {
+    const onCheck = vi.fn(async () => reply);
+    const { rerender } = render(
+      <FigureCheck language="en" busy={true} onCheck={onCheck} />,
+    );
+    const button = screen.getByRole("button", { name: "Check figures" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    rerender(
+      <FigureCheck
+        language="en"
+        busy={true}
+        working={true}
+        onCheck={onCheck}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Muse Spark is checking…" }),
+    ).toBeTruthy();
+  });
+});

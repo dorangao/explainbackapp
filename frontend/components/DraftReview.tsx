@@ -17,6 +17,7 @@ import {
   validateLesson,
   lessonLanguageWarnings,
   chapterExperiment,
+  shownUnit,
 } from "../lib/shared";
 function Definition({
   demo,
@@ -43,13 +44,14 @@ function Definition({
         <>
           <p className="fine">
             {demo.axis.label[language]}: {demo.axis.min} → {demo.axis.max}{" "}
-            {demo.axis.unit}
+            {shownUnit(demo.axis.unit)}
           </p>
           <div className="formula-list">
             {demo.outputs.map((o) => (
               <div key={o.id}>
                 <span>
-                  {o.label[language]} · {o.unit}
+                  {o.label[language]}
+                  {shownUnit(o.unit) && ` · ${o.unit}`}
                 </span>
                 <code>{o.expression}</code>
               </div>
@@ -60,7 +62,7 @@ function Definition({
               <div key={i.id}>
                 <dt>{i.label[language]}</dt>
                 <dd>
-                  {i.min}–{i.max} {i.unit} ·{" "}
+                  {i.min}–{i.max} {shownUnit(i.unit)} ·{" "}
                   {t(language, "DraftReview.startsAt")} {i.value}
                 </dd>
               </div>
@@ -255,7 +257,7 @@ export function SourcesPanel({
             <li key={f.url + f.value}>
               <span>{f.statement[language]}</span>{" "}
               <strong>
-                {f.value} {f.unit}
+                {f.value} {shownUnit(f.unit)}
               </strong>{" "}
               <a href={f.url} target="_blank" rel="noopener noreferrer">
                 {f.title ?? host(f.url)}
@@ -292,6 +294,7 @@ export function DraftReview({
   references = null,
   language,
   busy,
+  activeMode = null,
   reviewed,
   setReviewed,
   onChange,
@@ -319,6 +322,8 @@ export function DraftReview({
   references?: References | null;
   language: Language;
   busy: boolean;
+  // The request in flight: a button says "Muse is working" only for its own.
+  activeMode?: RequestMetrics["mode"] | null;
   reviewed: boolean;
   setReviewed: (v: boolean) => void;
   onChange: (v: Lesson) => void;
@@ -579,7 +584,7 @@ export function DraftReview({
             disabled={busy || hasPending}
             onClick={onTryout}
           >
-            {busy
+            {activeMode === "tryout"
               ? t(language, "DraftReview.museIsWorking")
               : actionLabel(
                   language,
@@ -611,7 +616,7 @@ export function DraftReview({
               disabled={busy || hasPending}
               onClick={onMakeShow}
             >
-              {busy
+              {activeMode === "show"
                 ? t(language, "DraftReview.museIsWorking")
                 : actionLabel(
                     language,

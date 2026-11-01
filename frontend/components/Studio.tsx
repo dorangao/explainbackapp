@@ -184,6 +184,7 @@ export function Studio({
   });
   const {
     busy,
+    activeMode,
     busyRef,
     remaining,
     sessionId,
@@ -1308,6 +1309,8 @@ export function Studio({
       setMessage(t(language, "Studio.completeBothLanguagesAndCheck"));
     }
   }
+  // The Create button's own request: compose, or the Search first step before it.
+  const composing = activeMode === "compose" || activeMode === "ground";
   const canRequest =
     authenticated && Boolean(target?.configured) && remaining > 0;
   // What each model-backed action depends on; a cached result is current while its key holds.
@@ -1620,8 +1623,8 @@ export function Studio({
                   >
                     {say(
                       language,
-                      busy ? "Muse is working…" : "Create a lesson",
-                      busy ? "Muse 正在处理…" : "创建课程",
+                      composing ? "Muse is working…" : "Create a lesson",
+                      composing ? "Muse 正在处理…" : "创建课程",
                     )}{" "}
                     <span aria-hidden="true">↗</span>
                   </button>
@@ -1632,7 +1635,7 @@ export function Studio({
                       disabled={busy || image.loading || !canRequest}
                       onClick={() => void compareModels()}
                     >
-                      {busy
+                      {activeMode === "compare"
                         ? t(language, "Studio.comparing")
                         : t(language, "Studio.compareTwoModels")}{" "}
                       <span aria-hidden="true">⇄</span>
@@ -1790,6 +1793,7 @@ export function Studio({
               references={references}
               language={language}
               busy={busy}
+              activeMode={activeMode}
               reviewed={reviewed}
               setReviewed={setReviewed}
               onChange={(next) => {
@@ -1829,6 +1833,7 @@ export function Studio({
                   language={language}
                   saved={savedItem}
                   busy={busy || saving}
+                  working={activeMode === "cover"}
                   onDraw={() => drawCover({ savedId })}
                 />
               )}
@@ -1853,6 +1858,7 @@ export function Studio({
               language={language}
               visible={visible && showLesson}
               busy={busy}
+              working={activeMode === "guide"}
               canAsk={canRequest}
               feedback={feedback}
               onGuide={(own) => void request("guide", own)}
@@ -1877,6 +1883,7 @@ export function Studio({
                   language={language}
                   lessonId={lessonId}
                   busy={busy}
+                  working={activeMode === "cover"}
                   onDraw={() => drawCover({ lessonId })}
                 />
               )}
@@ -1885,6 +1892,7 @@ export function Studio({
                 key={`figures-${lessonId}`}
                 language={language}
                 busy={busy}
+                working={activeMode === "judge"}
                 onCheck={checkFigures}
               />
             )}
