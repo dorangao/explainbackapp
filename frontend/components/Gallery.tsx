@@ -21,6 +21,7 @@ import { listShared } from "../lib/library";
 import type { CoverRecord } from "../lib/library";
 import { useCovers } from "../lib/covers";
 import { reportLessonUrl } from "../lib/evaluation";
+import { sharedProvenanceText } from "../lib/shared-note";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
 function LessonArt({ id }: { id: string }) {
@@ -387,7 +388,7 @@ function metaLine(entry: Entry, language: Language): string {
 function provenance(entry: Entry, language: Language): string {
   if (entry.depth === "coached") return t(language, "Gallery.benchProvenance");
   if (entry.evaluation) return evaluationNote(entry.evaluation, language);
-  if (entry.shared) return t(language, "Gallery.sharedProvenance");
+  if (entry.shared) return sharedProvenanceText(entry.shared, language);
   return gallerySourceNote(entry.reviewed?.source ?? "muse", language);
 }
 
@@ -495,7 +496,12 @@ function LibraryCard({
         )}
         {entry.shared && (
           <p className="lesson-review-note fine">
-            {t(language, "Gallery.sharedBadgeNote")}
+            {t(
+              language,
+              entry.shared.reviewedAt
+                ? "Gallery.sharedReviewedNote"
+                : "Gallery.sharedBadgeNote",
+            )}
           </p>
         )}
         <details className="lesson-source">

@@ -70,7 +70,10 @@ export function buildSavedLesson(body,{owner,now=Date.now(),previous=null}={}){
  const createdAt=previous?.createdAt??now;
  const coverModel=typeof body.coverModel==='string'&&body.coverModel.length<=80?body.coverModel.trim():null;
  const tryout=validateTryout(body.tryout,lesson),grades=validateGrades(body.grades,lesson);
- return {id:previous?.id??newLessonId(),owner,title:lesson.title,intro:lesson.intro,kind:lessonKind(lesson),lesson,show,model,coverModel:show?coverModel:null,cover:null,illustrations:{},sketch:null,tryout,grades,shared:previous?.shared===true,createdAt,updatedAt:now};
+ if(body.reviewed!==undefined&&typeof body.reviewed!=='boolean')throw new Error('Invalid reviewed flag.');
+ // The creator's own review of the definition and assumptions, as of this save.
+ const reviewedAt=body.reviewed===true?now:null;
+ return {id:previous?.id??newLessonId(),owner,reviewedAt,title:lesson.title,intro:lesson.intro,kind:lessonKind(lesson),lesson,show,model,coverModel:show?coverModel:null,cover:null,illustrations:{},sketch:null,tryout,grades,shared:previous?.shared===true,createdAt,updatedAt:now};
 }
 // Resolves the images a save request references. A value is kept when it is already a
 // blob URL under this owner, uploaded when it is an image data URL and a store exists,
@@ -100,5 +103,5 @@ export async function attachImages(record,body,{store=null,owner,previous=null}=
  return recordImageUrls(previous).filter(url=>!kept.has(url));
 }
 // What lists and public readers see. The owner id never leaves the server.
-export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,cover:r.cover??null,sketch:r.sketch??null,shared:r.shared===true,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});
+export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,cover:r.cover??null,sketch:r.sketch??null,shared:r.shared===true,reviewedAt:r.reviewedAt??null,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});
 export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,coverModel:r.coverModel??null,illustrations:r.illustrations??{},tryout:r.tryout??null,grades:r.grades??{}});

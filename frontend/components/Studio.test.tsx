@@ -1469,6 +1469,43 @@ describe("Sketch provenance notes", () => {
     ).toBeTruthy();
     expect(document.querySelector(".spotlight img")).toBeTruthy();
   });
+  it("says when the creator reviewed a shared lesson, on its page", async () => {
+    const lesson = coolingLesson() as unknown as Lesson;
+    mount({
+      lessonId: "0123456789abcdef",
+      external: {
+        id: "0123456789abcdef",
+        title: lesson.title,
+        intro: lesson.intro,
+        kind: "model",
+        hasShow: false,
+        hasTryout: false,
+        graded: 0,
+        model: "muse-wonder-1.0",
+        cover: null,
+        sketch: null,
+        shared: true,
+        reviewedAt: Date.UTC(2026, 9, 30, 12),
+        createdAt: 1,
+        updatedAt: 2,
+        lesson,
+        show: null,
+        coverModel: null,
+        illustrations: {},
+        tryout: null,
+        grades: {},
+      },
+    });
+    const notice = await screen.findByRole("note");
+    expect(notice.textContent).toMatch(
+      /reviewed its definition and assumptions on Oct 30, 2026, and shared it by link/,
+    );
+    expect(
+      screen.queryByText(
+        /An invited creator made this in Lesson Studio and shared it by link\./,
+      ),
+    ).toBeNull();
+  });
   it("does not describe a shared lesson's sketch as the gallery's pendulum", async () => {
     const lesson = coolingLesson() as unknown as Lesson;
     mount({
