@@ -266,6 +266,7 @@ test("an authored animation pauses in the library and resumes only on request", 
     paused!,
   );
   await page.getByRole("link", { name: "Create", exact: true }).click();
+  await page.getByRole("button", { name: "Continue tryout" }).click();
   await expect(
     page.getByRole("button", { name: "Play experiment", exact: true }),
   ).toBeEnabled();
@@ -304,7 +305,7 @@ test("expired access clears the private draft and returns to the public library"
   ).toBeVisible();
 });
 
-test("a remembered draft survives a reload, reopens with no provider request and can be forgotten", async ({
+test("a remembered draft survives a reload, reopens with no provider request and can be resumed from Create home", async ({
   page,
 }) => {
   const studioRequests: string[] = [];
@@ -368,9 +369,8 @@ test("a remembered draft survives a reload, reopens with no provider request and
       exact: true,
     }),
   ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Start a new lesson", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Continue creating" }).click();
+  await page.getByRole("button", { name: "New lesson", exact: true }).click();
   await expect(
     page.getByLabel("What would you like to explore?"),
   ).toBeVisible();

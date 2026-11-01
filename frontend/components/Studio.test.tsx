@@ -253,7 +253,7 @@ describe("Studio authoring", () => {
     expect((present as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("checkbox", { name: /reviewed/i }));
     expect((present as HTMLButtonElement).disabled).toBe(false);
-    const title = screen.getByLabelText(/Lesson title/);
+    const title = screen.getByLabelText("Scene / question");
     fireEvent.change(title, { target: { value: "Revised title" } });
     expect(
       (screen.getByRole("button", { name: /Present/ }) as HTMLButtonElement)
@@ -907,12 +907,15 @@ describe("Remembered lesson", () => {
     expect(screen.getAllByText(/Inputs changed since/)).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /^Re-run$/ })).toBeNull();
     expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
-    // Start a new lesson forgets it and returns to the question form.
-    fireEvent.click(screen.getByRole("button", { name: /Start a new lesson/ }));
+    // A fresh creation form keeps the current draft available to resume.
+    fireEvent.click(screen.getByRole("button", { name: "New lesson" }));
     expect(
       screen.getByLabelText(/What would you like to explore/),
     ).toBeTruthy();
-    expect(localStorage.getItem("explainback-studio-draft")).toBeNull();
+    expect(localStorage.getItem("explainback-studio-draft")).not.toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Continue creating" }),
+    ).toBeTruthy();
   });
   it("remembers a created draft across a remount and makes no request on reopening", async () => {
     const posted: string[] = [];
@@ -1197,6 +1200,7 @@ describe("Judge path", () => {
     expect(document.querySelector(".judge-foot")?.textContent).toMatch(
       /Used in this session: 4/,
     );
+    fireEvent.click(screen.getByText("Guided creation · the 6-step tour"));
     expect(
       await screen.findByRole("button", { name: "Tour complete" }),
     ).toBeTruthy();
@@ -1657,4 +1661,412 @@ describe("Display units", () => {
     expect(await screen.findByText(/That matches this model/)).toBeTruthy();
     expect(localStorage.getItem("explainback.units")).toBe("us");
   });
+});
+
+describe("Create workspace navigation", () => {
+  async function remembered() {
+    const { saveStudio } = await import("../lib/studio-store");
+    saveStudio({
+      draft: coolingLesson() as Lesson,
+      topic: "Cooling coffee",
+      creation: "generated",
+      reviewed: true,
+      revisionPrompt: "",
+      compose: null,
+      revise: null,
+      tryout: null,
+      show: null,
+      guide: {},
+      explanations: {},
+      player: null,
+      presenting: false,
+      pace: "off",
+    });
+  }
+  it("resumes the same attempt through Create, home and a browser reload", async () => {
+    await remembered();
+    const first = mount({ authenticated: true, status, view: "create" });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tryout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agree" }));
+    fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Show final state/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Try a fresh case/ }));
+    fireEvent.change(screen.getByRole("textbox", { name: /Your answer/ }), {
+      target: { value: "42" },
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Create" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create home" }));
+    expect(
+      screen.getByLabelText(/What would you like to explore/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue tryout" }));
+    expect(
+      (screen.getByRole("textbox", { name: /Your answer/ }) as HTMLInputElement)
+        .value,
+    ).toBe("42");
+    await waitFor(() =>
+      expect(localStorage.getItem("explainback-studio-draft")).toContain(
+        '"answer":"42"',
+      ),
+    );
+    first.unmount();
+    mount({ authenticated: true, status, view: "create" });
+    expect(
+      (
+        (await screen.findByRole("textbox", {
+          name: /Your answer/,
+        })) as HTMLInputElement
+      ).value,
+    ).toBe("42");
+    expect(first.calls.filter((p) => p.startsWith("/api/studio"))).toEqual([]);
+  });
+  it("keeps unapplied definitions and requires review before replacing an older attempt", async () => {
+    await remembered();
+    mount({ authenticated: true, status, view: "create" });
+    fireEvent.click(await screen.findByRole("tab", { name: "Tryout" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agree" }));
+    fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Create" }));
+    fireEvent.change(screen.getByLabelText("Bilingual demo definition"), {
+      target: { value: "unfinished formula" },
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Tryout" }));
+    expect(
+      screen.getByText(/Apply or discard your definition edits/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Create" }));
+    expect(
+      (
+        screen.getByLabelText(
+          "Bilingual demo definition",
+        ) as HTMLTextAreaElement
+      ).value,
+    ).toBe("unfinished formula");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard definition edits" }),
+    );
+    fireEvent.change(screen.getByLabelText("Scene / question"), {
+      target: { value: "A different scene." },
+    });
+    fireEvent.click(screen.getByRole("tab", { name: "Tryout" }));
+    expect(screen.getByText(/Review the draft before trying it/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: "Create" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /I reviewed/ }));
+    fireEvent.click(screen.getByRole("tab", { name: "Tryout" }));
+    expect(
+      screen.getByRole("button", { name: "Start new tryout" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Start new tryout" }));
+    expect(
+      screen.getByRole("heading", { name: /Make a prediction/ }),
+    ).toBeTruthy();
+  });
+  it("keeps the old draft when a replacement generation fails", async () => {
+    await remembered();
+    const post: Post = async (path) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose") throw new Error("offline");
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.click(await screen.findByRole("button", { name: "New lesson" }));
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "A new question" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard changes and continue" }),
+    );
+    await screen.findByText(/The request could not/);
+    fireEvent.click(screen.getByRole("button", { name: "Continue creating" }));
+    expect(screen.getByLabelText("Lesson title")).toHaveProperty(
+      "value",
+      "Cooling coffee",
+    );
+  });
+});
+
+describe("Workspace replacement safety", () => {
+  async function seed() {
+    const { saveStudio } = await import("../lib/studio-store");
+    saveStudio({
+      draft: coolingLesson() as Lesson,
+      topic: "Cooling",
+      creation: "generated",
+      reviewed: true,
+      revisionPrompt: "",
+      compose: null,
+      revise: null,
+      tryout: null,
+      show: null,
+      guide: {},
+      explanations: {},
+      player: null,
+      presenting: false,
+      pace: "off",
+      savedId: "0123456789abcdef",
+    });
+  }
+  it("leaves unsaved work available when Save and continue fails", async () => {
+    await seed();
+    const posted: string[] = [];
+    const post: Post = async (path) => {
+      posted.push(path);
+      if (path === "/api/lessons") throw new Error("offline");
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.click(await screen.findByRole("button", { name: "New lesson" }));
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Another lesson" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await screen.findByText(/could not.*sav/i);
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(posted).toEqual(["/api/lessons"]);
+    fireEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+    expect(screen.getByLabelText("Lesson title")).toHaveProperty(
+      "value",
+      "Cooling coffee",
+    );
+  });
+  it("creates a separate saved identity and leaves the old saved lesson untouched", async () => {
+    await seed();
+    const saves: Record<string, unknown>[] = [];
+    const post: Post = async (path, body) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: processLesson(),
+          message: { en: "", zh: "" },
+          attemptsRemaining: 7,
+        } as never;
+      if (path === "/api/lessons") {
+        saves.push(body as Record<string, unknown>);
+        return {
+          id: "fedcba9876543210",
+          title: processLesson().title,
+          intro: processLesson().intro,
+          cover: null,
+          sketch: null,
+          shared: false,
+          updatedAt: 2,
+        } as never;
+      }
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.click(await screen.findByRole("button", { name: "New lesson" }));
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "How does the web work?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Discard changes and continue" }),
+    );
+    await screen.findByText(/Draft ready/);
+    fireEvent.click(screen.getByRole("button", { name: "Save lesson" }));
+    await waitFor(() => expect(saves).toHaveLength(1));
+    expect(saves[0]).not.toHaveProperty("id");
+    expect(saves[0].lesson).toMatchObject({ title: processLesson().title });
+  });
+  it("restores unfinished formula text and opens home on an explicit global Create visit", async () => {
+    await seed();
+    const first = mount({
+      authenticated: true,
+      status,
+      view: "create",
+      homeVisit: 0,
+    });
+    fireEvent.change(
+      await screen.findByLabelText("Bilingual demo definition"),
+      { target: { value: "unfinished" } },
+    );
+    await waitFor(() =>
+      expect(localStorage.getItem("explainback-studio-draft")).toContain(
+        "unfinished",
+      ),
+    );
+    first.unmount();
+    const next = mount({
+      authenticated: true,
+      status,
+      view: "create",
+      homeVisit: 0,
+    });
+    expect(
+      await screen.findByLabelText("Bilingual demo definition"),
+    ).toHaveProperty("value", "unfinished");
+    next.rerender({ homeVisit: 1 });
+    expect(
+      screen.getByLabelText(/What would you like to explore/),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continue creating" }));
+    expect(screen.getByLabelText("Bilingual demo definition")).toHaveProperty(
+      "value",
+      "unfinished",
+    );
+  });
+});
+
+describe("Workspace revision isolation", () => {
+  it("revises the working lesson using its own topic after a different home question is entered", async () => {
+    const posted: Record<string, unknown>[] = [];
+    const post: Post = async (path, body) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose") {
+        posted.push(body as Record<string, unknown>);
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "", zh: "" },
+          attemptsRemaining: 6,
+        } as never;
+      }
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Why does coffee cool?" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    await screen.findByText(/Draft ready/);
+    fireEvent.click(screen.getByRole("button", { name: "New lesson" }));
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "An unrelated question about stars" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Continue creating" }));
+    fireEvent.change(screen.getByLabelText(/Ask Muse to revise/), {
+      target: { value: "Simplify the explanation" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Revise lesson/ }));
+    await waitFor(() => expect(posted).toHaveLength(2));
+    expect(posted[1].topic).toBe("Why does coffee cool?");
+  });
+  it("cannot restore an earlier draft while a revision is in flight", async () => {
+    let count = 0;
+    let resolve!: (reply: unknown) => void;
+    const post: Post = async (path) => {
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose") {
+        if (++count === 3)
+          return (await new Promise<unknown>((r) => {
+            resolve = r;
+          })) as never;
+        const lesson = coolingLesson();
+        lesson.title.en = count === 1 ? "Original coffee" : "Revised coffee";
+        return {
+          status: "ready",
+          lesson,
+          message: { en: "", zh: "" },
+          attemptsRemaining: 7,
+        } as never;
+      }
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Cooling" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    await screen.findByText(/Draft ready/);
+    fireEvent.change(screen.getByLabelText(/Ask Muse to revise/), {
+      target: { value: "Simplify" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Revise lesson/ }));
+    await screen.findByRole("button", { name: "Restore previous draft" });
+    fireEvent.change(screen.getByLabelText(/Ask Muse to revise/), {
+      target: { value: "Simplify again" },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Send changes to Muse/ }),
+    );
+    await waitFor(() => expect(count).toBe(3));
+    expect(
+      screen.getByRole("button", { name: "Restore previous draft" }),
+    ).toHaveProperty("disabled", true);
+    await act(async () =>
+      resolve({
+        status: "ready",
+        lesson: coolingLesson(),
+        message: { en: "", zh: "" },
+        attemptsRemaining: 5,
+      }),
+    );
+  });
+});
+
+it("reveals replacement choices and prevents tryout edits while Save and continue is in flight", async () => {
+  const { saveStudio } = await import("../lib/studio-store");
+  saveStudio({
+    draft: coolingLesson() as Lesson,
+    topic: "Cooling",
+    creation: "generated",
+    reviewed: true,
+    revisionPrompt: "",
+    compose: null,
+    revise: null,
+    tryout: null,
+    show: null,
+    guide: {},
+    explanations: {},
+    player: null,
+    presenting: false,
+    pace: "off",
+  });
+  let resolveSave!: (value: unknown) => void;
+  const post: Post = async (path) => {
+    if (path === "/api/lessons")
+      return (await new Promise<unknown>((r) => {
+        resolveSave = r;
+      })) as never;
+    if (path === "/api/studio/session")
+      return { sessionId: "s1", attemptsRemaining: 8 } as never;
+    if (path === "/api/studio/compose")
+      return {
+        status: "ready",
+        lesson: processLesson(),
+        message: { en: "", zh: "" },
+        attemptsRemaining: 7,
+      } as never;
+    return { records: [] } as never;
+  };
+  mount({ authenticated: true, status, view: "create" }, post);
+  fireEvent.click(await screen.findByRole("tab", { name: "Tryout" }));
+  fireEvent.click(screen.getByRole("button", { name: "Agree" }));
+  fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Show final state/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+  fireEvent.click(screen.getByRole("button", { name: "New lesson" }));
+  fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+    target: { value: "New topic" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+  expect(document.activeElement).toBe(screen.getByRole("alertdialog"));
+  fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+  await waitFor(() => expect(resolveSave).toBeTypeOf("function"));
+  fireEvent.click(screen.getByRole("button", { name: "Continue tryout" }));
+  const playerPanel = screen.getByRole("tabpanel", { name: "Tryout" });
+  expect(within(playerPanel).getByRole("textbox")).toHaveProperty(
+    "disabled",
+    true,
+  );
+  await act(async () =>
+    resolveSave({
+      id: "0123456789abcdef",
+      title: coolingLesson().title,
+      intro: coolingLesson().intro,
+      sketch: null,
+      cover: null,
+      shared: false,
+      updatedAt: 1,
+    }),
+  );
 });

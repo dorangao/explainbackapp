@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { drawingKey, fingerprint, guideKey, isStale } from "./studio-cache";
 import {
   clearStudio,
@@ -198,4 +198,49 @@ describe("restorePlayer", () => {
     });
     expect(restored.state.chapter).toBe(0);
   });
+});
+
+it("recovers a hidden attempt against its original lesson and retains pending editor text", () => {
+  const draft = lesson();
+  const original = lesson();
+  draft.chapters[0].framing.en = "A revised scene.";
+  localStorage.setItem(
+    storageKey,
+    JSON.stringify({
+      ...base(),
+      version: 1,
+      draft,
+      attemptLesson: original,
+      workspace: "create",
+      pendingDefinitions: { "0": "unfinished" },
+      tryoutUI: { answer: "42", result: null },
+      savedFingerprint: "saved-baseline",
+    }),
+  );
+  expect(loadStudio()).toMatchObject({
+    attemptLesson: original,
+    workspace: "create",
+    pendingDefinitions: { "0": "unfinished" },
+    tryoutUI: { answer: "42", result: null },
+    savedFingerprint: "saved-baseline",
+  });
+});
+it("reports successful browser recovery writes", () => {
+  expect(saveStudio(base())).toBe(true);
+});
+
+it("reports unavailable recovery storage without erasing the previous record", () => {
+  saveStudio(base());
+  const previous = localStorage.getItem(storageKey);
+  const write = vi
+    .spyOn(Storage.prototype, "setItem")
+    .mockImplementation(() => {
+      throw new DOMException("Full", "QuotaExceededError");
+    });
+  try {
+    expect(saveStudio({ ...base(), topic: "A new topic" })).toBe(false);
+    expect(localStorage.getItem(storageKey)).toBe(previous);
+  } finally {
+    write.mockRestore();
+  }
 });

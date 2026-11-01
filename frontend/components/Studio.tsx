@@ -1,3 +1,5 @@
+import { attemptKey, emptyTryoutUI, type TryoutUI } from "../lib/workspace";
+import { CreateWorkspaceHeader } from "./CreateWorkspaceHeader";
 import { t } from "../lib/messages";
 import {
   lazy,
@@ -114,7 +116,9 @@ export function Studio({
   onRequestAccess,
   external = null,
   editId = null,
+  homeVisit = 0,
 }: {
+  homeVisit?: number;
   language: Language;
   authenticated: boolean;
   status: Status | null;
@@ -133,6 +137,16 @@ export function Studio({
   editId?: string | null;
 }) {
   const formId = useId();
+  const workspaceTop = useRef<HTMLDivElement>(null);
+  const transitionPanel = useRef<HTMLElement>(null);
+  const revealWorkspace = useCallback(() => {
+    requestAnimationFrame(() =>
+      workspaceTop.current?.scrollIntoView?.({
+        block: "start",
+        behavior: "instant",
+      }),
+    );
+  }, []);
   const [topic, setTopic] = useState(""),
     [creation, setCreation] = useState("generated"),
     // Search first: Spark gathers sourced figures before the draft (one extra request);
@@ -180,6 +194,50 @@ export function Studio({
     [shelfRefresh, setShelfRefresh] = useState(0),
     // The judge path is running one or more steps in sequence.
     [judgeRunning, setJudgeRunning] = useState(false);
+  const [workspaceHome, setWorkspaceHome] = useState(true);
+  const [draftTopic, setDraftTopic] = useState("");
+  const [tryoutUI, setTryoutUI] = useState<TryoutUI>(emptyTryoutUI);
+  const [attemptVersion, setAttemptVersion] = useState(0);
+  const [pendingDefinitions, setPendingDefinitions] = useState<
+    Record<number, string>
+  >({});
+  const [savedFingerprint, setSavedFingerprint] = useState<string | null>(null);
+  const [recovery, setRecovery] = useState<boolean | null>(null);
+  const [transition, setTransition] = useState<(() => void) | null>(null);
+  useEffect(() => {
+    if (!transition) return;
+    transitionPanel.current?.focus({ preventScroll: true });
+    transitionPanel.current?.scrollIntoView?.({
+      block: "center",
+      behavior: "instant",
+    });
+  }, [transition]);
+  const draftIdentity = useRef(0);
+  const openedBaseline = useRef(false);
+  const contentFingerprint = useMemo(
+    () =>
+      fingerprint({
+        draft,
+        reviewed,
+        show,
+        tryout,
+        guide,
+        explanations,
+        sourceImage,
+      }),
+    [draft, reviewed, show, tryout, guide, explanations, sourceImage],
+  );
+  const hasPending = Object.keys(pendingDefinitions).length > 0;
+  const dirty = Boolean(
+    draft &&
+    (!savedId || savedFingerprint !== contentFingerprint || hasPending),
+  );
+  useEffect(() => {
+    if (openedBaseline.current) {
+      openedBaseline.current = false;
+      setSavedFingerprint(contentFingerprint);
+    }
+  }, [contentFingerprint]);
   const clearFeedback = useCallback(() => setFeedback(null), []);
   const provider = useProviderSession({
     post,
@@ -238,24 +296,53 @@ export function Studio({
     invalidate();
     setMessage(t(language, "Studio.requestStoppedHereYourCurrent"));
   }, [stopHidden, invalidate, language]);
-  const loadLesson = useCallback((input: unknown) => {
-    const valid = validateLesson(input);
-    setDraft(valid);
-    setPlayer(null);
-    setPresenting(false);
-    setReviewed(false);
-    setSource(null);
-    setSourceImage(null);
-    setDetection(null);
-    setDrawings({});
-    setFeedback(null);
-    setShowing(false);
-    setRevisionKey((k) => k + 1);
-    setMessage("");
-    return valid;
-  }, []);
+  const loadLesson = useCallback(
+    (input: unknown, keepAttempt = false) => {
+      const valid = validateLesson(input);
+      setDraft(valid);
+      if (!keepAttempt) {
+        draftIdentity.current++;
+        setPlayer(null);
+        playerState.current = null;
+        setTryoutUI(emptyTryoutUI);
+        setAttemptVersion((n) => n + 1);
+        setSavedId(null);
+        setSavedItem(null);
+        setSavedFingerprint(null);
+        setTryout(null);
+        setShow(null);
+        setGuide({});
+        setExplanations({});
+        setDrawings({});
+        setReferences(null);
+        setComposeStamp(null);
+        setReviseStamp(null);
+        setRevisionPrompt("");
+      }
+      setPendingDefinitions({});
+      setWorkspaceHome(false);
+      revealWorkspace();
+      setPresenting(false);
+      setReviewed(false);
+      setSource(null);
+      setSourceImage(null);
+      setDetection(null);
+      if (!keepAttempt) setDrawings({});
+      setFeedback(null);
+      setShowing(false);
+      setRevisionKey((k) => k + 1);
+      setMessage("");
+      return valid;
+    },
+    [revealWorkspace],
+  );
   const closeLesson = useCallback(() => {
     invalidate();
+    draftIdentity.current++;
+    setWorkspaceHome(true);
+    setPendingDefinitions({});
+    setTryoutUI(emptyTryoutUI);
+    setSavedFingerprint(null);
     setDraft(null);
     setSourceImage(null);
     setDetection(null);
@@ -290,7 +377,14 @@ export function Studio({
     const saved = loadStudio();
     if (!saved) return;
     setDraft(saved.draft);
-    setTopic(saved.topic);
+    setDraftTopic(saved.topic);
+    setTopic(saved.newTopic ?? "");
+    setWorkspaceHome(saved.workspace === "home");
+    setPresenting(saved.workspace === "tryout");
+    setPendingDefinitions(saved.pendingDefinitions ?? {});
+    setSavedFingerprint(saved.savedFingerprint ?? null);
+    setTryoutUI(saved.tryoutUI ?? emptyTryoutUI);
+    setRecovery(true);
     setCreation(saved.creation);
     setReviewed(saved.reviewed);
     setRevisionPrompt(saved.revisionPrompt);
@@ -307,20 +401,31 @@ export function Studio({
     setSavedId(saved.savedId);
     setReferences(saved.references ?? null);
     setRevisionKey((k) => k + 1);
-    if (saved.presenting) {
-      setPlayer(restorePlayer(saved.draft, saved.player));
-      setPresenting(true);
+    if (saved.player || saved.presenting) {
+      const restoredPlayer = restorePlayer(
+        saved.attemptLesson ?? saved.draft,
+        saved.player,
+      );
+      setPlayer(restoredPlayer);
+      playerState.current = restoredPlayer.state;
     }
     setMessage(t(language, "Studio.restoredYourLastLesson"));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the message language is read once at restore
   }, [authenticated, lessonId]);
-  useEffect(() => {
-    if (!authenticated || lessonId || !draft) return;
-    const timer = window.setTimeout(
-      () =>
-        saveStudio({
+  const recoverySnapshot = useRef<Parameters<typeof saveStudio>[0] | null>(
+    null,
+  );
+  recoverySnapshot.current =
+    authenticated && !lessonId && draft
+      ? {
           draft,
-          topic,
+          topic: draftTopic,
+          newTopic: topic,
+          workspace: workspaceHome ? "home" : presenting ? "tryout" : "create",
+          attemptLesson: player?.lesson ?? null,
+          tryoutUI,
+          pendingDefinitions,
+          savedFingerprint,
           creation,
           reviewed,
           revisionPrompt,
@@ -332,20 +437,44 @@ export function Studio({
           explanations,
           drawings,
           sourceImage,
-          player: presenting ? playerState.current : null,
+          player: playerState.current,
           presenting,
           pace,
           savedId,
           references,
-        }),
-      250,
-    );
+        }
+      : null;
+  // Save identity and navigation must be visible to a newly opened tab before
+  // the typing debounce runs, particularly after following a saved share link.
+  useEffect(() => {
+    if (recoverySnapshot.current)
+      setRecovery(saveStudio(recoverySnapshot.current));
+  }, [
+    authenticated,
+    lessonId,
+    savedId,
+    savedFingerprint,
+    workspaceHome,
+    presenting,
+  ]);
+  useEffect(() => {
+    if (!authenticated || lessonId || !draft) return;
+    const timer = window.setTimeout(() => {
+      if (recoverySnapshot.current)
+        setRecovery(saveStudio(recoverySnapshot.current));
+    }, 250);
     return () => window.clearTimeout(timer);
   }, [
     authenticated,
     lessonId,
     draft,
     topic,
+    draftTopic,
+    workspaceHome,
+    player,
+    tryoutUI,
+    pendingDefinitions,
+    savedFingerprint,
     creation,
     reviewed,
     revisionPrompt,
@@ -363,6 +492,59 @@ export function Studio({
     savedId,
     references,
   ]);
+  useEffect(() => {
+    const flush = () => {
+      if (recoverySnapshot.current) saveStudio(recoverySnapshot.current);
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+  const seenHomeVisit = useRef(homeVisit);
+  useEffect(() => {
+    if (seenHomeVisit.current === homeVisit) return;
+    seenHomeVisit.current = homeVisit;
+    setWorkspaceHome(true);
+    setShowing(false);
+  }, [homeVisit]);
+  function goHome(fresh = false) {
+    revealWorkspace();
+    setWorkspaceHome(true);
+    setShowing(false);
+    setMessage("");
+    if (fresh) {
+      setTopic("");
+      image.clear();
+      setComparison(null);
+    }
+  }
+  function switchArea(area: "create" | "tryout") {
+    revealWorkspace();
+    setWorkspaceHome(false);
+    setShowing(false);
+    if (area === "tryout") present();
+    else setPresenting(false);
+  }
+  function replaceWorkingLesson(action: () => void) {
+    if (draft && (dirty || busyRef.current || saving))
+      setTransition(() => action);
+    else action();
+  }
+  const replaceRef = useRef(replaceWorkingLesson);
+  replaceRef.current = replaceWorkingLesson;
+  async function continueReplacement(save: boolean) {
+    if (!transition || saving) return;
+    if (busyRef.current) {
+      invalidate();
+      setJudgeRunning(false);
+    }
+    if (save && !(await saveLesson())) return;
+    const next = transition;
+    setTransition(null);
+    next();
+  }
   // The share controls need the saved copy's summary; a restored draft fetches it once.
   useEffect(() => {
     if (!authenticated || !savedId || savedItem?.id === savedId) return;
@@ -469,7 +651,10 @@ export function Studio({
   ) {
     const revisionText = mode === "compose" ? text : undefined,
       learnerText = mode === "guide" ? text?.trim() : undefined,
-      asked = (starterTopic ?? topic).trim();
+      asked = (
+        starterTopic ??
+        (revisionText ? draftTopic || draft?.title[language] || "" : topic)
+      ).trim();
     if (
       busyRef.current ||
       !authenticated ||
@@ -676,6 +861,7 @@ export function Studio({
           before?.units
             ? { ...composed.lesson, units: before.units }
             : composed.lesson,
+          Boolean(before),
         );
         setRevision(before ? { before, after: next } : null);
         if (before && sourceImage) {
@@ -691,7 +877,10 @@ export function Studio({
             }),
           });
         else setComposeStamp({ at: Date.now(), key: requestKey });
-        if (!before) setReferences(sheet);
+        if (!before) {
+          setReferences(sheet);
+          setDraftTopic(asked);
+        }
         setMessage(
           say(
             language,
@@ -780,10 +969,11 @@ export function Studio({
     return true;
   }
   // The chosen reply becomes the draft, exactly as a single Create would have.
-  function useComparedDraft(chosen: CompareDraft) {
+  function chooseComparedDraft(chosen: CompareDraft) {
     if (!chosen.lesson) return;
     try {
       loadLesson(structuredClone(chosen.lesson));
+      setDraftTopic(topic);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
       return;
@@ -1140,7 +1330,7 @@ export function Studio({
   const judgeActionsRef = useRef(judgeActions);
   judgeActionsRef.current = judgeActions;
   async function runJudgeStep(id: JudgeStepId) {
-    if (judgeRunning) return;
+    if (judgeRunning || saving) return;
     setJudgeRunning(true);
     try {
       await judgeActionsRef.current[id]();
@@ -1149,7 +1339,7 @@ export function Studio({
     }
   }
   async function runJudgeAll() {
-    if (judgeRunning) return;
+    if (judgeRunning || saving) return;
     setJudgeRunning(true);
     try {
       for (let guard = 0; guard < 8; guard++) {
@@ -1171,9 +1361,13 @@ export function Studio({
       if (file.size > 40000) throw new Error();
       const value = JSON.parse(await file.text());
       if (alive.current && token === epoch.current && !busyRef.current) {
-        loadLesson(value);
-        setRevision(null);
-        setMessage(t(language, "Studio.importedDraftReviewItBefore"));
+        const valid = validateLesson(value);
+        replaceRef.current(() => {
+          loadLesson(valid);
+          setDraftTopic("");
+          setRevision(null);
+          setMessage(t(language, "Studio.importedDraftReviewItBefore"));
+        });
       }
     } catch {
       if (alive.current && token === epoch.current)
@@ -1199,7 +1393,7 @@ export function Studio({
   }
   // Keeps the lesson (and its show script) on the creator's shelf; no model request.
   async function saveLesson() {
-    if (!authenticated || saving || busyRef.current) return false;
+    if (!authenticated || saving || busyRef.current || hasPending) return false;
     let valid: Lesson;
     try {
       valid = validateLesson(draft);
@@ -1207,6 +1401,7 @@ export function Studio({
       setMessage(t(language, "Studio.completeBothLanguagesBeforeExporting"));
       return false;
     }
+    const identity = draftIdentity.current;
     setSaving(true);
     try {
       const current =
@@ -1263,7 +1458,7 @@ export function Studio({
             .filter(([, g]) => (g as SavedGrade).explanation.trim()),
         ),
       });
-      if (!alive.current) return false;
+      if (!alive.current || identity !== draftIdentity.current) return false;
       setSavedId(summary.id);
       setSavedItem(summary);
       setShelfRefresh((n) => n + 1);
@@ -1277,6 +1472,20 @@ export function Studio({
         );
       if (summary.sketch && summary.sketch !== sourceImage)
         setSourceImage(summary.sketch);
+      setSavedFingerprint(
+        fingerprint({
+          draft: valid,
+          reviewed,
+          show:
+            current && summary.cover && show
+              ? { ...show, reply: { ...show.reply, cover: summary.cover } }
+              : show,
+          tryout,
+          guide,
+          explanations,
+          sourceImage: summary.sketch ?? sourceImage,
+        }),
+      );
       setMessage(
         t(language, savedId ? "Library.savedUpdated" : "Library.savedNotice") +
           (hadImages && !providerStatus?.imageStorage
@@ -1306,6 +1515,8 @@ export function Studio({
     setReviseStamp(null);
     setSavedId(summary.id);
     setSavedItem(summary);
+    openedBaseline.current = true;
+    setDraftTopic(body.title[language]);
     setSource(summary.sketch ? "studio-sketch" : null);
     setSourceImage(summary.sketch);
     setShow(
@@ -1325,14 +1536,38 @@ export function Studio({
     );
     setMessage(t(language, "Library.openedSaved"));
   }
-  function present() {
+  function startAttempt() {
+    if (
+      !draft ||
+      saving ||
+      hasPending ||
+      (draft.chapters.some((c) => c.demo) && !reviewed)
+    )
+      return;
     try {
-      setPlayer(createLessonPlayer(validateLesson(draft)));
+      const next = createLessonPlayer(validateLesson(draft));
+      setPlayer(next);
+      playerState.current = next.state;
+      setTryoutUI(emptyTryoutUI);
+      setAttemptVersion((n) => n + 1);
+      if (player) {
+        setDrawings({});
+        setExplanations({});
+        setGuide({});
+      }
+      setFeedback(null);
       setPresenting(true);
+      setWorkspaceHome(false);
       setMessage("");
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndCheck"));
     }
+  }
+  function present() {
+    setPresenting(true);
+    setWorkspaceHome(false);
+    setMessage("");
+    if (!player) startAttempt();
   }
   // "#edit:<id>" from a shared page or a library card: load the saved copy into the
   // review view once the creator is signed in, then settle the address on #create.
@@ -1344,7 +1579,7 @@ export function Studio({
     void readMine(editId)
       .then((record) => {
         if (!live) return;
-        openSaved(record);
+        replaceRef.current(() => openSaved(record));
         location.hash = "#create";
       })
       .catch(() => {
@@ -1389,57 +1624,173 @@ export function Studio({
     tryout: cacheState(tryout, tryoutKey),
     show: cacheState(show, showKey),
   };
+  const attemptStale = Boolean(
+    player && draft && attemptKey(player.lesson) !== attemptKey(draft),
+  );
+  const reviewNeeded = Boolean(
+    draft?.chapters.some((c) => c.demo) && !reviewed,
+  );
+  const tryoutBlocked =
+    !lessonId && (hasPending || reviewNeeded || attemptStale || !player);
+  const workStatus = !savedId
+    ? say(language, "New draft", "新草稿")
+    : dirty
+      ? say(language, "Unsaved changes", "有未保存的修改")
+      : say(language, "All changes saved", "所有修改已保存");
   const showLesson = Boolean(lessonId) || view === "create";
   const statusMessage = languageInterrupted
     ? t(language, "Studio.languageChangedThePendingResult")
     : message || image.notice;
   const loadingNote = <p role="status">{t(language, "Studio.loading")}</p>;
   return (
-    <div className="studio" hidden={!visible}>
-      {draft && authenticated && showLesson && (
-        <div className="draft-provider-bar">
-          <label>
-            {t(language, "Studio.creatorModel")}
-            <select
-              value={target?.id ?? ""}
-              disabled={busy}
-              onChange={(event) => {
-                setModelId(event.target.value);
-                invalidate();
-              }}
-            >
-              {targets.map((m) => (
-                <option key={m.id} value={m.id} disabled={!m.configured}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {tester && (
-            <p className="fine">
-              {t(language, "Studio.testLearner")}: {tester.label}
+    <div ref={workspaceTop} className="studio" hidden={!visible}>
+      {!lessonId && view === "create" && draft && !workspaceHome && (
+        <CreateWorkspaceHeader
+          language={language}
+          title={draft.title[language]}
+          area={presenting ? "tryout" : "create"}
+          status={workStatus}
+          saved={Boolean(savedId)}
+          saving={saving}
+          canSave={authenticated && dirty && !hasPending && !busy}
+          onArea={switchArea}
+          onHome={() => goHome()}
+          onNew={() => {
+            if (busyRef.current) setTransition(() => () => goHome(true));
+            else goHome(true);
+          }}
+          onSave={() => void saveLesson()}
+        />
+      )}
+      {transition && view === "create" && (
+        <section
+          className="workspace-transition"
+          ref={transitionPanel}
+          tabIndex={-1}
+          role="alertdialog"
+          aria-modal="false"
+          aria-label={say(
+            language,
+            "Keep your current changes?",
+            "保留当前修改？",
+          )}
+        >
+          <h2>
+            {say(
+              language,
+              busy ? "Stop the current request?" : "Keep your current changes?",
+              busy ? "停止当前请求？" : "保留当前修改？",
+            )}
+          </h2>
+          <p>
+            {say(
+              language,
+              busy
+                ? "The current result will be ignored. A request already sent may still count toward your allowance."
+                : "Save your working lesson before opening another, or continue without saving. If creating the next lesson fails, your current work stays here.",
+              busy
+                ? "当前结果将被忽略。已经发送的请求仍可能计入用量。"
+                : "打开另一课程前可先保存当前课程，或不保存并继续。如果新课程创建失败，当前内容会保留。",
+            )}
+          </p>
+          {hasPending && (
+            <p>
+              {say(
+                language,
+                "Apply or discard your definition edits in Create before saving.",
+                "保存前请在创作区应用或放弃定义修改。",
+              )}
             </p>
           )}
-          <p className="fine">
-            {remaining} {t(language, "Studio.requestsLeftInThisProvider")}
-          </p>
-          {savedItem && !lessonId && (
-            <div className="saved-bar">
-              <span className="saved-flag">
-                ✓ {t(language, "Library.savedCopy")}
-              </span>
-              <ShareControls
-                language={language}
-                post={post}
-                item={savedItem}
-                busy={busy || saving}
-                onChange={setSavedItem}
-                onNotice={setMessage}
-              />
-            </div>
-          )}
-        </div>
+          <div className="actions">
+            <button
+              className="secondary"
+              disabled={saving}
+              onClick={() => {
+                setTransition(null);
+                switchArea("create");
+              }}
+            >
+              {say(language, "Keep editing", "继续编辑")}
+            </button>
+            <button
+              className="secondary"
+              disabled={saving}
+              onClick={() => void continueReplacement(false)}
+            >
+              {say(
+                language,
+                busy
+                  ? "Stop request and continue"
+                  : "Discard changes and continue",
+                busy ? "停止请求并继续" : "放弃修改并继续",
+              )}
+            </button>
+            <button
+              disabled={saving || busy || hasPending}
+              onClick={() => void continueReplacement(true)}
+            >
+              {say(language, "Save and continue", "保存并继续")}
+            </button>
+          </div>
+        </section>
       )}
+      {!lessonId && draft && recovery === false && view === "create" && (
+        <p className="notice" role="status">
+          {say(
+            language,
+            "This browser could not keep a recovery copy. Save your lesson or export it before leaving.",
+            "浏览器无法保留恢复副本。离开前请保存或导出课程。",
+          )}
+        </p>
+      )}
+      {draft &&
+        authenticated &&
+        showLesson &&
+        (lessonId || (!workspaceHome && !presenting)) && (
+          <div className="draft-provider-bar">
+            <label>
+              {t(language, "Studio.creatorModel")}
+              <select
+                value={target?.id ?? ""}
+                disabled={busy}
+                onChange={(event) => {
+                  setModelId(event.target.value);
+                  invalidate();
+                }}
+              >
+                {targets.map((m) => (
+                  <option key={m.id} value={m.id} disabled={!m.configured}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {tester && (
+              <p className="fine">
+                {t(language, "Studio.testLearner")}: {tester.label}
+              </p>
+            )}
+            <p className="fine">
+              {remaining} {t(language, "Studio.requestsLeftInThisProvider")}
+            </p>
+            {savedItem && !lessonId && (
+              <div className="saved-bar">
+                <span className="saved-flag">
+                  ✓ {t(language, "Library.savedCopy")}
+                </span>
+                <ShareControls
+                  language={language}
+                  post={post}
+                  item={savedItem}
+                  busy={busy || saving}
+                  onChange={setSavedItem}
+                  onNotice={setMessage}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
       {!lessonId && view === "studio" && (
         <>
@@ -1481,7 +1832,7 @@ export function Studio({
           </section>
         </>
       )}
-      {view === "create" && !presenting && (
+      {view === "create" && (workspaceHome || !draft) && (
         <>
           <PageHeader
             language={language}
@@ -1492,11 +1843,25 @@ export function Studio({
             title={t(language, "Studio.startWithALittleCuriosity")}
             meta={`${t(language, "Studio.aQuestionOrASketch")} ${t(language, "Studio.sixStepsEachShowsItsCost")}`}
           />
+        </>
+      )}
+      {view === "create" && !presenting && (
+        <details
+          className="workspace-tour"
+          open={!draft || judgeRunning || undefined}
+        >
+          <summary>
+            {say(
+              language,
+              "Guided creation · the 6-step tour",
+              "创作指引 · 六个步骤",
+            )}
+          </summary>
           <JudgePath
             language={language}
             steps={judgeSteps}
             reviewed={reviewed}
-            running={judgeRunning || busy}
+            running={judgeRunning || busy || saving}
             blocked={judgeBlocker(
               judgeSteps,
               providerStatus?.access?.remaining ?? null,
@@ -1507,9 +1872,9 @@ export function Studio({
             onRun={(id) => void runJudgeStep(id)}
             onRunAll={() => void runJudgeAll()}
           />
-        </>
+        </details>
       )}
-      {!draft && view === "create" && (
+      {(workspaceHome || !draft) && view === "create" && (
         <section className="author-workspace">
           {!authenticated ? (
             <div className="creation-locked">
@@ -1524,7 +1889,7 @@ export function Studio({
                 className="author-form"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  void request("compose");
+                  replaceWorkingLesson(() => void request("compose"));
                 }}
               >
                 <label htmlFor={`${formId}-topic`}>
@@ -1679,7 +2044,9 @@ export function Studio({
                       type="button"
                       className="secondary"
                       disabled={busy || image.loading || !canRequest}
-                      onClick={() => void compareModels()}
+                      onClick={() =>
+                        replaceWorkingLesson(() => void compareModels())
+                      }
                     >
                       {activeMode === "compare"
                         ? t(language, "Studio.comparing")
@@ -1737,25 +2104,63 @@ export function Studio({
                   {canCompare && ` ${t(language, "Studio.compareNote")}`}
                 </p>
               </form>
-              {comparison && !draft && (
+              {comparison && (
                 <LiveComparison
                   reply={comparison}
                   language={language}
                   busy={busy}
-                  onUse={useComparedDraft}
+                  onUse={(chosen) =>
+                    replaceWorkingLesson(() => chooseComparedDraft(chosen))
+                  }
                   onDiscard={() => {
                     setComparison(null);
                     setMessage("");
                   }}
                 />
               )}
+              {draft && (
+                <section className="workspace-resume">
+                  <div>
+                    <p className="eyebrow">
+                      {say(language, "Your current work", "当前创作")}
+                    </p>
+                    <h2>{draft.title[language]}</h2>
+                    <p className="fine">
+                      {workStatus}
+                      {recovery === true
+                        ? say(
+                            language,
+                            " · Kept in this browser",
+                            " · 已保留在此浏览器",
+                          )
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="actions">
+                    <button
+                      className="secondary"
+                      onClick={() => switchArea("create")}
+                    >
+                      {say(language, "Continue creating", "继续创作")}
+                    </button>
+                    <button
+                      className="secondary"
+                      onClick={() => switchArea("tryout")}
+                    >
+                      {say(language, "Continue tryout", "继续试学")}
+                    </button>
+                  </div>
+                </section>
+              )}
               <LessonShelf
                 key={shelfRefresh}
                 language={language}
                 post={post}
                 currentId={savedId}
-                busy={busy}
-                onOpen={openSaved}
+                busy={busy || saving}
+                onOpen={(record) =>
+                  replaceWorkingLesson(() => openSaved(record))
+                }
                 onNotice={setMessage}
                 onDeleted={(id) => {
                   if (id === savedId) {
@@ -1786,7 +2191,7 @@ export function Studio({
               : t(language, "Studio.museIsWorkingYourExisting")}
           </p>
         )}
-        {showing && show && draft && (
+        {showing && show && draft && (lessonId || !workspaceHome) && (
           <Suspense fallback={loadingNote}>
             <ShowPlayer
               lesson={validateLesson(draft)}
@@ -1807,93 +2212,175 @@ export function Studio({
                   ? (slide, direction) => void illustrate(slide, direction)
                   : undefined
               }
-              illustrating={busy}
-              canIllustrate={!busy && remaining > 0}
+              illustrating={busy || saving}
+              canIllustrate={!busy && !saving && remaining > 0}
             />
           </Suspense>
         )}
-        {draft && !showing && !presenting && (
-          <Suspense fallback={loadingNote}>
-            {revision ? (
-              <RevisionSummary
-                before={revision.before}
-                after={draft}
-                language={language}
-                metrics={metrics?.mode === "revise" ? metrics : null}
-                onDismiss={() => setRevision(null)}
-                onRestore={() => {
-                  const previous = revision.before;
-                  loadLesson(previous);
-                  setRevision(null);
-                  setMessage(t(language, "Studio.restoredThePreviousDraftThe"));
-                }}
-              />
-            ) : (
-              metrics?.mode === "compose" && (
-                <RequestSummary metrics={metrics} language={language} />
-              )
-            )}
-            <DraftReview
-              key={revisionKey}
-              draft={draft}
-              references={references}
-              language={language}
-              busy={busy}
-              activeMode={activeMode}
-              reviewed={reviewed}
-              setReviewed={setReviewed}
-              onChange={(next) => {
-                setDraft(next);
-                setReviewed(false);
-              }}
-              onPresent={present}
-              onExport={exportLesson}
-              onClose={() => {
-                closeLesson();
-                setMessage(t(language, "Studio.startedANewLesson"));
-              }}
-              onRevise={(text) => void request("compose", text)}
-              canRequest={canRequest}
-              tryout={tryout?.reply ?? null}
-              onTryout={() => void tryLesson()}
-              testerLabel={tester?.label ?? null}
-              metrics={metrics}
-              hasShow={Boolean(show)}
-              onMakeShow={() => void makeShow()}
-              onWatchShow={() => setShowing(true)}
-              revision={revisionPrompt}
-              setRevision={setRevisionPrompt}
-              caches={caches}
-              onRecreate={() => void request("compose")}
-              onSave={authenticated ? () => void saveLesson() : undefined}
-              savedId={savedId}
-              saving={saving}
-              sourceImage={sourceImage}
-              detection={detection?.image === sourceImage ? detection : null}
-              onFind={
-                canRequest && providerStatus?.detect
-                  ? (concept) => void detect(concept)
-                  : undefined
-              }
-            />
-            {savedId &&
-              savedItem &&
-              authenticated &&
-              providerStatus?.images &&
-              target?.configured && (
-                <CoverTool
-                  key={`saved-${savedId}`}
+        {draft && (!lessonId || (!showing && !presenting)) && (
+          <div
+            id="workspace-create-panel"
+            role={lessonId ? undefined : "tabpanel"}
+            aria-label={say(language, "Create", "创作")}
+            hidden={showing || presenting || (!lessonId && workspaceHome)}
+          >
+            <Suspense fallback={loadingNote}>
+              {revision ? (
+                <RevisionSummary
+                  before={revision.before}
+                  after={draft}
                   language={language}
-                  saved={savedItem}
+                  metrics={metrics?.mode === "revise" ? metrics : null}
                   busy={busy || saving}
-                  working={activeMode === "cover"}
-                  onDraw={() => drawCover({ savedId })}
+                  onDismiss={() => setRevision(null)}
+                  onRestore={() => {
+                    const previous = revision.before;
+                    loadLesson(previous, true);
+                    setRevision(null);
+                    setMessage(
+                      t(language, "Studio.restoredThePreviousDraftThe"),
+                    );
+                  }}
                 />
+              ) : (
+                metrics?.mode === "compose" && (
+                  <RequestSummary metrics={metrics} language={language} />
+                )
               )}
-          </Suspense>
+              <DraftReview
+                key={revisionKey}
+                draft={draft}
+                references={references}
+                language={language}
+                busy={busy || saving}
+                workspace={!lessonId}
+                recoveryAvailable={recovery === true}
+                pending={pendingDefinitions}
+                onPending={setPendingDefinitions}
+                activeMode={activeMode}
+                reviewed={reviewed}
+                setReviewed={setReviewed}
+                onChange={(next) => {
+                  setDraft(next);
+                  if (attemptKey(next) !== attemptKey(draft))
+                    setReviewed(false);
+                }}
+                onPresent={present}
+                onExport={exportLesson}
+                onClose={() => goHome(true)}
+                onRevise={(text) => void request("compose", text)}
+                canRequest={canRequest}
+                tryout={tryout?.reply ?? null}
+                onTryout={() => void tryLesson()}
+                testerLabel={tester?.label ?? null}
+                metrics={metrics}
+                hasShow={Boolean(show)}
+                onMakeShow={() => void makeShow()}
+                onWatchShow={() => setShowing(true)}
+                revision={revisionPrompt}
+                setRevision={setRevisionPrompt}
+                caches={caches}
+                onRecreate={() =>
+                  replaceWorkingLesson(
+                    () => void request("compose", undefined, draftTopic),
+                  )
+                }
+                onSave={authenticated ? () => void saveLesson() : undefined}
+                savedId={savedId}
+                saving={saving}
+                sourceImage={sourceImage}
+                detection={detection?.image === sourceImage ? detection : null}
+                onFind={
+                  canRequest && providerStatus?.detect
+                    ? (concept) => void detect(concept)
+                    : undefined
+                }
+              />
+              {savedId &&
+                savedItem &&
+                authenticated &&
+                providerStatus?.images &&
+                target?.configured && (
+                  <CoverTool
+                    key={`saved-${savedId}`}
+                    language={language}
+                    saved={savedItem}
+                    busy={busy || saving}
+                    working={activeMode === "cover"}
+                    onDraw={() => drawCover({ savedId })}
+                  />
+                )}
+            </Suspense>
+          </div>
         )}
-        {presenting && player && (
-          <>
+        {!lessonId &&
+          draft &&
+          !workspaceHome &&
+          presenting &&
+          tryoutBlocked && (
+            <section
+              className="workspace-gate"
+              role="tabpanel"
+              id="workspace-tryout-panel"
+              aria-label={say(language, "Tryout", "试学")}
+            >
+              <p className="eyebrow">
+                {say(
+                  language,
+                  attemptStale ? "Lesson changed" : "Before you try",
+                  attemptStale ? "课程已修改" : "试学前",
+                )}
+              </p>
+              <h2>
+                {say(
+                  language,
+                  hasPending
+                    ? "Apply or discard your definition edits"
+                    : reviewNeeded
+                      ? "Review the draft before trying it"
+                      : "Start a tryout with your edits",
+                  hasPending
+                    ? "请应用或放弃定义修改"
+                    : reviewNeeded
+                      ? "试学前请先审阅草稿"
+                      : "使用修改后的课程开始试学",
+                )}
+              </h2>
+              <p>
+                {say(
+                  language,
+                  "Your previous attempt is kept until you start a new one.",
+                  "开始新的试学前，上次的试学记录会保留。",
+                )}
+              </p>
+              <div className="actions">
+                <button
+                  className="secondary"
+                  onClick={() => switchArea("create")}
+                >
+                  {say(language, "Back to Create", "返回创作")}
+                </button>
+                <button
+                  disabled={busy || saving || hasPending || reviewNeeded}
+                  onClick={startAttempt}
+                >
+                  {say(language, "Start new tryout", "开始新的试学")}
+                </button>
+              </div>
+            </section>
+          )}
+        {player && (
+          <div
+            className="workspace-tryout"
+            id={tryoutBlocked ? undefined : "workspace-tryout-panel"}
+            role={lessonId ? undefined : "tabpanel"}
+            aria-label={say(language, "Tryout", "试学")}
+            hidden={
+              !presenting ||
+              showing ||
+              (!lessonId && (workspaceHome || tryoutBlocked))
+            }
+          >
             {source === "shared" && external && (
               <p className="shared-notice" role="note">
                 {sharedProvenanceText(external, language)}{" "}
@@ -1919,10 +2406,20 @@ export function Studio({
               />
             )}
             <LessonPlayer
+              key={attemptVersion}
               player={player}
+              workspace={!lessonId}
+              initialUI={tryoutUI}
+              onUI={setTryoutUI}
               language={language}
-              visible={visible && showLesson}
-              busy={busy}
+              visible={
+                visible &&
+                showLesson &&
+                presenting &&
+                !showing &&
+                (Boolean(lessonId) || (!workspaceHome && !tryoutBlocked))
+              }
+              busy={busy || saving}
               working={activeMode === "guide"}
               canAsk={canRequest}
               feedback={feedback}
@@ -1931,7 +2428,7 @@ export function Studio({
               }
               onTranscribe={providerStatus?.voice ? transcribe : undefined}
               onClearFeedback={clearFeedback}
-              onBack={() => setPresenting(false)}
+              onBack={() => switchArea("create")}
               onLibrary={lessonId ? closeLesson : invalidate}
               guideCache={guide[String(player.state.chapter)] ?? null}
               explanations={explanations}
@@ -1986,7 +2483,7 @@ export function Studio({
                         ? (concept) => void detect(concept)
                         : undefined
                     }
-                    busy={busy}
+                    busy={busy || saving}
                     canFind={remaining > 0}
                   />
                 )}
@@ -2034,7 +2531,7 @@ export function Studio({
                 )}
               </div>
             )}
-          </>
+          </div>
         )}
         {remaining === 0 && authenticated && (
           <div className="notice">

@@ -79,6 +79,7 @@ export function App() {
     [showAccess, setShowAccess] = useState(false),
     [starter, setStarter] = useState(0),
     [libraryVisit, setLibraryVisit] = useState(0),
+    [createHomeVisit, setCreateHomeVisit] = useState(0),
     // The phone header folds the navigation and tools behind one Menu button.
     [menuOpen, setMenuOpen] = useState(false);
   const invite = useRef<string | null>(null),
@@ -128,13 +129,22 @@ export function App() {
   }, [language, route.lessonId, route.showId, shared]);
   const installer = useInstallPrompt();
   useEffect(() => {
+    let previousArea = readRoute().area;
     const update = () => {
       const code = /^#invite:([A-Za-z0-9-]{8,64})$/.exec(location.hash)?.[1];
       if (code) {
         invite.current = code;
         history.replaceState(null, "", "#create");
       }
-      setRoute(readRoute());
+      const next = readRoute();
+      if (
+        next.area === "create" &&
+        previousArea !== "create" &&
+        !editIdFromHash(location.hash)
+      )
+        setCreateHomeVisit((n) => n + 1);
+      previousArea = next.area;
+      setRoute(next);
     };
     update();
     window.addEventListener("hashchange", update);
@@ -302,7 +312,10 @@ export function App() {
             </a>
             <a
               href="#create"
-              onClick={() => setLibraryVisit((n) => n + 1)}
+              onClick={() => {
+                setLibraryVisit((n) => n + 1);
+                setCreateHomeVisit((n) => n + 1);
+              }}
               aria-current={area === "create" ? "page" : undefined}
             >
               {t(language, "App.create")}
@@ -425,6 +438,7 @@ export function App() {
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
+          homeVisit={createHomeVisit}
           editId={area === "create" ? editIdFromHash(location.hash) : null}
           lessonId={null}
           starter={starter}

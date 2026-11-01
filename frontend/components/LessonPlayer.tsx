@@ -7,6 +7,7 @@ import {
   useState,
   useId,
 } from "react";
+import { emptyTryoutUI, type TryoutUI } from "../lib/workspace";
 import { t } from "../lib/messages";
 import {
   presentExperiment,
@@ -60,7 +61,13 @@ export function LessonPlayer({
   sourceImage,
   drawings,
   onDrawings,
+  workspace = false,
+  initialUI = emptyTryoutUI,
+  onUI,
 }: {
+  workspace?: boolean;
+  initialUI?: TryoutUI;
+  onUI?: (value: TryoutUI) => void;
   player: Player;
   language: Language;
   visible: boolean;
@@ -96,14 +103,16 @@ export function LessonPlayer({
   );
   const [, update] = useReducer((n) => n + 1, 0),
     [playing, setPlaying] = useState(false),
-    [answer, setAnswer] = useState(""),
-    [result, setResult] = useState<boolean | "invalid" | null>(null),
+    [answer, setAnswer] = useState(initialUI.answer),
+    [result, setResult] = useState<boolean | "invalid" | null>(
+      initialUI.result,
+    ),
     [notice, setNotice] = useState(""),
     [observation, setObservation] = useState<{
       state: unknown;
       outcome: number;
-    } | null>(null),
-    [counts, setCounts] = useState<number[] | null>(null),
+    } | null>(initialUI.observation ?? null),
+    [counts, setCounts] = useState<number[] | null>(initialUI.counts ?? null),
     // The learner's own explanation, kept per chapter so a replay does not erase it.
     [own, setOwnState] = useState<Record<string, string>>(
       () => explanations ?? {},
@@ -118,6 +127,25 @@ export function LessonPlayer({
     [units, setUnits] = useState<UnitSystem>(
       () => rememberedUnitSystem() ?? player.lesson.units ?? "metric",
     );
+  const onUIRef = useRef(onUI);
+  onUIRef.current = onUI;
+  useEffect(() => {
+    onUIRef.current?.({ answer, result, observation, counts });
+  }, [answer, result, observation, counts]);
+  const visibleRef = useRef(visible);
+  visibleRef.current = visible && !busy;
+  useEffect(() => {
+    if (visible && !busy) return;
+    setPlaying(false);
+    setPaused(true);
+    // Stop the microphone locally when leaving; switching areas never sends a transcription.
+    const active = recording.current;
+    recording.current = null;
+    if (active) {
+      void active.stop().catch(() => {});
+      setVoice("idle");
+    }
+  }, [visible, busy]);
   const unitsRef = useRef(units);
   unitsRef.current = units;
   const recording = useRef<Recording | null>(null);
@@ -129,6 +157,7 @@ export function LessonPlayer({
   }, []);
   useEffect(
     () => () => {
+      visibleRef.current = false;
       void recording.current?.stop().catch(() => {});
       recording.current = null;
     },
@@ -165,9 +194,14 @@ export function LessonPlayer({
     async (chapterIndex: number) => {
       setVoiceNote("");
       try {
-        recording.current = await startRecording({
+        const next = await startRecording({
           onAutoStop: () => void stopVoice(chapterIndex),
         });
+        if (!visibleRef.current) {
+          void next.stop().catch(() => {});
+          return;
+        }
+        recording.current = next;
         setVoice("recording");
       } catch (error) {
         setVoiceNote(
@@ -446,21 +480,32 @@ export function LessonPlayer({
     >
       <PageHeader
         language={language}
-        crumbs={[
-          {
-            label: t(language, "App.library"),
-            href: "#studio",
-            onClick: onLibrary,
-          },
-          { label: player.lesson.title[language] },
-        ]}
+        crumbs={
+          workspace
+            ? []
+            : [
+                {
+                  label: t(language, "App.library"),
+                  href: "#studio",
+                  onClick: onLibrary,
+                },
+                { label: player.lesson.title[language] },
+              ]
+        }
         eyebrow={`${t(language, "LessonPlayer.chapter")} ${state.chapter + 1} / ${player.lesson.chapters.length} · ${e.title}`}
-        title={player.lesson.title[language]}
+        title={workspace ? e.title : player.lesson.title[language]}
+        headingLevel={workspace ? 2 : 1}
         titleId={`${formId}-title`}
         actions={
           <>
-            <button className="text-button" onClick={onBack} disabled={busy}>
-              {t(language, "LessonPlayer.lessonOverview")}
+            <button
+              className="text-button"
+              onClick={onBack}
+              disabled={!workspace && busy}
+            >
+              {workspace
+                ? say(language, "Back to Create", "返回创作")
+                : t(language, "LessonPlayer.lessonOverview")}
             </button>
             <label className="replay-pace">
               {t(language, "Replay.guidedReplay")}
