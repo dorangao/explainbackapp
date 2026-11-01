@@ -40,12 +40,32 @@ test('a reviewer saves, lists, updates, shares and deletes lessons; another invi
  const shared=await(await post('/api/lessons/share',{id:saved.id,shared:true},judge)).json();assert.equal(shared.shared,true);
  const open=await(await get('/api/shared/'+saved.id)).json();assert.equal(open.title.en,'Cooling coffee, revised');assert.equal(open.lesson.version,2);assert.equal(open.owner,undefined);
  const listed=await(await get('/api/shared')).json();assert.equal(listed.lessons.length,1);assert.equal(listed.lessons[0].id,saved.id);assert.equal(listed.lessons[0].lesson,undefined);
+ // The owner's own entries are marked mine on the public routes; nobody else's are, and the owner never leaves the server.
+ assert.equal(listed.lessons[0].mine,undefined);assert.equal((await(await get('/api/shared/'+saved.id)).json()).mine,undefined);
+ const ownList=await(await get('/api/shared',judge)).json();assert.equal(ownList.lessons[0].mine,true);assert.ok(!JSON.stringify(ownList).includes('judges'));
+ assert.equal((await(await get('/api/shared/'+saved.id,judge)).json()).mine,true);
+ assert.equal((await(await get('/api/shared',other)).json()).lessons[0].mine,undefined);assert.equal((await(await get('/api/shared/'+saved.id,other)).json()).mine,undefined);
  // Unsharing hides it again; deleting removes it for everyone.
  await post('/api/lessons/share',{id:saved.id,shared:false},judge);assert.equal((await get('/api/shared/'+saved.id)).status,404);
  assert.equal((await post('/api/lessons/delete',{id:saved.id},other)).status,404);
  assert.equal((await(await post('/api/lessons/delete',{id:saved.id},judge)).json()).deleted,true);
  assert.equal((await get('/api/lessons/'+saved.id,judge)).status,404);
  assert.equal((await(await get('/api/lessons',judge)).json()).lessons.length,0);
+});
+test('a save records whether the creator had reviewed that exact content, and the public summary shows it',async t=>{
+ const {post,get,codeCookie}=await setup(t);
+ const judge=await codeCookie('JUDGE-INVITE-1');
+ const plain=await(await post('/api/lessons',{lesson:coolingLesson()},judge)).json();assert.equal(plain.reviewedAt,null);
+ assert.equal((await post('/api/lessons',{id:plain.id,lesson:coolingLesson(),reviewed:'yes'},judge)).status,400);
+ const reviewed=await(await post('/api/lessons',{id:plain.id,lesson:coolingLesson(),reviewed:true},judge)).json();
+ assert.equal(typeof reviewed.reviewedAt,'number');assert.ok(reviewed.reviewedAt>0);
+ assert.equal((await(await get('/api/lessons',judge)).json()).lessons[0].reviewedAt,reviewed.reviewedAt);
+ await post('/api/lessons/share',{id:plain.id,shared:true},judge);
+ assert.equal((await(await get('/api/shared/'+plain.id)).json()).reviewedAt,reviewed.reviewedAt);
+ assert.equal((await(await get('/api/shared')).json()).lessons[0].reviewedAt,reviewed.reviewedAt);
+ // A later save that carries no review (an edit revoked it) clears the mark.
+ const edited=await(await post('/api/lessons',{id:plain.id,lesson:coolingLesson(),reviewed:false},judge)).json();assert.equal(edited.reviewedAt,null);
+ assert.equal((await(await get('/api/shared/'+plain.id)).json()).reviewedAt,null);
 });
 test('saved lessons are capped per creator and malformed ids are rejected',async t=>{
  const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');

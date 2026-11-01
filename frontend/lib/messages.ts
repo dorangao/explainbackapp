@@ -46,6 +46,7 @@ export const messages = {
   "App.explore": { en: "Explore", zh: "探索" },
   "App.library": { en: "Library", zh: "课程库" },
   "App.menu": { en: "Menu", zh: "菜单" },
+  "App.backToTop": { en: "Back to top", zh: "回到顶部" },
   "App.closeMenu": { en: "Close menu", zh: "关闭菜单" },
   "App.physicsBench": { en: "Physics & math", zh: "物理与数学" },
   "App.quantumBench": { en: "Quantum computing", zh: "量子计算" },
@@ -118,6 +119,10 @@ export const messages = {
   "About.limit3": {
     en: "Lesson requests and responses, including any attached image, are sent to Meta's Muse models and stored there. Use synthetic examples.",
     zh: "课程请求与回复（含附带图片）会发送给 Meta 的 Muse 模型并存储在那里。请使用合成示例。",
+  },
+  "About.limit5": {
+    en: "Lessons shared by invited creators are not reviewed by ExplainBack. Each carries a note saying so and a link to report it.",
+    zh: "受邀创作者分享的课程未经 ExplainBack 审阅。每节都带有说明和举报链接。",
   },
   "About.limit4": {
     en: "Sessions are temporary. Saved lessons belong to the access label that created them, and a shared link stays open after its code is revoked.",
@@ -532,12 +537,67 @@ export const messages = {
   },
   "LessonPlayer.yourAnswer": { en: "Your answer", zh: "你的答案" },
   "LessonPlayer.yourExperiment": { en: "YOUR EXPERIMENT", zh: "你的实验" },
+  "LessonPlayer.sources": { en: "Sources:", zh: "来源：" },
+  "Lesson.figuresAsOf": {
+    en: "Figures as of {date}; they may have changed since.",
+    zh: "数据截至 {date}，此后可能已变化。",
+  },
+  "Lesson.restsOnConstants": {
+    en: "Marked stable by the author: it rests on constants and relationships that do not change.",
+    zh: "作者标记为稳定：基于不随时间变化的常数与关系。",
+  },
+  "LessonPlayer.setUpTheExperiment": {
+    en: "SET UP THE EXPERIMENT",
+    zh: "设置实验",
+  },
+  "LessonPlayer.whatYouWillTest": {
+    en: "WHAT YOU WILL TEST",
+    zh: "你将检验的内容",
+  },
+  "LessonPlayer.yourCall": { en: "Your call:", zh: "你的判断：" },
+  "LessonPlayer.stepOf": {
+    en: "Step {n} of {total}",
+    zh: "第 {n} 步，共 {total} 步",
+  },
+  "LessonPlayer.done": { en: "Done", zh: "已完成" },
+  "LessonPlayer.whatHappensAtEachStep": {
+    en: "What happens at each step",
+    zh: "每一步做什么",
+  },
+  "LessonPlayer.flowPredict": {
+    en: "Make your call on the claim before the result is shown.",
+    zh: "在看到结果之前，先对观点表态。",
+  },
+  "LessonPlayer.flowExperiment": {
+    en: "Run the model, scrub through it and read the final numbers.",
+    zh: "运行模型，拖动进度，读取最终数值。",
+  },
+  "LessonPlayer.flowExplain": {
+    en: "Say what changed and why; Muse can check your wording.",
+    zh: "说出什么变了、为什么变；可以让 Muse 检查你的表述。",
+  },
+  "LessonPlayer.flowTransfer": {
+    en: "Answer a fresh case with the same idea; code marks it.",
+    zh: "用同一个想法回答一个新情境，由代码批改。",
+  },
+  "ExperimentView.hiddenUntilYouPredict": {
+    en: "result hidden until you predict",
+    zh: "预测前不显示结果",
+  },
+  "ExperimentView.theCurveAppearsAfterYouPredict": {
+    en: "The curve appears after you predict",
+    zh: "预测之后才会显示曲线",
+  },
   "LessonPlayer.yourPrediction": { en: "Your prediction: ", zh: "你的预测：" },
   "RevisionSummary.comparedFieldByFieldIn": {
     en: "Compared field by field in the current language. Switch language to compare the other translation. A listed change is not a verified improvement; review it before presenting.",
     zh: "按当前语言逐字段比较。切换语言可比较另一种译文。列出的修改并不代表经过验证的改进，演示前请审阅。",
   },
   "RevisionSummary.dismiss": { en: "Dismiss", zh: "关闭" },
+  "RevisionSummary.gatheredSourcesFor": {
+    en: "gathered sources for this topic",
+    zh: "为该主题收集了来源",
+  },
   "RevisionSummary.draftedThisLesson": {
     en: "drafted this lesson",
     zh: "起草了这堂课",
@@ -608,6 +668,14 @@ export const messages = {
     en: "The model's own account of its reasoning, unverified:",
     zh: "模型对自身推理的说明（未经核验）：",
   },
+  "RevisionSummary.checkedTheFiguresOf": {
+    en: "checked the figures of",
+    zh: "核对了数值",
+  },
+  "RevisionSummary.drewACoverFor": {
+    en: "drew a library cover for",
+    zh: "绘制了课程库封面",
+  },
   "RevisionSummary.drewAnIllustrationFor": {
     en: "drew an illustration for",
     zh: "绘制了一张插图，用于",
@@ -667,8 +735,8 @@ export const messages = {
     zh: "添加照片、草图或示意图",
   },
   "Studio.aQuestionAnExperiment": {
-    en: "A question. An experiment.",
-    zh: "一个问题，一次实验。",
+    en: "Predict. Test. Explain.",
+    zh: "预测。实验。解释。",
   },
   "Studio.aQuestionOrASketch": {
     en: "A question or a sketch becomes a lesson you can review and operate.",
@@ -729,24 +797,14 @@ export const messages = {
     zh: "解释浏览器如何通过缓存加载网页。",
   },
   "Studio.exploreAnIdeaSeeWhat": {
-    en: "Predict, test, and explain an idea in English or Chinese.",
-    zh: "探索一个想法，观察变化，再用自己的话讲出来。中英文互动课程，从好奇开始。",
+    en: "Every lesson is an experiment you can argue with: the numbers are computed by code, in English or Chinese.",
+    zh: "每节课都是一次可以质疑的实验：数字由代码计算，中英文皆可。",
   },
   "Studio.exploreTheLibrary": { en: "Explore the library", zh: "探索课程库" },
-  "Studio.fiveStepsEachShowsItsCost": {
-    en: "Five steps; each shows its cost before you run it.",
-    zh: "共五步，每一步在运行前都标明其请求次数。",
+  "Studio.sixStepsEachShowsItsCost": {
+    en: "Six steps; each shows its cost before you run it.",
+    zh: "共六步，每一步在运行前都标明其请求次数。",
   },
-  "Studio.creationSteps": { en: "Creation steps", zh: "创建步骤" },
-  "Studio.stepAsk": { en: "Ask", zh: "提问" },
-  "Studio.stepReview": { en: "Review", zh: "审阅" },
-  "Studio.stepTry": { en: "Try as a learner", zh: "以学习者身份试学" },
-  "Studio.stepShow": { en: "Show", zh: "讲解秀" },
-  "Studio.stepSave": { en: "Save and share", zh: "保存与分享" },
-  "Studio.stepDone": { en: "Done", zh: "已完成" },
-  "Studio.costOne": { en: "1 request", zh: "1 次请求" },
-  "Studio.costNone": { en: "No request", zh: "不需请求" },
-  "Studio.costShow": { en: "1 to 2 requests", zh: "1 到 2 次请求" },
   "Studio.howDoesAQuantumComputer": {
     en: "How does a quantum computer use interference?",
     zh: "量子计算机如何利用干涉？",
@@ -779,6 +837,23 @@ export const messages = {
     zh: "Muse 正在处理，响应通过验证前，现有草稿会保留。",
   },
   "Studio.newTopicDemo": { en: "New topic demo", zh: "新主题演示" },
+  "Studio.searchFirst": { en: "Search first", zh: "先搜索" },
+  "Studio.searchFirstNote": {
+    en: "Spark gathers a few sourced figures for the topic before the draft. One extra request; new topic demos only.",
+    zh: "起草前先由 Spark 为该主题收集几条带来源的数据。多用一次请求；仅限新主题演示。",
+  },
+  "Studio.searchFirstCost": {
+    en: "Search first adds one request before the draft; Spark reads only the pages the search returns, and the lesson lists the ones it relied on.",
+    zh: "先搜索会在起草前多用一次请求；Spark 只读取搜索返回的页面，课程会列出其依据的页面。",
+  },
+  "Studio.groundedOn": {
+    en: "Grounded on {n} sourced figures as of {date}; see Sources below.",
+    zh: "已依据 {n} 条带来源的数据（截至 {date}），见下方“来源”。",
+  },
+  "Studio.groundedOnOne": {
+    en: "Grounded on one sourced figure as of {date}; see Sources below.",
+    zh: "已依据 1 条带来源的数据（截至 {date}），见下方“来源”。",
+  },
   "Studio.oneModelRequestWhenYou": {
     en: "One model request when you click Create. Wonder runs in the background: Meta stores the request and response, including any image. Use synthetic examples and export a lesson to keep it.",
     zh: "点击创建时调用一次模型。Wonder 在后台运行：Meta 会存储请求和响应，包括图片。请使用虚构示例，导出课程以便保留。",
@@ -897,6 +972,20 @@ export const messages = {
   "JudgePath.intro": {
     en: "Draft, try, narrate, illustrate, save, share: the whole creation story in order. Results you already have are reused, so repeating the tour costs nothing.",
     zh: "起草、试学、讲解、配图、保存、分享：按顺序走完整个创作过程。已有的结果会被复用，重复一遍不花费请求。",
+  },
+  "JudgePath.draftWord": { en: "Draft", zh: "起草" },
+  "JudgePath.tryoutWord": { en: "Try", zh: "试学" },
+  "JudgePath.showWord": { en: "Narrate", zh: "讲解" },
+  "JudgePath.illustrateWord": { en: "Illustrate", zh: "配图" },
+  "JudgePath.saveWord": { en: "Save", zh: "保存" },
+  "JudgePath.shareWord": { en: "Share", zh: "分享" },
+  "JudgePath.reviewTheDraft": {
+    en: "Review the draft below",
+    zh: "请先审阅下方草稿",
+  },
+  "JudgePath.whatEachStepShows": {
+    en: "What each step shows",
+    zh: "每一步展示什么",
   },
   "JudgePath.draft": { en: "Draft a lesson", zh: "起草课程" },
   "JudgePath.draftDetail": {
@@ -1035,6 +1124,23 @@ export const messages = {
     en: "Start a new lesson",
     zh: "开始新课程",
   },
+  "DraftReview.sources": { en: "Sources", zh: "来源" },
+  "DraftReview.gatheredOn": {
+    en: "gathered by a web search on",
+    zh: "由网络搜索收集于",
+  },
+  "DraftReview.notInTheSearchResults": {
+    en: "page not among the search results",
+    zh: "该页面不在搜索结果中",
+  },
+  "DraftReview.theLessonNames": {
+    en: "The lesson names:",
+    zh: "课程引用：",
+  },
+  "DraftReview.sourcesNote": {
+    en: "Figures and pages were gathered by Muse Spark with web search and are not reviewed; the lesson's numbers are still computed by code from its own formulas.",
+    zh: "数据与页面由 Muse Spark 通过网络搜索收集，未经审阅；课程中的数字仍由代码按其公式计算。",
+  },
   "DraftReview.thisDraftIsRemembered": {
     en: "This draft is remembered in this browser only. Export JSON to keep a copy.",
     zh: "此草稿仅保存在此浏览器中，导出 JSON 可保留副本。",
@@ -1106,6 +1212,60 @@ export const messages = {
   "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
   "Gallery.theSixStepTour": { en: "The 6-step tour", zh: "六步导览" },
   "Gallery.playTheTour": { en: "Play the tour", zh: "播放导览" },
+  "Gallery.figuresAsOf": { en: "figures as of {date}", zh: "数据截至 {date}" },
+  "Gallery.creatorCoverNote": {
+    en: "The cover was drawn by Muse Image on {date} at a creator's request; it is decorative and was not reviewed.",
+    zh: "封面由 Muse Image 于 {date} 应创作者请求绘制；仅作装饰，未经审阅。",
+  },
+  "Cover.eyebrow": { en: "LIBRARY COVER", zh: "课程库封面" },
+  "Cover.title": {
+    en: "Draw a cover with Muse Image",
+    zh: "用 Muse Image 绘制封面",
+  },
+  "Cover.currentCover": { en: "Current cover:", zh: "当前封面：" },
+  "Cover.shipped": { en: "shipped with the app", zh: "随应用附带" },
+  "Cover.noCoverYet": {
+    en: "This lesson has no cover yet.",
+    zh: "这节课还没有封面。",
+  },
+  "Cover.none": { en: "No cover", zh: "暂无封面" },
+  "Cover.note": {
+    en: "Muse Image draws one from the title and introduction; one image request. The library shows the new cover to everyone from then on. Covers are decorative and not reviewed.",
+    zh: "Muse Image 根据标题和引言绘制一张；一次图片请求。此后课程库对所有人显示新封面。封面仅作装饰，未经审阅。",
+  },
+  "Cover.fromTheShow": { en: "from the narrated show", zh: "来自讲解秀" },
+  "Cover.noteSaved": {
+    en: "Muse Image draws one from the title and introduction; one image request. Your lesson's card shows it, and it stays through later saves unless a show cover replaces it. Covers are decorative and not reviewed.",
+    zh: "Muse Image 根据标题和引言绘制一张；一次图片请求。你的课程卡片会显示它，之后的保存也会保留，除非讲解秀封面将其替换。封面仅作装饰，未经审阅。",
+  },
+  "Figures.eyebrow": { en: "FIGURES", zh: "数值核对" },
+  "Figures.title": {
+    en: "Check figures against the web",
+    zh: "联网核对数值",
+  },
+  "Figures.note": {
+    en: "Muse Spark reads the lesson, searches for every figure it names and reports any that disagree with current pages, with the page it read. One request; the lesson is unchanged, and the result is one model's opinion.",
+    zh: "Muse Spark 读取课程，搜索其中的每个数值，并报告与当前网页不符之处及其来源页面。一次请求；课程内容不变，结果仅是一个模型的看法。",
+  },
+  "Figures.check": { en: "Check figures", zh: "核对数值" },
+  "Figures.checkAgain": { en: "Check again", zh: "再次核对" },
+  "Figures.checking": {
+    en: "Muse Spark is checking…",
+    zh: "Muse Spark 正在核对…",
+  },
+  "Figures.pageRead": { en: "1 page read", zh: "读取了 1 个页面" },
+  "Figures.pagesRead": { en: "{n} pages read", zh: "读取了 {n} 个页面" },
+  "Cover.draw": { en: "Draw a cover", zh: "绘制封面" },
+  "Cover.redraw": { en: "Redraw the cover", zh: "重新绘制封面" },
+  "Cover.drawing": { en: "Muse Image is drawing…", zh: "Muse Image 正在绘制…" },
+  "Cover.drawnNoteSaved": {
+    en: "New cover drawn. Your lesson's card shows it now; the lesson is unchanged.",
+    zh: "新封面已绘制。你的课程卡片现已显示；课程内容不变。",
+  },
+  "Cover.drawnNote": {
+    en: "New cover drawn. The library shows it now; this lesson is unchanged.",
+    zh: "新封面已绘制。课程库现已显示；本课内容不变。",
+  },
   "Gallery.coverNote": {
     en: "The cover was drawn by Muse Image from the title and introduction on {date}; it is decorative and was not reviewed.",
     zh: "封面由 Muse Image 于 {date} 根据标题和引言绘制；仅作装饰，未经审阅。",
@@ -1150,8 +1310,26 @@ export const messages = {
     zh: "来自草图 · 作者已审阅",
   },
   "Gallery.sharedProvenance": {
-    en: "A creator shared this from Studio by link. The author has not reviewed it; the creator is responsible for its content.",
-    zh: "由创作者在 Studio 中通过链接分享。作者未审阅；内容由创作者负责。",
+    en: "An invited creator made this in Lesson Studio and shared it by link. ExplainBack has not reviewed it: the numbers are computed by code from the creator's formulas, and the science and wording are the creator's.",
+    zh: "由受邀创作者在课程工作室制作并通过链接分享。ExplainBack 未审阅：数字由代码按创作者的公式计算，科学内容与表述由创作者负责。",
+  },
+  "Gallery.sharedReviewedNote": {
+    en: "Shared · reviewed by its creator",
+    zh: "已分享 · 创作者已审阅",
+  },
+  "Gallery.sharedReviewedProvenance": {
+    en: "An invited creator made this in Lesson Studio, reviewed its definition and assumptions on {date}, and shared it by link. ExplainBack has not reviewed it: the numbers are computed by code from the creator's formulas, and the science and wording are the creator's.",
+    zh: "由受邀创作者在课程工作室制作，于 {date} 审阅了定义与假设，并通过链接分享。ExplainBack 未审阅：数字由代码按创作者的公式计算，科学内容与表述由创作者负责。",
+  },
+  "Library.reviewedFlag": { en: "reviewed", zh: "已审阅" },
+  "Gallery.sharedBadgeNote": {
+    en: "Shared by an invited creator · not reviewed",
+    zh: "受邀创作者分享 · 未经审阅",
+  },
+  "Library.reportThisLesson": { en: "Report this lesson", zh: "举报此课程" },
+  "Library.reportNote": {
+    en: "Opens a prefilled report. A reported lesson can be taken off the shared list.",
+    zh: "打开预填的举报。被举报的课程可从分享列表中移除。",
   },
   "Gallery.gridFootnote": {
     en: "Lessons from the evaluation and from creators sit in the same grid as the reviewed ones; their badge and the note under each card say where they came from.",
@@ -1251,6 +1429,28 @@ export const messages = {
   "Compare.stages": { en: "Stages", zh: "阶段" },
   "Compare.transferQuestion": { en: "Transfer question", zh: "迁移题" },
   "Compare.judge": { en: "Rubric judge", zh: "评分模型" },
+  "Compare.checkFiguresOnline": {
+    en: "Check figures against the web",
+    zh: "联网核对数值",
+  },
+  "Compare.factualCurrency": { en: "Figures up to date", zh: "数值是否最新" },
+  "Compare.figuresTheJudgeDisputed": {
+    en: "Figures the judge disputed",
+    zh: "评分模型质疑的数值",
+  },
+  "Compare.noFiguresDisputed": {
+    en: "The judge found no figure that disagrees with the pages it read.",
+    zh: "评分模型未发现与其查阅页面不符的数值。",
+  },
+  "Compare.source": { en: "source", zh: "来源" },
+  "Compare.notInTheSearchResults": {
+    en: "page not among the search results",
+    zh: "该页面不在搜索结果中",
+  },
+  "Compare.groundedNote": {
+    en: "The judge searched the web before scoring; a cited page was only among its search results, not reviewed, and this is still one model's opinion.",
+    zh: "评分模型在评分前进行了网络搜索；所引页面只是出现在其搜索结果中，未经审阅，这仍是一个模型的看法。",
+  },
   "Compare.issuesTheJudgeRaised": {
     en: "Issues the judge raised",
     zh: "评分模型提出的问题",
@@ -1262,7 +1462,10 @@ export const messages = {
   "Compare.transferClarity": { en: "Transfer clarity", zh: "迁移题清晰" },
   "Compare.bilingualParity": { en: "Bilingual parity", zh: "双语一致" },
   "Compare.assumptions": { en: "Explicit assumptions", zh: "明确的假设" },
-  "Library.yourLessons": { en: "05 · SAVE AND SHARE", zh: "05 · 保存与分享" },
+  "Library.yourLessons": {
+    en: "STEPS 5 AND 6 · SAVE AND SHARE",
+    zh: "第 5、6 步 · 保存与分享",
+  },
   "Library.pickUpWhereYouLeft": {
     en: "Pick up where you left off.",
     zh: "从上次停下的地方继续。",
@@ -1294,7 +1497,21 @@ export const messages = {
   },
   "Library.open": { en: "open now", zh: "当前打开" },
   "Library.updated": { en: "Updated", zh: "更新于" },
-  "Library.openLesson": { en: "Open", zh: "打开" },
+  "Library.openLesson": { en: "Edit", zh: "编辑" },
+  "Library.editThisLesson": { en: "Edit this lesson", zh: "编辑此课程" },
+  "Library.yourLesson": { en: "Your lesson", zh: "你的课程" },
+  "Library.yourLessonNote": {
+    en: "Yours · a save keeps this same link; deleting removes it for everyone.",
+    zh: "你的课程 · 保存后仍是同一链接；删除后所有人都无法再打开。",
+  },
+  "Library.editUnavailable": {
+    en: "That lesson could not be opened for editing. It may have been deleted.",
+    zh: "无法打开该课程进行编辑，它可能已被删除。",
+  },
+  "Library.deleteFailed": {
+    en: "The lesson could not be deleted. Try again.",
+    zh: "无法删除该课程，请重试。",
+  },
   "Library.delete": { en: "Delete", zh: "删除" },
   "Library.yesDelete": { en: "Yes, delete", zh: "确认删除" },
   "Library.keep": { en: "Keep", zh: "保留" },
@@ -1336,10 +1553,6 @@ export const messages = {
   "Studio.sketchLessonNote": {
     en: "Drafted by Muse from your sketch in Lesson Studio. The sketch is kept with the lesson; review the model and assumptions before presenting.",
     zh: "由 Muse 根据你在课程工作室上传的草图起草。草图随课程保存；演示前请审阅模型与假设。",
-  },
-  "Library.sharedLessonNote": {
-    en: "Shared by its creator from Lesson Studio. Drafted with Muse and reviewed by that creator, not by the author of the library.",
-    zh: "由创作者从课程工作室分享。使用 Muse 起草并由该创作者审阅，未经课程库作者审阅。",
   },
   "Library.sharedUnavailable": {
     en: "This shared lesson is not available. Its creator may have turned the link off.",

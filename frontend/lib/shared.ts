@@ -26,6 +26,10 @@ export {
   galleryShow,
   showIdFromHash,
 } from "../../public/gallery-shows.mjs";
-export { formatDemoNumber } from "../../public/demo-model.mjs";
+export {
+  formatDemoNumber,
+  shownUnit,
+  withUnit,
+} from "../../public/demo-model.mjs";
 export { studioWalkthrough } from "../../public/studio-showcase.mjs";
 export { lessonCovers, lessonCover } from "../../public/lesson-covers.mjs";

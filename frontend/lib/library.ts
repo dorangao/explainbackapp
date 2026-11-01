@@ -14,6 +14,7 @@ import type {
 } from "./types";
 import type { Cached } from "./studio-cache";
 import { fingerprint } from "./studio-cache";
+import type { LessonCurrency } from "./types";
 import { getJson } from "./api";
 export type LessonKind = "model" | "process" | "catalog";
 export type SavedSummary = {
@@ -28,8 +29,16 @@ export type SavedSummary = {
   model: string | null;
   // Image URLs kept in Blob storage; null when none was saved.
   cover: string | null;
+  // Which model drew the cover: Muse Image, or null for a show cover of the shipped style.
+  coverModel?: string | null;
   sketch: string | null;
   shared: boolean;
+  // Set by the public shared routes for the signed-in creator who owns the lesson.
+  mine?: boolean;
+  // When the creator's own review was saved with this content; null when unreviewed.
+  reviewedAt?: number | null;
+  // The author's stable-or-dated mark, when the lesson carries one.
+  currency?: LessonCurrency | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -109,12 +118,38 @@ export const sharedIdFromHash = (hash: string): string | null =>
   /^#shared:([a-f0-9]{16})$/.exec(hash ?? "")?.[1] ?? null;
 export const sharedUrl = (id: string) =>
   `${location.origin}${location.pathname}#shared:${id}`;
+// "#edit:<id>" opens one of the creator's own saved lessons on the Create page.
+export const editIdFromHash = (hash: string): string | null =>
+  /^#edit:([a-f0-9]{16})$/.exec(hash ?? "")?.[1] ?? null;
+export const editHash = (id: string) => `#edit:${id}`;
+// The shared list changed (a share switched, a lesson deleted): the library refetches.
+const SHARED_CHANGED = "explainback:shared-changed";
+export const notifySharedChanged = () => {
+  try {
+    window.dispatchEvent(new Event(SHARED_CHANGED));
+  } catch {
+    /* no window */
+  }
+};
+export const onSharedChanged = (listener: () => void) => {
+  window.addEventListener(SHARED_CHANGED, listener);
+  return () => window.removeEventListener(SHARED_CHANGED, listener);
+};
 export const listMine = () =>
   getJson<{ lessons: SavedSummary[]; limit: number }>("/api/lessons");
 export const readMine = (id: string) =>
   getJson<SavedLesson>(`/api/lessons/${id}`);
 export const listShared = () =>
   getJson<{ lessons: SavedSummary[] }>("/api/shared");
+// A creator-drawn library cover for a reviewed lesson, as the app serves it.
+export type CoverRecord = {
+  src: string;
+  model: string;
+  createdAt: string;
+  promptVersion: string;
+};
+export const listCovers = () =>
+  getJson<{ covers: Record<string, CoverRecord> }>("/api/covers");
 export const readShared = (id: string) =>
   getJson<SavedLesson>(`/api/shared/${id}`);
 export const saveLesson = (
@@ -130,6 +165,8 @@ export const saveLesson = (
     sketch?: string | null;
     tryout?: SavedTryout | null;
     grades?: Record<string, SavedGrade> | null;
+    // The creator reviewed the definition and assumptions of this exact content.
+    reviewed?: boolean;
   },
 ) => post<SavedSummary>("/api/lessons", body);
 export const shareLesson = (post: Post, id: string, shared: boolean) =>

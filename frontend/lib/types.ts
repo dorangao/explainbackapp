@@ -88,6 +88,8 @@ export type Chapter = {
   explanation: Bilingual;
   demo?: Demo;
 };
+// A page a grounded draft relied on. Provenance for the reader; nothing is computed from it.
+export type LessonSource = { url: string; title: string };
 export type Lesson = {
   version: 1 | 2;
   title: Bilingual;
@@ -95,7 +97,23 @@ export type Lesson = {
   chapters: Chapter[];
   // Unit system viewers see first; numbers are converted for display only.
   units?: "metric" | "us";
+  sources?: LessonSource[];
+  // The author's mark: stable, or dated with the day its figures were drafted.
+  currency?: LessonCurrency;
 };
+export type LessonCurrency = { status: "stable" | "dated"; asOf: string };
+// One figure the ground step gathered with web search: a statement, its value and unit,
+// and the page it came from. `verified` says the page was among the search results.
+export type ReferenceFact = {
+  statement: Bilingual;
+  value: string;
+  unit: string;
+  url: string;
+  title: string | null;
+  verified?: boolean;
+};
+// The fact sheet as the author receives it.
+export type References = { asOf: string; facts: ReferenceFact[] };
 export type GalleryItem = {
   id: string;
   kind: "model" | "process" | "catalog";
@@ -304,6 +322,43 @@ export type GalleryShow = {
   coverModel: string | null;
   createdAt: string;
 };
+export type GroundReply = ReplyMetrics & {
+  status: "ready" | "none";
+  asOf: string;
+  needsCurrent: boolean;
+  facts: ReferenceFact[];
+  sources: LessonSource[];
+  note: Bilingual;
+  searched: number;
+  attemptsRemaining: number;
+};
+// A library cover drawn for a reviewed lesson at a creator's request.
+export type CoverReply = ReplyMetrics & {
+  // One of the two: a reviewed lesson's id, or the creator's own saved lesson's id.
+  lessonId?: string;
+  savedId?: string;
+  cover: string;
+  model: string;
+  createdAt: string;
+  promptVersion: string;
+  attemptsRemaining: number;
+};
+// The rubric judge's verdict on one lesson, checked from its page (grounded by default).
+export type JudgeReply = ReplyMetrics & {
+  judge: {
+    model: string;
+    version?: string;
+    total: number;
+    max: number;
+    scores: Record<string, number>;
+    issues: string[];
+    summary: string;
+    factualIssues?: FactualIssue[];
+    pagesRead?: number;
+  };
+  grounded: boolean;
+  attemptsRemaining: number;
+};
 export type ComposeReply = ReplyMetrics & {
   status: "ready" | "unsupported";
   lesson: Lesson | null;
@@ -311,6 +366,12 @@ export type ComposeReply = ReplyMetrics & {
   attemptsRemaining: number;
 };
 export type StudioSession = { sessionId: string };
+export type FactualIssue = {
+  claim: string;
+  finding: string;
+  url: string | null;
+  verified: boolean;
+};
 // One model's reply when the same question is drafted with both Muse text models.
 export type CompareDraft = {
   model: string;
@@ -331,6 +392,10 @@ export type CompareDraft = {
         scores: Record<string, number>;
         issues: string[];
         summary: string;
+        // Grounded judge (v2): figures it disputed after a web search, with the page cited;
+        // `verified` means that page was among the search results.
+        factualIssues?: FactualIssue[];
+        pagesRead?: number;
       }
     | { failure: string; reason?: string }
     | null;

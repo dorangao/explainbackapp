@@ -830,82 +830,6 @@ body {
 .author-workspace {
   margin: auto;
 }
-/* The creation stepper: the lesson player's step strip, with a cost line per step. */
-.studio-stepper {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  margin: -4px 0 32px;
-  padding: 0;
-}
-.studio-stepper li {
-  border-top: 3px solid var(--line);
-  padding-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-.studio-stepper .step-number {
-  font-size: 0.67rem;
-  font-variant-numeric: tabular-nums;
-}
-.studio-stepper strong {
-  font-weight: 650;
-  color: inherit;
-}
-.studio-stepper small {
-  font-size: 0.72rem;
-}
-.studio-stepper li[aria-current="step"] {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.studio-stepper li.is-complete {
-  border-color: var(--theme-edge, #8aaf97);
-  color: var(--theme-accent, #44755d);
-}
-/* The question form and the reviewer tour side by side; the tour stacks under it on a phone. */
-.create-columns {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 32px;
-  align-items: start;
-}
-.create-main {
-  flex: 999 1 560px;
-  min-width: 0;
-}
-.create-aside {
-  flex: 1 1 280px;
-  max-width: 360px;
-  min-width: 0;
-}
-.create-aside .judge-path {
-  margin: 0;
-}
-.create-aside .judge-head {
-  flex-direction: column;
-}
-.create-aside .judge-actions {
-  flex-direction: column;
-  align-items: stretch;
-}
-/* In the side column each tour step stacks: mark and title, then the cost and its Run button. */
-.create-aside .judge-steps li {
-  grid-template-columns: 28px minmax(0, 1fr);
-  align-items: start;
-}
-.create-aside .judge-steps .judge-cost,
-.create-aside .judge-steps .text-button {
-  grid-column: 2;
-  justify-self: start;
-}
-.create-aside .judge-steps .judge-cost {
-  margin-top: 2px;
-}
 .author-workspace .workspace-heading {
   margin-bottom: 32px;
 }
@@ -1095,6 +1019,16 @@ body {
   border-radius: 999px;
   padding-inline: 1.45rem;
 }
+.grounded-judge-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.compare-figures q {
+  font-style: italic;
+}
 .compare-judge-pick {
   display: inline-flex;
   align-items: center;
@@ -1107,6 +1041,138 @@ body {
   min-height: 0;
   padding: 6px 10px;
   font-size: 0.85rem;
+}
+/* Search first: a checked option above the Create row. */
+.search-first {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 18px 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.search-first input {
+  margin: 4px 0 0;
+  flex: none;
+}
+.search-first .fine {
+  display: block;
+  margin: 2px 0 0;
+  font-weight: 400;
+}
+/* The sheet a grounded draft rests on, in the review. */
+.references {
+  margin: 14px 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.references summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.reference-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 0.85rem;
+  display: grid;
+  gap: 6px;
+}
+.reference-list strong {
+  font-variant-numeric: tabular-nums;
+}
+.reference-list a,
+.lesson-sources a {
+  word-break: break-word;
+}
+.references > .fine {
+  margin: 10px 0 0;
+}
+/* The author's stable-or-dated mark; a dated lesson is amber so the date is noticed. */
+.currency-note {
+  margin: 8px 0 0;
+}
+.currency-note[data-status="dated"] {
+  color: var(--theme-warning, #9a4e18);
+  font-weight: 600;
+}
+/* Draw a cover: on a reviewed lesson's page, for signed-in creators. */
+.cover-tool {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin: 28px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.cover-tool-art img,
+.cover-tool-empty {
+  width: 240px;
+  height: 160px;
+  border-radius: 10px;
+  display: block;
+  object-fit: cover;
+  flex: none;
+}
+.cover-tool-empty {
+  background: var(--light);
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.cover-tool-body {
+  min-width: 0;
+}
+/* Check figures: the judge's verdict on the open lesson, below the cover tool. */
+.figure-check {
+  margin: 28px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.figure-check h3 {
+  margin: 4px 0 8px;
+  font-size: 1.1rem;
+}
+.figure-check > .fine {
+  max-width: 64ch;
+}
+.figure-result {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.figure-result h4 {
+  margin: 12px 0 6px;
+  font-size: 0.85rem;
+}
+.figure-score {
+  margin: 0;
+}
+.cover-tool-body h3 {
+  margin: 4px 0 8px;
+  font-size: 1.1rem;
+}
+.cover-tool-body .fine {
+  max-width: 56ch;
+}
+@media (max-width: 720px) {
+  .cover-tool {
+    flex-direction: column;
+  }
+  .cover-tool-art img,
+  .cover-tool-empty {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 3 / 2;
+  }
 }
 .author-privacy {
   margin: 18px 0 0;
@@ -1397,51 +1463,194 @@ body {
   font-size: 1rem;
   color: var(--muted);
 }
-.learning-steps {
+/* The learning flow: four keywords in connected bubbles. Finished ones fill with a
+   check, the current one is solid; what each holds sits in a hover tip and a disclosure. */
+.learning-flow {
+  margin: 26px 0 28px;
+}
+.learning-flow ol {
   list-style: none;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0;
-  margin: 30px 0 36px;
+  display: flex;
+  align-items: center;
+  margin: 0;
   padding: 0;
 }
-.learning-steps li {
-  border-top: 2px solid var(--line);
-  padding-top: 12px;
-  font-size: 0.8rem;
-  color: var(--muted);
+.learning-flow li {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
 }
-.learning-steps li > span {
-  font-size: 0.67rem;
+.learning-flow li:last-child {
+  flex: 0 0 auto;
 }
-.learning-steps li[aria-current="step"] {
+.learning-flow li:not(:last-child)::after {
+  content: "";
+  flex: 1 1 24px;
+  height: 2px;
+  background: var(--line);
+  margin: 0 14px;
+}
+.learning-flow li.is-complete::after {
+  background: var(--theme-edge, #8aaf97);
+}
+.flow-node {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--theme-border, #c9d4cc);
+  background: var(--surface);
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex: none;
+}
+.is-current .flow-node {
   border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 650;
+  background: var(--accent);
+  color: var(--surface);
+  box-shadow: 0 0 0 4px var(--theme-soft, #d7e6e0);
 }
-.learning-steps li.is-complete {
-  border-color: var(--theme-edge, #8aaf97);
+.is-complete .flow-node {
+  border-color: var(--theme-accent, #44755d);
+  background: var(--theme-soft, #e4eee6);
   color: var(--theme-accent, #44755d);
+}
+.flow-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.is-current .flow-label {
+  color: var(--accent);
+  font-weight: 700;
+}
+.is-complete .flow-label {
+  color: var(--theme-accent, #44755d);
+}
+.flow-tip {
+  display: none;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  z-index: 2;
+  width: 220px;
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+.flow-tip::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+.learning-flow li:hover .flow-tip {
+  display: block;
+}
+.flow-details {
+  margin-top: 12px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.flow-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  width: max-content;
+}
+.flow-details div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  padding: 10px 0 4px;
+}
+.flow-details p {
+  margin: 0;
+}
+.flow-details strong {
+  color: var(--ink);
 }
 .player-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 250px;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 32px;
   align-items: start;
 }
 .player-main {
   min-width: 0;
 }
-.player-main > h3 {
-  font-size: 1.6rem;
-  margin: 0 0 20px;
+/* The stage card: the step's heading, the claim and its action row. */
+.stage-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 24px;
+}
+.stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.stage-head h3 {
+  font-size: 1.5rem;
+  margin: 0;
   outline: none;
 }
+.stage-head > .fine {
+  margin: 0;
+}
+.prediction-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.prediction-prompt {
+  font-weight: 650;
+  margin-right: 4px;
+}
+.prediction-row > button:last-child {
+  margin-left: auto;
+}
+.prediction-row + .fine {
+  margin: 14px 0 0;
+}
+.experiment-preview {
+  margin: 18px 0 0;
+}
+.preview-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.preview-head > .fine {
+  margin: 0;
+}
+.experiment-drawing[data-preview] .chart-legend {
+  opacity: 0.8;
+}
 .claim {
-  margin: 0 0 20px;
+  margin: 0;
   padding: 20px 24px;
   background: var(--theme-soft, #e9eee4);
   border-left: 3px solid var(--theme-edge, #8cab94);
@@ -1460,18 +1669,32 @@ body {
   font-size: 0.6rem;
   margin-bottom: 8px;
 }
-.prediction-options {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  margin: 24px 0 36px;
-}
-.prediction-options button {
-  min-width: 110px;
-}
 .player-inspector {
-  border-left: 1px solid var(--line);
-  padding-left: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+}
+.player-inspector > .eyebrow {
+  margin-top: 0;
+}
+.parameter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.parameter-head label {
+  margin: 0;
+  flex: 1 1 auto;
+}
+.parameter-head input[type="number"] {
+  width: 84px;
+  max-width: 84px;
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+  flex: 0 0 84px;
 }
 .player-inspector select {
   width: 100%;
@@ -2034,11 +2257,11 @@ body {
     display: none;
   }
   .player-layout {
-    gap: 28px;
-    grid-template-columns: minmax(0, 1fr) 220px;
+    gap: 24px;
+    grid-template-columns: minmax(0, 1fr) 250px;
   }
   .player-inspector {
-    padding-left: 20px;
+    padding: 16px;
   }
 }
 @media (max-width: 800px) {
@@ -2103,9 +2326,7 @@ body {
     grid-template-columns: minmax(0, 1fr);
   }
   .player-inspector {
-    border: 0;
-    border-top: 1px solid var(--line);
-    padding: 24px 0 0;
+    padding: 18px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 24px;
@@ -2170,12 +2391,6 @@ body {
   .about-grid {
     grid-template-columns: 1fr;
   }
-  .studio-stepper {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .create-aside {
-    max-width: none;
-  }
   .page-header h1 {
     font-size: 1.75rem;
   }
@@ -2217,6 +2432,15 @@ body {
     height: 140px;
     max-height: 140px;
     object-fit: contain;
+  }
+  /* A cover fills the single-column card at its own 3:2 instead of sitting letterboxed
+     at 140px; the drawn SVG art keeps its height. */
+  img.lesson-art-image {
+    height: auto;
+    max-height: none;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    padding: 0;
   }
   .lesson-card-body {
     padding: 20px;
@@ -2338,33 +2562,58 @@ body {
   .player-toolbar > .back-link {
     font-size: 0.74rem;
   }
-  .learning-steps {
-    margin: 24px 0;
+  .learning-flow {
+    margin: 20px 0 22px;
+  }
+  .learning-flow li {
+    gap: 6px;
+  }
+  .learning-flow li:not(:last-child)::after {
+    margin: 0 8px;
+  }
+  .flow-node {
+    width: 30px;
+    height: 30px;
+    font-size: 0.72rem;
+  }
+  .flow-label {
+    display: none;
+  }
+  .is-current .flow-label {
+    display: inline;
+    font-size: 0.82rem;
+  }
+  .flow-tip {
+    display: none !important;
+  }
+  .flow-details div {
+    grid-template-columns: 1fr;
     gap: 8px;
   }
-  .learning-steps li {
-    font-size: 0.68rem;
-    display: block;
-    line-height: 1.4;
+  .stage-card {
+    padding: 16px;
   }
-  .learning-steps li > span {
-    display: block;
-    margin-bottom: 5px;
-  }
-  .player-main > h3 {
-    font-size: 1.4rem;
+  .stage-head h3 {
+    font-size: 1.3rem;
   }
   .claim {
     padding: 18px;
     font-size: 1.22rem;
   }
-  .prediction-options {
+  .prediction-row {
     gap: 8px;
   }
-  .prediction-options button {
+  .prediction-prompt {
+    width: 100%;
+  }
+  .prediction-row > button {
     flex: 1;
     min-width: 80px;
     padding: 0.75rem 0.65rem;
+  }
+  .prediction-row > button:last-child {
+    flex: 1 1 100%;
+    margin-left: 0;
   }
   .experiment-surface {
     padding: 12px;
@@ -2870,6 +3119,41 @@ body {
   display: flex;
   gap: 8px;
 }
+/* Back to top: a fixed pill once the page has scrolled past a screen and a half. */
+.back-to-top {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.back-to-top:hover {
+  background: var(--theme-soft, #e2efe6);
+}
+@media (max-width: 540px) {
+  .back-to-top {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 14px;
+  }
+}
+/* Edit and Delete for the creator's own shared lesson, on its page and its card. */
+.owner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+}
+.owner-actions a.text-button {
+  text-decoration: underline;
+}
 .text-button.danger {
   color: var(--theme-error, #a23b2c);
 }
@@ -3073,28 +3357,24 @@ body {
   margin: 0;
 }
 /* The judge path: the six-step reviewer tour on the Create page. */
+/* The 6-step tour as a flow of bubbles above the Create form: finished steps checked,
+   the current one solid, a hint under each word (its cost, Done, or a reminder to review
+   the draft), the full step cards in a disclosure, Run next and Run all at the head. */
 .judge-path {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 18px 20px;
-  margin: 0 0 28px;
-  background: var(--surface);
+  margin: -4px 0 32px;
 }
 .judge-head {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
+  gap: 12px 16px;
+  align-items: center;
   flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 .judge-head h3 {
-  margin: 4px 0 6px;
-  font-size: 1.15rem;
-  letter-spacing: -0.3px;
-}
-.judge-head .fine {
   margin: 0;
-  max-width: 52ch;
+  font-size: 0.95rem;
+  letter-spacing: -0.2px;
 }
 .judge-actions {
   display: flex;
@@ -3103,75 +3383,163 @@ body {
 }
 .judge-steps {
   list-style: none;
-  margin: 16px 0 10px;
+  margin: 0;
   padding: 0;
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
 }
 .judge-steps li {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto auto;
-  gap: 4px 12px;
+  display: flex;
   align-items: center;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--light);
+  gap: 10px;
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
 }
-.judge-steps li[data-state="done"] {
-  background: var(--theme-soft, #e6f0e9);
+.judge-steps li:last-child {
+  flex: 0 0 auto;
 }
-.judge-steps li[data-state="unavailable"] {
-  opacity: 0.6;
+.judge-steps li:not(:last-child)::after {
+  content: "";
+  flex: 1 1 16px;
+  height: 2px;
+  background: var(--line);
+  margin: 0 12px;
 }
-.judge-steps strong {
+.judge-steps li.is-complete::after {
+  background: var(--theme-edge, #8aaf97);
+}
+.judge-steps li[data-state="unavailable"] .flow-node {
+  border-style: dashed;
+}
+.flow-current {
+  display: none;
+}
+.judge-steps li:hover .flow-tip {
   display: block;
-  font-size: 0.9rem;
 }
-.judge-steps small {
-  display: block;
-  font-size: 0.74rem;
-  color: var(--muted);
+.judge-steps .flow-tip {
+  width: 260px;
 }
-.judge-steps .judge-proves {
-  margin-top: 2px;
-  color: var(--ink);
-}
-.judge-steps .judge-proves b {
+.judge-steps .flow-tip b {
+  color: var(--theme-input, #9fd0c0);
   font-weight: 600;
-  color: var(--accent);
 }
-.judge-mark {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: inline-grid;
-  place-items: center;
-  font-size: 0.75rem;
-  background: var(--theme-surface, #fff);
-  color: var(--accent);
-  border: 1px solid var(--theme-border, #cadbd0);
+.flow-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
 }
-li[data-state="done"] .judge-mark {
-  background: var(--accent);
-  color: var(--on-accent, #fff);
-  border-color: var(--accent);
-}
-.judge-cost {
-  font-size: 0.74rem;
+.flow-hint {
+  font-size: 0.7rem;
   color: var(--muted);
   white-space: nowrap;
 }
+/* The draft is in but not yet reviewed: the Draft bubble turns amber and says so. */
+.judge-steps li[data-review] .flow-node {
+  border-color: var(--theme-warning, #c9843f);
+  background: var(--theme-warning-bg, #fbefe3);
+  color: var(--theme-warning, #9a4e18);
+}
+.judge-steps li[data-review] .flow-label,
+.judge-steps li[data-review] .flow-hint {
+  color: var(--theme-warning, #9a4e18);
+}
+.judge-steps li[data-review] .flow-hint {
+  font-weight: 600;
+}
 .judge-foot {
+  margin: 12px 0 0;
+}
+.judge-details {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+.judge-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink);
+  width: max-content;
+}
+.judge-cards {
+  list-style: none;
   margin: 0;
+  padding: 12px 0 4px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.judge-cards li {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--light);
+}
+.judge-cards li[data-state="done"] {
+  background: var(--theme-soft, #e6f0e9);
+}
+.judge-cards li[data-state="unavailable"] {
+  background: transparent;
+  border: 1px dashed var(--line);
+}
+.judge-cards strong {
+  font-size: 0.86rem;
+}
+.judge-cards small {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.judge-cards .judge-proves {
+  color: var(--ink);
+}
+.judge-cards .judge-proves b {
+  font-weight: 600;
+  color: var(--accent);
+}
+.judge-cards .judge-cost {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.judge-cards .text-button {
+  justify-self: start;
 }
 @media (max-width: 720px) {
-  .judge-steps li {
-    grid-template-columns: 28px minmax(0, 1fr);
+  .judge-head {
+    margin-bottom: 10px;
   }
-  .judge-cost,
-  .judge-steps li .text-button {
-    grid-column: 2;
-    justify-self: start;
+  .judge-actions {
+    width: 100%;
+  }
+  .judge-actions button {
+    flex: 1 1 auto;
+  }
+  .judge-steps li {
+    gap: 6px;
+  }
+  .judge-steps li:not(:last-child)::after {
+    margin: 0 6px;
+  }
+  .judge-steps .flow-text,
+  .judge-steps .flow-tip {
+    display: none !important;
+  }
+  .flow-current {
+    display: block;
+    margin: 10px 0 0;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .flow-current .flow-review {
+    display: block;
+    color: var(--theme-warning, #9a4e18);
+  }
+  .judge-cards {
+    grid-template-columns: 1fr;
   }
 }
 /* The model's own account of its reasoning under a request summary. */
@@ -3733,8 +4101,7 @@ li[data-state="done"] .judge-mark {
     display: flex;
     align-items: center;
   }
-  .studio-stepper li,
-  .learning-steps li {
+  .learning-flow li {
     min-height: 44px;
   }
 }
@@ -3757,6 +4124,24 @@ li[data-state="done"] .judge-mark {
 }
 .lesson-player[data-stage="complete"] .player-layout {
   grid-template-columns: minmax(0, 1fr);
+}
+/* A creator-shared lesson says so above the player, with the report link. */
+.shared-notice {
+  margin: 0 0 20px;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--theme-warning, #c9843f);
+  border-radius: 0 12px 12px 0;
+  background: var(--surface);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.shared-notice a {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.lesson-report {
+  margin: 8px 0 0;
 }
 .app-shell .lesson-review-note {
   color: var(--accent);

@@ -29,11 +29,12 @@ Each claim below names where to see it in the app and the check in this reposito
 - Where configured, Muse can draft and revise lessons, try them as a learner, evaluate an explanation, write a show script, generate its cover and slide illustrations, or transcribe spoken explanations; SAM 3.1 can find the object a creator names in their sketch. Voice playback for shows uses the browser's speech synthesis. See the model table in [docs/architecture.md](docs/architecture.md).
 - Signed-in reviewers get a six-step tour on the Create page (draft, learner tryout, narrated show, one illustration, save, share) that reuses cached results and states what each step costs.
 - Signed-in creators keep the lessons they make on a personal shelf, update them in place, and share any one by link; shared lessons open without sign-in and appear in the library under *Shared by creators*. The library has search and kind filters. With Vercel Blob configured, show covers, slide illustrations drawn on request by Muse Image, and the sketch a lesson came from are kept with saved lessons. See [docs/lesson-library.md](docs/lesson-library.md) and, for what happens when a budget or model is missing, [docs/error-states.md](docs/error-states.md).
+- **Search first** (optional, new topic demos): before the draft, Muse Spark gathers a few sourced figures for the topic with the Muse web search tool; the author prefers them over memory and the lesson lists the pages it relied on under its assumptions. One extra request; pages are subject matter, never instructions. See [docs/search-grounding.md](docs/search-grounding.md).
 - English and Chinese are available. Model output and a working numeric calculation do not establish scientific correctness or teaching effectiveness; lessons require human review.
 
 ## Local setup
 
-Use **Node 22** and npm. From this directory:
+Use **Node 26** (the current LTS; `nvm use` reads `.nvmrc`) and npm. From this directory:
 
 ```sh
 npm ci --ignore-scripts

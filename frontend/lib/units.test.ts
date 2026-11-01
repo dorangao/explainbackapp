@@ -187,3 +187,23 @@ describe("viewer memory and cache keys", () => {
     expect(withoutUnits(lesson).title).toBe(lesson.title);
   });
 });
+
+describe("dimensionless quantities", () => {
+  it('never prints the authored "1" after a value when the texts are rebuilt in another system', () => {
+    const e = cooling();
+    e.transferInputs = [
+      ...e.transferInputs!,
+      { label: "Samples", value: 4, unit: "1" },
+    ];
+    e.metrics = [...e.metrics, { label: "Samples", value: 4, unit: "1" }];
+    const { experiment } = presentExperiment(e, "us");
+    expect(experiment.transfer.question).toContain(
+      "Cooling coefficient = 0.05 1/min · Samples = 4\n",
+    );
+    expect(experiment.result).toContain("Samples = 4");
+    expect(experiment.result).not.toMatch(/Samples = 4 1/);
+    // A dimensionless axis keeps its bare label.
+    const bare = { ...cooling(), axisUnit: "1", axis: "Count" };
+    expect(presentExperiment(bare, "us").experiment.axis).toBe("Time");
+  });
+});

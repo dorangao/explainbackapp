@@ -81,6 +81,33 @@ describe("studio store", () => {
     clearStudio();
     expect(loadStudio()).toBeNull();
   });
+  it("remembers the fact sheet a draft was grounded on, and reads an old record without one as none", () => {
+    const references = {
+      asOf: "2026-10-31",
+      facts: [
+        {
+          statement: { en: "Water boils at 100 °C.", zh: "水在 100 °C 沸腾。" },
+          value: "100",
+          unit: "°C",
+          url: "https://example.org/boiling-point",
+          title: "Boiling point reference",
+          verified: true,
+        },
+      ],
+    };
+    saveStudio({ ...base(), references });
+    expect(loadStudio()!.references).toEqual(references);
+    saveStudio(base());
+    expect(loadStudio()!.references).toBeNull();
+    localStorage.setItem(
+      storageKey,
+      JSON.stringify({
+        ...JSON.parse(localStorage.getItem(storageKey)!),
+        references: { facts: "no" },
+      }),
+    );
+    expect(loadStudio()!.references).toBeNull();
+  });
   it("keeps session ids, codes and tokens out of storage even if a reply carried them", () => {
     const value = base();
     (value.tryout!.reply as unknown as Record<string, unknown>).sessionId =

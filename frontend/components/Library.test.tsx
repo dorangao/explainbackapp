@@ -74,7 +74,7 @@ describe("LessonShelf", () => {
     expect(document.querySelector(".shelf-thumb")?.getAttribute("src")).toBe(
       cover,
     );
-    fireEvent.click(screen.getByRole("button", { name: "Open" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     await waitFor(() => expect(opened).toHaveBeenCalledTimes(1));
     expect(opened.mock.calls[0][0].lesson.title.en).toBe("Cooling coffee");
     expect(posts).toHaveLength(0);

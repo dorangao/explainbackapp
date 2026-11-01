@@ -13,12 +13,15 @@ export function RequestSummary({
   if (!metrics) return null;
   const seconds = (metrics.elapsedMs / 1000).toFixed(1);
   const verb = {
+    ground: t(language, "RevisionSummary.gatheredSourcesFor"),
     compose: t(language, "RevisionSummary.draftedThisLesson"),
     revise: t(language, "RevisionSummary.revisedThisLesson"),
     guide: t(language, "RevisionSummary.explainedThisResult"),
     tryout: t(language, "RevisionSummary.triedThisLessonAs"),
     show: t(language, "RevisionSummary.wroteTheShowFor"),
     illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
+    cover: t(language, "RevisionSummary.drewACoverFor"),
+    judge: t(language, "RevisionSummary.checkedTheFiguresOf"),
     detect: t(language, "RevisionSummary.lookedForAnObjectIn"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
     compare: t(language, "RevisionSummary.comparedTwoModels"),

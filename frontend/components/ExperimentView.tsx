@@ -1,6 +1,6 @@
 import type { Experiment, Language } from "../lib/types";
 import { t } from "../lib/messages";
-import { formatDemoNumber as fmt } from "../lib/shared";
+import { formatDemoNumber as fmt, shownUnit } from "../lib/shared";
 const colors = [
   "var(--series-0, #116d60)",
   "var(--series-1, #ad582d)",
@@ -13,12 +13,16 @@ export function ExperimentView({
   language,
   interactive,
   onScrub,
+  preview = false,
 }: {
   experiment: Experiment;
   progress: number;
   language: Language;
   interactive: boolean;
   onScrub: (value: number) => void;
+  // The Predict step shows the setup only: the start of each series, no curve, the
+  // area where the result will draw hatched over.
+  preview?: boolean;
 }) {
   if (e.kind === "process")
     return (
@@ -54,13 +58,49 @@ export function ExperimentView({
   const X = (v: number) => 64 + v * 548,
     Y = (v: number) => 224 - ((v - low) / (high - low)) * 188,
     values = e.sample(u);
+  // The chart's accessible name: the title, then the unit when the quantity has one.
+  const titled = shownUnit(e.unit) ? `${e.title} · ${e.unit}` : e.title;
   return (
-    <div className="experiment-drawing">
+    <div className="experiment-drawing" data-preview={preview || undefined}>
       <svg
         viewBox="0 0 640 270"
         role="img"
-        aria-label={`${e.title} · ${e.unit}`}
+        aria-label={
+          preview
+            ? `${titled} · ${t(language, "ExperimentView.hiddenUntilYouPredict")}`
+            : titled
+        }
       >
+        {preview && (
+          <>
+            <defs>
+              <pattern
+                id="preview-hatch"
+                width={8}
+                height={8}
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <line
+                  x1={0}
+                  y1={0}
+                  x2={0}
+                  y2={8}
+                  stroke="var(--theme-border, #dfe6df)"
+                  strokeWidth={2}
+                />
+              </pattern>
+            </defs>
+            <rect
+              x={64}
+              y={36}
+              width={548}
+              height={188}
+              fill="url(#preview-hatch)"
+              opacity={0.7}
+            />
+          </>
+        )}
         {Array.from({ length: 5 }, (_, i) => {
           const value = low + (i * (high - low)) / 4,
             y = Y(value);
@@ -87,28 +127,50 @@ export function ExperimentView({
         })}
         {e.series.map((_, j) => (
           <g key={j}>
-            <path
-              d={points
-                .map((p, i) => `${i ? "L" : "M"} ${X(i / e.steps)} ${Y(p[j])}`)
-                .join(" ")}
-              stroke={colors[j]}
-              fill="none"
-              strokeWidth={2.8}
-              strokeDasharray={j % 2 ? "6 4" : undefined}
+            {!preview && (
+              <path
+                d={points
+                  .map(
+                    (p, i) => `${i ? "L" : "M"} ${X(i / e.steps)} ${Y(p[j])}`,
+                  )
+                  .join(" ")}
+                stroke={colors[j]}
+                fill="none"
+                strokeWidth={2.8}
+                strokeDasharray={j % 2 ? "6 4" : undefined}
+              />
+            )}
+            <circle
+              cx={X(u)}
+              cy={Y(values[j])}
+              r={preview ? 6 : 5}
+              fill={colors[j]}
             />
-            <circle cx={X(u)} cy={Y(values[j])} r={5} fill={colors[j]} />
           </g>
         ))}
-        <line
-          x1={X(u)}
-          x2={X(u)}
-          y1={30}
-          y2={225}
-          stroke="var(--theme-edge, #71867c)"
-          strokeDasharray="3 4"
-        />
+        {preview ? (
+          <text
+            x={338}
+            y={140}
+            textAnchor="middle"
+            fontSize={14}
+            fontStyle="italic"
+            fill="var(--theme-muted, #5d6c67)"
+          >
+            {t(language, "ExperimentView.theCurveAppearsAfterYouPredict")}
+          </text>
+        ) : (
+          <line
+            x1={X(u)}
+            x2={X(u)}
+            y1={30}
+            y2={225}
+            stroke="var(--theme-edge, #71867c)"
+            strokeDasharray="3 4"
+          />
+        )}
         <text x={64} y={18} fontSize={12} fill="var(--theme-ink, #354a42)">
-          {e.unit}
+          {shownUnit(e.unit)}
         </text>
         <text x={64} y={245} fontSize={11} fill="var(--theme-muted, #5d6c67)">
           {e.gates?.[0] ?? e.axisEnds?.[0] ?? 0}
@@ -128,7 +190,7 @@ export function ExperimentView({
         {e.series.map((label, i) => (
           <span key={label}>
             <span className={`series-swatch series-${i}`} />
-            {label}: <strong>{fmt(values[i])}</strong> {e.unit}
+            {label}: <strong>{fmt(values[i])}</strong> {shownUnit(e.unit)}
           </span>
         ))}
       </div>

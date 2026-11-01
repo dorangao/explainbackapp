@@ -78,6 +78,32 @@ const server = createApp({
     const name = args.tools?.[0]?.name;
     if (failing(name)) throw new Error("fixture failure");
     const input = JSON.parse(args.input);
+    if (name === "ground_topic")
+      return {
+        structured: {
+          name,
+          value: {
+            status: "ready",
+            asOf: "2026-10-31",
+            needsCurrent: false,
+            facts: [
+              {
+                statement: {
+                  en: "Water boils at 100 °C at sea level.",
+                  zh: "海平面上水在 100 °C 沸腾。",
+                },
+                value: "100",
+                unit: "°C",
+                url: "https://example.org/boiling-point",
+              },
+            ],
+            note: { en: "One reference figure.", zh: "一个参考数值。" },
+          },
+        },
+        sources: [
+          { url: "https://example.org/boiling-point", title: "Boiling point reference" },
+        ],
+      };
     if (name === "compose_lesson")
       return {
         toolCall: {
@@ -85,13 +111,22 @@ const server = createApp({
           arguments: JSON.stringify({
             status: "ready",
             message: { en: "Fixture draft ready.", zh: "示例草稿已就绪。" },
-            lesson: input.topic?.toLowerCase().includes("web")
-              ? processLesson()
-              : coolingLesson(),
+            lesson: {
+              ...(input.topic?.toLowerCase().includes("web")
+                ? processLesson()
+                : coolingLesson()),
+              currency: "stable",
+              // A grounded draft names the pages it relied on.
+              ...(input.references
+                ? { sources: input.references.facts.map((f) => f.url) }
+                : {}),
+            },
           }),
         },
       };
-    if (name === "judge_lesson")
+    if (name === "judge_lesson") {
+      // Grounded (web search on): a sixth score and one disputed figure with its page.
+      const grounded = Boolean(args.webSearch);
       return {
         structured: {
           name,
@@ -102,12 +137,32 @@ const server = createApp({
               transferClarity: 2,
               bilingualParity: 2,
               assumptions: 2,
+              ...(grounded ? { factualCurrency: 1 } : {}),
             },
             issues: [],
             summary: "Fixture judge: consistent and neutral.",
+            ...(grounded
+              ? {
+                  factualIssues: [
+                    {
+                      claim: "cooling coefficient 0.1 per minute",
+                      finding: "Fixture: a typical cup cools nearer 0.05 per minute.",
+                      url: "https://example.org/newton-cooling",
+                    },
+                  ],
+                }
+              : {}),
           },
         },
+        ...(grounded
+          ? {
+              sources: [
+                { url: "https://example.org/newton-cooling", title: "Newton cooling reference" },
+              ],
+            }
+          : {}),
       };
+    }
     if (name === "try_lesson")
       return {
         toolCall: {

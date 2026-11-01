@@ -6,6 +6,7 @@ import type {
   Lesson,
   Player,
   PlayerState,
+  References,
   ShowReply,
   TryoutReply,
 } from "./types";
@@ -33,6 +34,8 @@ export type StoredStudio = {
   pace: Pace;
   // The saved copy this draft came from or was saved to, so Save updates it in place.
   savedId: string | null;
+  // The fact sheet the draft was grounded on, if Search first was used.
+  references?: References | null;
 };
 // Blocklist of field names that must never reach storage, whatever a reply contains.
 const secretField = /session|code|token|secret|password|key$|authorization/i;
@@ -133,6 +136,13 @@ export function loadStudio(): StoredStudio | null {
       savedId: /^[a-f0-9]{16}$/.test(String(value.savedId ?? ""))
         ? (value.savedId as string)
         : null,
+      references:
+        value.references &&
+        typeof value.references === "object" &&
+        typeof (value.references as References).asOf === "string" &&
+        Array.isArray((value.references as References).facts)
+          ? (value.references as References)
+          : null,
     };
   } catch {
     return null;

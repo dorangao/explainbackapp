@@ -2,7 +2,11 @@ import { t } from "../lib/messages";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Language, Lesson, Show } from "../lib/types";
 import { say } from "../lib/types";
-import { chapterExperiment, formatDemoNumber as fmt } from "../lib/shared";
+import {
+  chapterExperiment,
+  formatDemoNumber as fmt,
+  shownUnit,
+} from "../lib/shared";
 import { ExperimentView } from "./ExperimentView";
 import { paceFactor } from "../lib/studio-cache";
 import type { Pace } from "../lib/studio-cache";
@@ -363,7 +367,7 @@ export function ShowPlayer({
                   <div key={m.label}>
                     <dt>{m.label}</dt>
                     <dd>
-                      {fmt(m.value)} {m.unit}
+                      {fmt(m.value)} {shownUnit(m.unit)}
                     </dd>
                   </div>
                 ))}

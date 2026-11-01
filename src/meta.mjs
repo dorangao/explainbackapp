@@ -39,6 +39,9 @@ export async function callMeta(options = {}) {
     // Ask for a short natural-language summary of the model's private reasoning ("auto",
     // "concise" or "detailed"). The summary is optional output and may be empty.
     reasoningSummary, timeoutMs = 30_000, fetchImpl = globalThis.fetch, onTrace,
+    // Search grounding: the model may search the web before answering (it decides whether
+    // to); the pages it saw come back as sources. {contextSize: "low" | "medium" | "high"}.
+    webSearch = false,
   } = options;
   const key = requireKey(apiKey);
   requireText(input);
@@ -46,6 +49,8 @@ export async function callMeta(options = {}) {
     throw new Error('images must be one to four base64 data URLs.');
   }
   if(structuredOutput&&(!Array.isArray(tools)||tools.length!==1||!tools[0].parameters))throw new Error('Structured output needs one named schema.');
+  const searchTool=webSearch?{type:'web_search',search_context_size:webSearch?.contextSize??'low'}:null;
+  if(searchTool&&!['low','medium','high'].includes(searchTool.search_context_size))throw new Error('webSearch.contextSize must be low, medium or high.');
 
   const signal = deadline(timeoutMs);
   const trace=event=>{try{onTrace?.(event);}catch{/* Diagnostics must not affect calls. */}};
@@ -60,7 +65,8 @@ export async function callMeta(options = {}) {
     ...(promptCacheKey?{prompt_cache_key:promptCacheKey,prompt_cache_retention:'24h'}:{}),
     ...(instructions?{instructions}:{}),
     ...(reasoningEffort||reasoningSummary?{reasoning:{...(reasoningEffort?{effort:reasoningEffort}:{}),...(reasoningSummary?{summary:reasoningSummary}:{})}}:{}),
-    ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}}}:tools?{tools,tool_choice:'auto',parallel_tool_calls:false}:{})};
+    ...(structuredOutput?{text:{format:{type:'json_schema',name:tools[0].name,schema:tools[0].parameters,strict:true}},...(searchTool?{tools:[searchTool]}:{})}:tools?{tools:searchTool?[...tools,searchTool]:tools,tool_choice:'auto',parallel_tool_calls:false}:searchTool?{tools:[searchTool]}:{}),
+    ...(searchTool?{include:['web_search_call.results']}:{})};
   if(structuredOutput)body.instructions=(instructions??'')+'\nTransport for this request: return the '+tools[0].name+' argument object directly as JSON matching the response schema. This is a structured response, not a tool invocation.';
   if(background && Buffer.byteLength(JSON.stringify(body))>1_048_576)throw new Error('Image is too large for a background request. Use a smaller image.');
   // Traces never carry image bytes; only the part type and size are recorded.
@@ -99,9 +105,9 @@ export async function callMeta(options = {}) {
     throw new Error(timedOut ? 'Meta request timed out.' : 'Could not reach Meta Model API. Check your network connection.');
   }
   trace({type:'response',status:response.status,body:{id:data?.id,status:data?.status,model:data?.model,usage:data?.usage,...(reasoningSummary?{reasoning:reasoningSummaryText(data)}:{}),
-    output:(Array.isArray(data?.output)?data.output:[]).flatMap(item=>item?.type==='function_call'?[{type:'function_call',name:item.name,arguments:item.arguments}]:item?.type==='message'&&item.role==='assistant'?[{type:'message',role:'assistant',content:(Array.isArray(item.content)?item.content:[]).filter(c=>c?.type==='output_text').map(c=>({type:'output_text',text:c.text}))}]:[])}});
+    output:(Array.isArray(data?.output)?data.output:[]).flatMap(item=>item?.type==='web_search_call'?[{type:'web_search_call',status:item.status,results:Array.isArray(item.results)?item.results.length:0}]:item?.type==='function_call'?[{type:'function_call',name:item.name,arguments:item.arguments}]:item?.type==='message'&&item.role==='assistant'?[{type:'message',role:'assistant',content:(Array.isArray(item.content)?item.content:[]).filter(c=>c?.type==='output_text').map(c=>({type:'output_text',text:c.text}))}]:[])}});
   if(background && ['queued','in_progress'].includes(data?.status) && /^resp_[A-Za-z0-9_-]+$/.test(data?.id??''))return {pendingId:data.id};
-  return readMetaResponse(data,{tools,structuredOutput,reasoningSummary:Boolean(reasoningSummary)});
+  return readMetaResponse(data,{tools,structuredOutput,reasoningSummary:Boolean(reasoningSummary),webSearch:Boolean(searchTool)});
 }
 
 // The model's own one-line account of its reasoning, when the request asked for one and the
@@ -121,10 +127,35 @@ const assistantText = items => items
   .flatMap(item => (Array.isArray(item.content) ? item.content : []))
   .flatMap(part => (part?.type === 'output_text' && typeof part.text === 'string' ? [part.text] : []))
   .join('\n').trim();
-function readMetaResponse(data, { tools, structuredOutput = false, reasoningSummary = false } = {}) {
+const lastAssistantText = items => {
+  const texts = items
+    .filter(item => item?.role === 'assistant' && item.type === 'message')
+    .map(item => (Array.isArray(item.content) ? item.content : []).flatMap(part => (part?.type === 'output_text' && typeof part.text === 'string' ? [part.text] : [])).join('\n').trim())
+    .filter(Boolean);
+  return texts.at(-1) ?? '';
+};
+// The pages the model's searches returned, as the reply reports them: https URLs only,
+// bounded title and snippet, deduplicated, at most twenty. Nothing is fetched here.
+export function harvestSources(data) {
+  const out = new Map();
+  for (const item of outputItems(data)) {
+    if (item?.type !== 'web_search_call' || !Array.isArray(item.results)) continue;
+    for (const r of item.results) {
+      if (typeof r?.url !== 'string' || r.url.length > 300 || out.has(r.url)) continue;
+      let url; try { url = new URL(r.url); } catch { continue; }
+      if (url.protocol !== 'https:' || url.username || url.password) continue;
+      const title = typeof r.title === 'string' && r.title.trim() ? r.title.trim().slice(0, 200) : url.hostname;
+      const snippet = typeof r.snippet === 'string' ? r.snippet.trim().slice(0, 300) : '';
+      out.set(r.url, { url: r.url, title, ...(snippet ? { snippet } : {}) });
+      if (out.size >= 20) return [...out.values()];
+    }
+  }
+  return [...out.values()];
+}
+function readMetaResponse(data, { tools, structuredOutput = false, reasoningSummary = false, webSearch = false } = {}) {
   const status = typeof data?.status === 'string' ? data.status : 'unknown';
   if (status !== 'completed') throw new Error(`Meta response status was "${status}", not completed; no success was recorded.`);
-  const base = { id: data.id, model: data.model, usage: data.usage, reasoning: reasoningSummary ? reasoningSummaryText(data) : undefined };
+  const base = { id: data.id, model: data.model, usage: data.usage, reasoning: reasoningSummary ? reasoningSummaryText(data) : undefined, ...(webSearch ? { sources: harvestSources(data) } : {}) };
   if (tools && !structuredOutput) {
     const calls = outputItems(data).filter(item => item?.type === 'function_call');
     const [call] = calls;
@@ -132,7 +163,9 @@ function readMetaResponse(data, { tools, structuredOutput = false, reasoningSumm
     if (!allowed) throw new Error('Meta must return exactly one allowed learning action.');
     return { ...base, text: '', toolCall: { name: call.name, arguments: call.arguments } };
   }
-  const text = assistantText(outputItems(data));
+  // With search on, the model may send interim messages ("I'll look that up") before the
+  // JSON; the structured reply is the last assistant message.
+  const text = structuredOutput && webSearch ? lastAssistantText(outputItems(data)) : assistantText(outputItems(data));
   if (text === '') throw new Error('Meta response contained no assistant text.');
   if (structuredOutput) {
     let value;

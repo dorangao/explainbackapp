@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { useEffect, useReducer } from "react";
 
@@ -113,8 +114,55 @@ describe("phone menu", () => {
       screen.getByRole("heading", { level: 1, name: "About ExplainBack" }),
     ).toBeTruthy();
   });
+  it("Sign in from the menu folds it, scrolls the access panel into view and focuses the code field", async () => {
+    const scrolled = vi.fn();
+    Element.prototype.scrollIntoView = scrolled;
+    render(<App />);
+    const header = document.querySelector(".site-header");
+    fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+    expect(header?.getAttribute("data-menu")).toBe("open");
+    fireEvent.click(
+      within(document.querySelector(".site-menu") as HTMLElement).getByRole(
+        "button",
+        { name: "Sign in" },
+      ),
+    );
+    expect(header?.getAttribute("data-menu")).toBe("closed");
+    const panel = document.querySelector(".access-panel");
+    expect(panel).toBeTruthy();
+    await waitFor(() => expect(scrolled).toHaveBeenCalledTimes(1));
+    expect(scrolled.mock.instances[0]).toBe(panel?.parentElement);
+    expect(document.activeElement?.id).toBe("reviewer-code");
+  });
 });
 
+describe("back to top", () => {
+  it("appears after a long scroll, scrolls the page up and hands focus to the content", async () => {
+    render(<App />);
+    expect(screen.queryByRole("button", { name: "Back to top" })).toBeNull();
+    Object.defineProperty(window, "innerHeight", {
+      value: 800,
+      configurable: true,
+    });
+    Object.defineProperty(window, "scrollY", {
+      value: 2000,
+      configurable: true,
+    });
+    const scrollTo = vi.fn();
+    window.scrollTo = scrollTo as unknown as typeof window.scrollTo;
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Back to top" }));
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }));
+    expect(document.activeElement?.id).toBe("main-content");
+    Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    await act(async () => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    expect(screen.queryByRole("button", { name: "Back to top" })).toBeNull();
+  });
+});
 describe("the tour's play link", () => {
   it("opens the gallery show already playing when the hash ends in /play", async () => {
     location.hash = "#show:explainback/play";

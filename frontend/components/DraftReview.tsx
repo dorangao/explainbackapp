@@ -1,8 +1,15 @@
 import { useState, useId } from "react";
 import { t } from "../lib/messages";
-import type { Lesson, Language, Demo, TryoutReply } from "../lib/types";
+import type {
+  Lesson,
+  Language,
+  Demo,
+  References,
+  TryoutReply,
+} from "../lib/types";
 import type { RequestMetrics } from "../hooks/useProviderSession";
 import { RequestSummary } from "./RequestSummary";
+import { CurrencyNote } from "./CurrencyNote";
 import { CacheNote, actionLabel } from "./CacheNote";
 import type { CacheState } from "./CacheNote";
 import { say } from "../lib/types";
@@ -10,6 +17,7 @@ import {
   validateLesson,
   lessonLanguageWarnings,
   chapterExperiment,
+  shownUnit,
 } from "../lib/shared";
 function Definition({
   demo,
@@ -36,13 +44,14 @@ function Definition({
         <>
           <p className="fine">
             {demo.axis.label[language]}: {demo.axis.min} → {demo.axis.max}{" "}
-            {demo.axis.unit}
+            {shownUnit(demo.axis.unit)}
           </p>
           <div className="formula-list">
             {demo.outputs.map((o) => (
               <div key={o.id}>
                 <span>
-                  {o.label[language]} · {o.unit}
+                  {o.label[language]}
+                  {shownUnit(o.unit) && ` · ${o.unit}`}
                 </span>
                 <code>{o.expression}</code>
               </div>
@@ -53,7 +62,7 @@ function Definition({
               <div key={i.id}>
                 <dt>{i.label[language]}</dt>
                 <dd>
-                  {i.min}–{i.max} {i.unit} ·{" "}
+                  {i.min}–{i.max} {shownUnit(i.unit)} ·{" "}
                   {t(language, "DraftReview.startsAt")} {i.value}
                 </dd>
               </div>
@@ -216,10 +225,76 @@ function TryoutReport({
     </div>
   );
 }
+const host = (url: string) => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return url;
+  }
+};
+// The pages a grounded draft rests on: the sheet's figures with their sources, and the
+// sources the lesson itself names. Shown in the review and kept with the saved lesson.
+export function SourcesPanel({
+  language,
+  references,
+  sources,
+}: {
+  language: Language;
+  references: References | null;
+  sources: Lesson["sources"];
+}) {
+  if (!references && !sources?.length) return null;
+  return (
+    <details className="references" open>
+      <summary>
+        {t(language, "DraftReview.sources")}
+        {references &&
+          ` · ${t(language, "DraftReview.gatheredOn")} ${references.asOf}`}
+      </summary>
+      {references && (
+        <ol className="reference-list">
+          {references.facts.map((f) => (
+            <li key={f.url + f.value}>
+              <span>{f.statement[language]}</span>{" "}
+              <strong>
+                {f.value} {shownUnit(f.unit)}
+              </strong>{" "}
+              <a href={f.url} target="_blank" rel="noopener noreferrer">
+                {f.title ?? host(f.url)}
+              </a>
+              {f.verified === false && (
+                <span className="fine">
+                  {" "}
+                  · {t(language, "DraftReview.notInTheSearchResults")}
+                </span>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+      {sources && sources.length > 0 && (
+        <p className="fine lesson-sources">
+          {t(language, "DraftReview.theLessonNames")}{" "}
+          {sources.map((s, i) => (
+            <span key={s.url}>
+              {i > 0 && " · "}
+              <a href={s.url} target="_blank" rel="noopener noreferrer">
+                {s.title}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+      <p className="fine">{t(language, "DraftReview.sourcesNote")}</p>
+    </details>
+  );
+}
 export function DraftReview({
   draft,
+  references = null,
   language,
   busy,
+  activeMode = null,
   reviewed,
   setReviewed,
   onChange,
@@ -244,8 +319,11 @@ export function DraftReview({
   saving,
 }: {
   draft: Lesson;
+  references?: References | null;
   language: Language;
   busy: boolean;
+  // The request in flight: a button says "Muse is working" only for its own.
+  activeMode?: RequestMetrics["mode"] | null;
   reviewed: boolean;
   setReviewed: (v: boolean) => void;
   onChange: (v: Lesson) => void;
@@ -340,6 +418,12 @@ export function DraftReview({
         </div>
       )}
       <p className="fine">{t(language, "DraftReview.thisDraftIsRemembered")}</p>
+      <CurrencyNote language={language} currency={draft.currency} />
+      <SourcesPanel
+        language={language}
+        references={references}
+        sources={draft.sources}
+      />
       <p className="review-notice">
         {t(language, "DraftReview.checkTheTeachingTextFormulas")}
       </p>
@@ -500,7 +584,7 @@ export function DraftReview({
             disabled={busy || hasPending}
             onClick={onTryout}
           >
-            {busy
+            {activeMode === "tryout"
               ? t(language, "DraftReview.museIsWorking")
               : actionLabel(
                   language,
@@ -532,7 +616,7 @@ export function DraftReview({
               disabled={busy || hasPending}
               onClick={onMakeShow}
             >
-              {busy
+              {activeMode === "show"
                 ? t(language, "DraftReview.museIsWorking")
                 : actionLabel(
                     language,

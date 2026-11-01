@@ -3,7 +3,7 @@
 // the conversion then happens at the edge, on labels, readouts, the plotted values, and the
 // transfer answer the learner types, which is converted back before the code checks it.
 import type { Experiment } from "./types";
-import { formatDemoNumber as fmt } from "./shared";
+import { formatDemoNumber as fmt, shownUnit, withUnit } from "./shared";
 
 export type UnitSystem = "metric" | "us";
 export const UNIT_SYSTEMS: readonly UnitSystem[] = ["metric", "us"];
@@ -122,28 +122,36 @@ export function presentExperiment(
   }));
   const axisUnit = e.axisUnit ?? "";
   const axis =
-    e.axisLabel !== undefined ? `${e.axisLabel} (${label(axisUnit)})` : e.axis;
+    e.axisLabel !== undefined
+      ? shownUnit(label(axisUnit))
+        ? `${e.axisLabel} (${label(axisUnit)})`
+        : e.axisLabel
+      : e.axis;
   const caption =
     e.axisLabel !== undefined && e.xAt && e.outputLabel !== undefined
       ? (u: number) => {
           const x = e.xAt!(u);
           const y = e.sample(u)[0];
-          return `${e.axisLabel} = ${fmt(show(x, axisUnit))} ${label(axisUnit)} · ${e.outputLabel} = ${fmt(show(y, e.unit))} ${label(e.unit)}`;
+          return `${withUnit(`${e.axisLabel} = ${fmt(show(x, axisUnit))}`, label(axisUnit))} · ${withUnit(`${e.outputLabel} = ${fmt(show(y, e.unit))}`, label(e.unit))}`;
         }
       : e.caption;
   const result =
     e.resultPrefix !== undefined
       ? e.resultPrefix +
-        metrics.map((m) => `${m.label} = ${fmt(m.value)} ${m.unit}`).join(" · ")
+        metrics
+          .map((m) => withUnit(`${m.label} = ${fmt(m.value)}`, m.unit))
+          .join(" · ")
       : e.result;
   const transferInputs = e.transferInputs
-    ?.map((p) => `${p.label} = ${fmt(show(p.value, p.unit))} ${label(p.unit)}`)
+    ?.map((p) =>
+      withUnit(`${p.label} = ${fmt(show(p.value, p.unit))}`, label(p.unit)),
+    )
     .join(" · ");
   const question =
     e.transferQuestion !== undefined &&
     transferInputs !== undefined &&
     e.transferAt !== undefined
-      ? `${e.transferQuestion}\n${transferInputs}\n${e.axisLabel} = ${fmt(show(e.transferAt, axisUnit))} ${label(axisUnit)} → ${e.transferOutputLabel ?? ""}`
+      ? `${e.transferQuestion}\n${transferInputs}\n${withUnit(`${e.axisLabel} = ${fmt(show(e.transferAt, axisUnit))}`, label(axisUnit))} → ${e.transferOutputLabel ?? ""}`
       : e.transfer.question;
   const experiment: Experiment = {
     ...e,

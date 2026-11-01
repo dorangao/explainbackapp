@@ -7,6 +7,7 @@ import {
   evaluationLesson,
   evaluationModelLabel,
   evaluationNote,
+  shownUnit,
 } from "../lib/shared";
 import type {
   Bilingual,
@@ -18,6 +19,7 @@ import type {
 } from "../lib/types";
 import { EVALUATION_CARD_HASH, RUBRIC_ITEMS } from "../lib/evaluation";
 import type { RubricItem } from "../lib/evaluation";
+import type { FactualIssue } from "../lib/types";
 import { kindLabel } from "./Library";
 import { PageHeader } from "./PageHeader";
 
@@ -29,6 +31,8 @@ const rubricKey: Record<RubricItem, MessageKey> = {
   assumptions: "Compare.assumptions",
 };
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+// The grounded judge adds one item; it is shown only when the judge scored it.
+const currencyKey = "factualCurrency";
 
 // What one column needs, whether the reply comes from the frozen showcase or from a live
 // request in Studio: the model, the lesson (none when declined, rejected or failed), the
@@ -42,7 +46,12 @@ export type CompareColumnItem = {
   kind: "model" | "process" | null;
   message?: Bilingual;
   reason?: string;
-  judge: EvaluationItem["judge"] | null;
+  judge:
+    | (EvaluationItem["judge"] & {
+        factualIssues?: FactualIssue[];
+        pagesRead?: number;
+      })
+    | null;
   judgeSkipped?: string;
   latencyMs: number;
   tokens: { input: number | null; output: number | null } | null;
@@ -171,7 +180,7 @@ export function ModelColumn({
                       {input.label[language]}
                       <span className="fine">
                         {" "}
-                        {input.min}–{input.max} {input.unit}
+                        {input.min}–{input.max} {shownUnit(input.unit)}
                       </span>
                     </li>
                   ))}
@@ -181,7 +190,7 @@ export function ModelColumn({
                   {demo.outputs.map((output) => (
                     <li key={output.id}>
                       {output.label[language]}
-                      {output.unit && output.unit !== "1" && (
+                      {shownUnit(output.unit) && (
                         <span className="fine"> ({output.unit})</span>
                       )}
                       <code className="compare-expression">
@@ -192,7 +201,7 @@ export function ModelColumn({
                 </ul>
                 <p className="fine">
                   {t(language, "Compare.axis")}: {demo.axis.label[language]}{" "}
-                  {demo.axis.min}–{demo.axis.max} {demo.axis.unit}
+                  {demo.axis.min}–{demo.axis.max} {shownUnit(demo.axis.unit)}
                 </p>
               </>
             ) : (
@@ -217,9 +226,18 @@ export function ModelColumn({
               {t(language, "Compare.wordingRubric")} · {judge.total}/{judge.max}
             </h4>
             <dl className="compare-scores">
-              {RUBRIC_ITEMS.map((key) => (
+              {[
+                ...RUBRIC_ITEMS,
+                ...(judge.scores[currencyKey] !== undefined
+                  ? [currencyKey]
+                  : []),
+              ].map((key) => (
                 <div key={key}>
-                  <dt>{t(language, rubricKey[key])}</dt>
+                  <dt>
+                    {key === currencyKey
+                      ? t(language, "Compare.factualCurrency")
+                      : t(language, rubricKey[key as RubricItem])}
+                  </dt>
                   <dd aria-label={`${judge.scores[key] ?? 0} / 2`}>
                     <span
                       className={`score-dots score-${judge.scores[key] ?? 0}`}
@@ -230,6 +248,39 @@ export function ModelColumn({
                 </div>
               ))}
             </dl>
+            {judge.factualIssues && (
+              <>
+                <h5>{t(language, "Compare.figuresTheJudgeDisputed")}</h5>
+                {judge.factualIssues.length > 0 ? (
+                  <ul className="compare-issues compare-figures">
+                    {judge.factualIssues.map((issue, index) => (
+                      <li key={index}>
+                        <q>{issue.claim}</q> {issue.finding}
+                        {issue.url && (
+                          <>
+                            {" "}
+                            <a
+                              href={issue.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              {t(language, "Compare.source")}
+                            </a>
+                            {!issue.verified &&
+                              ` (${t(language, "Compare.notInTheSearchResults")})`}
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="fine">
+                    {t(language, "Compare.noFiguresDisputed")}
+                  </p>
+                )}
+                <p className="fine">{t(language, "Compare.groundedNote")}</p>
+              </>
+            )}
             {judge.issues.length > 0 ? (
               <>
                 <h5>{t(language, "Compare.issuesTheJudgeRaised")}</h5>

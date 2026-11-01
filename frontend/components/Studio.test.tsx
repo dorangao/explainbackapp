@@ -1158,6 +1158,108 @@ describe("Judge path", () => {
   });
 });
 
+describe("Search first", () => {
+  const page = "https://example.org/boiling-point";
+  const fact = {
+    statement: {
+      en: "Water boils at 100 °C at sea level.",
+      zh: "海平面上水在 100 °C 沸腾。",
+    },
+    value: "100",
+    unit: "°C",
+    url: page,
+    title: "Boiling point reference",
+  };
+  it("gathers a sourced fact sheet before the draft, hands it to the author without the verified flag, and shows the sources", async () => {
+    const posted: { path: string; body: unknown }[] = [];
+    const post: Post = async (path, body) => {
+      posted.push({ path, body });
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/ground")
+        return {
+          status: "ready",
+          asOf: "2026-10-31",
+          needsCurrent: false,
+          facts: [{ ...fact, verified: true }],
+          sources: [{ url: page, title: fact.title }],
+          note: { en: "One reference figure.", zh: "一个参考数值。" },
+          searched: 3,
+          attemptsRemaining: 7,
+          model: "test",
+          elapsedMs: 900,
+          usage: null,
+        } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: {
+            ...coolingLesson(),
+            sources: [{ url: page, title: fact.title }],
+          },
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 6,
+          model: "test",
+          elapsedMs: 1200,
+          usage: { input: 10, output: 20 },
+        } as never;
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Boiling water" },
+    });
+    fireEvent.click(screen.getByRole("checkbox", { name: /Search first/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(posted.map((p) => p.path)).toEqual([
+      "/api/studio/session",
+      "/api/studio/ground",
+      "/api/studio/compose",
+    ]);
+    expect(posted[1].body).toEqual({ sessionId: "s1", topic: "Boiling water" });
+    expect((posted[2].body as { references: unknown }).references).toEqual({
+      asOf: "2026-10-31",
+      facts: [fact],
+    });
+    expect(
+      screen.getByText(/Grounded on one sourced figure as of 2026-10-31/),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(/gathered by a web search on 2026-10-31/),
+    ).toBeTruthy();
+    expect(screen.getByText(/Water boils at 100 °C/)).toBeTruthy();
+    // The fact's page and the lesson's own source list both link to it.
+    expect(
+      screen.getAllByRole("link", { name: "Boiling point reference" }),
+    ).toHaveLength(2);
+  });
+  it("stays off by default, so a draft makes no ground request", async () => {
+    const posted: string[] = [];
+    const post: Post = async (path) => {
+      posted.push(path);
+      if (path === "/api/studio/session")
+        return { sessionId: "s1", attemptsRemaining: 8 } as never;
+      if (path === "/api/studio/compose")
+        return {
+          status: "ready",
+          lesson: coolingLesson(),
+          message: { en: "Ready", zh: "已就绪" },
+          attemptsRemaining: 7,
+        } as never;
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    fireEvent.change(screen.getByLabelText(/What would you like to explore/), {
+      target: { value: "Boiling water" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create a lesson/ }));
+    expect(await screen.findByText(/Draft ready/)).toBeTruthy();
+    expect(posted).toEqual(["/api/studio/session", "/api/studio/compose"]);
+    expect(screen.queryByText(/Sources/)).toBeNull();
+  });
+});
+
 describe("Reopening a saved lesson", () => {
   it("restores the learner tryout and an explain-back grade without any provider request", async () => {
     const lesson = coolingLesson();
@@ -1218,7 +1320,7 @@ describe("Reopening a saved lesson", () => {
       return { records: [] } as never;
     };
     mount({ authenticated: true, status, view: "create" }, post);
-    fireEvent.click(await screen.findByRole("button", { name: "Open" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
     await screen.findByText(/Short and clear\./);
     expect(document.querySelector(".tryout-report")?.textContent).toMatch(
       /4\/5/,
@@ -1367,6 +1469,43 @@ describe("Sketch provenance notes", () => {
     ).toBeTruthy();
     expect(document.querySelector(".spotlight img")).toBeTruthy();
   });
+  it("says when the creator reviewed a shared lesson, on its page", async () => {
+    const lesson = coolingLesson() as unknown as Lesson;
+    mount({
+      lessonId: "0123456789abcdef",
+      external: {
+        id: "0123456789abcdef",
+        title: lesson.title,
+        intro: lesson.intro,
+        kind: "model",
+        hasShow: false,
+        hasTryout: false,
+        graded: 0,
+        model: "muse-wonder-1.0",
+        cover: null,
+        sketch: null,
+        shared: true,
+        reviewedAt: Date.UTC(2026, 9, 30, 12),
+        createdAt: 1,
+        updatedAt: 2,
+        lesson,
+        show: null,
+        coverModel: null,
+        illustrations: {},
+        tryout: null,
+        grades: {},
+      },
+    });
+    const notice = await screen.findByRole("note");
+    expect(notice.textContent).toMatch(
+      /reviewed its definition and assumptions on Oct 30, 2026, and shared it by link/,
+    );
+    expect(
+      screen.queryByText(
+        /An invited creator made this in Lesson Studio and shared it by link\./,
+      ),
+    ).toBeNull();
+  });
   it("does not describe a shared lesson's sketch as the gallery's pendulum", async () => {
     const lesson = coolingLesson() as unknown as Lesson;
     mount({
@@ -1393,8 +1532,19 @@ describe("Sketch provenance notes", () => {
         grades: {},
       },
     });
-    expect(await screen.findByText(/Shared by its creator/)).toBeTruthy();
+    expect(
+      (await screen.findAllByText(/An invited creator made this/)).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/October 28, 2026/)).toBeNull();
+    // The report link is prefilled with the lesson's link.
+    const report = screen.getAllByRole("link", { name: "Report this lesson" });
+    expect(report.length).toBeGreaterThan(0);
+    const href = report[0].getAttribute("href") ?? "";
+    expect(
+      href.startsWith("https://github.com/dorangao/explainbackapp/issues/new?"),
+    ).toBe(true);
+    expect(decodeURIComponent(href)).toContain("#shared:0123456789abcdef");
+    expect(report[0].getAttribute("rel")).toBe("noopener noreferrer");
     expect(
       (document.querySelector(".spotlight img") as HTMLImageElement | null)
         ?.src,

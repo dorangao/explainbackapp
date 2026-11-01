@@ -26,8 +26,9 @@ import { Brand } from "./components/Brand";
 import { Appearance } from "./components/Appearance";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
+import { BackToTop } from "./components/BackToTop";
 import { useInstallPrompt } from "./lib/install";
-import { readShared, sharedIdFromHash } from "./lib/library";
+import { editIdFromHash, readShared, sharedIdFromHash } from "./lib/library";
 import type { SavedLesson } from "./lib/library";
 const Labs = lazy(() =>
   import("./components/labs/Labs").then((module) => ({
@@ -51,7 +52,9 @@ function readRoute() {
     showAutoplay: play && showIdFromHash(showHash) !== null,
     area: (["#physics", "#quantum", "#create"].includes(hash)
       ? hash.slice(1)
-      : "studio") as Area,
+      : editIdFromHash(hash)
+        ? "create"
+        : "studio") as Area,
     lessonId: galleryIdFromHash(hash) as string | null,
     showId: showIdFromHash(showHash) as string | null,
     sharedId: sharedIdFromHash(hash),
@@ -180,9 +183,17 @@ export function App() {
       firstAuth.current = false;
     }
   }, [auth.info.authenticated]);
+  // Sign in: show the access panel (it sits at the end of the page), fold the phone menu,
+  // then bring the panel into view and focus the code field. Phones do not scroll to a
+  // field focused after the tap, so the scroll is explicit and the focus skips its own.
   const openAccess = useCallback(() => {
     setShowAccess(true);
-    setTimeout(() => accessRef.current?.querySelector("input")?.focus(), 0);
+    setMenuOpen(false);
+    setTimeout(() => {
+      const panel = accessRef.current;
+      panel?.scrollIntoView?.({ block: "start" });
+      panel?.querySelector("input")?.focus({ preventScroll: true });
+    }, 0);
   }, []);
   const login = async (body: unknown) => {
     const ok = await auth.login(body);
@@ -414,6 +425,7 @@ export function App() {
             (area === "studio" || area === "create")
           }
           view={area === "create" ? "create" : "studio"}
+          editId={area === "create" ? editIdFromHash(location.hash) : null}
           lessonId={null}
           starter={starter}
           onBusy={noop}
@@ -581,6 +593,7 @@ export function App() {
           </p>
         )}
       </main>
+      <BackToTop language={language} target={main} />
       <footer className="site-footer">
         <div className="footer-brand">
           <Brand compact />

@@ -1,15 +1,21 @@
 import {RequestError} from './request-error.mjs';
+import {publicCover} from './lesson-covers.mjs';
 import {buildSavedLesson,attachImages,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
 import {recordImageUrls} from './blob.mjs';
 // Saved and shared lessons. The server registers the public shared routes before its
 // sign-in gate and the creator routes after it; both share its reply and tracking helpers.
-export function registerSharedRoutes(app,{state,reply,tracked}){
+export function registerSharedRoutes(app,{state,reply,tracked,ownerOf}){
+  // The signed-in creator's own entries carry mine:true; the owner itself is never sent.
+  const mine=(res,record)=>Boolean(res.locals.tester&&ownerOf&&record.owner===ownerOf(res.locals.tester));
+  const withMine=(res,record,shape)=>({...shape,...(mine(res,record)?{mine:true}:{})});
+  // Creator-drawn library covers for reviewed lessons, public like the gallery; never who drew them.
+  app.get('/api/covers', tracked(async (req,res) => reply(res,200,{covers:Object.fromEntries(Object.entries(await state.getCovers()).map(([id,c])=>[id,publicCover(c)]))})));
   // Shared lessons open without signing in, like the gallery. Ids are unguessable.
-  app.get('/api/shared', tracked(async (req,res) => reply(res,200,{lessons:(await state.listSharedLessons(MAX_SHARED_LISTED)).map(lessonSummary)})));
+  app.get('/api/shared', tracked(async (req,res) => reply(res,200,{lessons:(await state.listSharedLessons(MAX_SHARED_LISTED)).map(r=>withMine(res,r,lessonSummary(r)))})));
   app.get('/api/shared/:id', tracked(async (req,res) => {
     const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
     if(!record||record.shared!==true)return reply(res,404,{error:'This shared lesson is not available.'});
-    reply(res,200,publicLesson(record));
+    reply(res,200,withMine(res,record,publicLesson(record)));
   }));
 }
 export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,reply,tracked,requireOrigin,parseBody}){

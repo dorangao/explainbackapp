@@ -11,6 +11,10 @@ import {
 } from "react";
 import type {
   ComposeReply,
+  CoverReply,
+  GroundReply,
+  JudgeReply,
+  References,
   CompareDraft,
   CompareReply,
   Feedback,
@@ -61,7 +65,6 @@ import {
 import { judgeBlocker, judgeStepStates } from "../lib/judge-path";
 import { JudgePath } from "./JudgePath";
 import { PageHeader } from "./PageHeader";
-import { StudioStepper } from "./StudioStepper";
 import type { JudgeStep, JudgeStepId } from "./JudgePath";
 import type {
   SavedGrade,
@@ -72,10 +75,14 @@ import type {
 import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
+import { CoverTool } from "./CoverTool";
+import { OwnerActions } from "./OwnerActions";
+import { FigureCheck } from "./FigureCheck";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
-import { EVALUATION_CARD_HASH } from "../lib/evaluation";
+import { EVALUATION_CARD_HASH, reportLessonUrl } from "../lib/evaluation";
+import { sharedProvenanceText } from "../lib/shared-note";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -105,6 +112,7 @@ export function Studio({
   onRequestSettled,
   onRequestAccess,
   external = null,
+  editId = null,
 }: {
   language: Language;
   authenticated: boolean;
@@ -120,10 +128,18 @@ export function Studio({
   onRequestAccess: () => void;
   // A shared lesson opened by link (`#shared:ID`): reviewed content from another creator.
   external?: SavedLesson | null;
+  // "#edit:<id>": one of the creator's own saved lessons to open for editing.
+  editId?: string | null;
 }) {
   const formId = useId();
   const [topic, setTopic] = useState(""),
     [creation, setCreation] = useState("generated"),
+    // Search first: Spark gathers sourced figures before the draft (one extra request);
+    // the sheet travels with revisions and is remembered with the draft.
+    [searchFirst, setSearchFirst] = useState(false),
+    // Compare: let the rubric judge search the web and score factual currency (judge v2).
+    [groundedJudge, setGroundedJudge] = useState(false),
+    [references, setReferences] = useState<References | null>(null),
     [modelId, setModelId] = useState(""),
     [draft, setDraft] = useState<Lesson | null>(null),
     [revisionKey, setRevisionKey] = useState(0),
@@ -172,6 +188,7 @@ export function Studio({
   });
   const {
     busy,
+    activeMode,
     busyRef,
     remaining,
     sessionId,
@@ -241,6 +258,7 @@ export function Studio({
     setSource(null);
     setFeedback(null);
     setRevision(null);
+    setReferences(null);
     setTryout(null);
     setShow(null);
     setGuide({});
@@ -276,6 +294,7 @@ export function Studio({
     setExplanations(saved.explanations);
     setPace(saved.pace);
     setSavedId(saved.savedId);
+    setReferences(saved.references ?? null);
     setRevisionKey((k) => k + 1);
     if (saved.presenting) {
       setPlayer(restorePlayer(saved.draft, saved.player));
@@ -304,6 +323,7 @@ export function Studio({
           presenting,
           pace,
           savedId,
+          references,
         }),
       250,
     );
@@ -326,6 +346,7 @@ export function Studio({
     pace,
     playerTick,
     savedId,
+    references,
   ]);
   // The share controls need the saved copy's summary; a restored draft fetches it once.
   useEffect(() => {
@@ -450,6 +471,53 @@ export function Studio({
       setMessage(t(language, "Studio.chooseAMetaModelFor"));
       return false;
     }
+    // The sheet a new grounded draft is written from, or the one a revision keeps.
+    let sheet: References | null =
+      mode === "compose" && revisionText ? references : null;
+    if (
+      mode === "compose" &&
+      !revisionText &&
+      searchFirst &&
+      creation === "generated" &&
+      asked
+    ) {
+      const grounded = await run<GroundReply>(
+        tester ?? target,
+        "ground",
+        (id, options) =>
+          post<GroundReply>(
+            "/api/studio/ground",
+            { sessionId: id, topic: asked },
+            options,
+          ),
+      );
+      if (!grounded.ok) {
+        if (!grounded.stale) setMessage(failureMessage(grounded.error));
+        return false;
+      }
+      sheet =
+        grounded.reply.status === "ready" && grounded.reply.facts.length > 0
+          ? { asOf: grounded.reply.asOf, facts: grounded.reply.facts }
+          : null;
+      if (!sheet) setMessage(grounded.reply.note[language]);
+    }
+    const forAuthor = (value: References | null) =>
+      value && creation === "generated"
+        ? {
+            references: {
+              asOf: value.asOf,
+              facts: value.facts.map(
+                ({ statement, value: v, unit, url, title }) => ({
+                  statement,
+                  value: v,
+                  unit,
+                  url,
+                  title,
+                }),
+              ),
+            },
+          }
+        : {};
     let body: Record<string, unknown>;
     try {
       body =
@@ -461,6 +529,7 @@ export function Studio({
                   ? ""
                   : (draft?.title[language] ?? "")),
               creation,
+              ...forAuthor(sheet),
               ...(!revisionText && attached ? { image: attached.dataUrl } : {}),
               ...(revisionText
                 ? {
@@ -601,6 +670,7 @@ export function Studio({
             }),
           });
         else setComposeStamp({ at: Date.now(), key: requestKey });
+        if (!before) setReferences(sheet);
         setMessage(
           say(
             language,
@@ -611,6 +681,16 @@ export function Studio({
               ? "修改已就绪。先查看改动，再审阅后演示。"
               : "草稿已就绪，演示前请审阅模型与假设。",
           ) +
+            (!before && sheet
+              ? ` ${t(
+                  language,
+                  sheet.facts.length === 1
+                    ? "Studio.groundedOnOne"
+                    : "Studio.groundedOn",
+                )
+                  .replace("{n}", String(sheet.facts.length))
+                  .replace("{date}", sheet.asOf)}`
+              : "") +
             (composed.message?.[language]
               ? `\n${composed.message[language]}`
               : ""),
@@ -661,7 +741,12 @@ export function Studio({
       (id, options) =>
         post<CompareReply>(
           "/api/studio/compare",
-          { sessionId: id, topic: asked, judge: judge?.id },
+          {
+            sessionId: id,
+            topic: asked,
+            judge: judge?.id,
+            ...(groundedJudge ? { grounded: true } : {}),
+          },
           { ...options, timeoutMs: options.timeoutMs + 60_000 },
         ),
     );
@@ -693,6 +778,76 @@ export function Studio({
         `来自 ${chosen.model} 的草稿已就绪，演示前请审阅模型与假设。`,
       ),
     );
+  }
+  // A library cover drawn by Muse Image, one image request: for the open reviewed lesson,
+  // or for the creator's own saved lesson (whose card then shows it).
+  async function drawCover(
+    which: { lessonId: string } | { savedId: string },
+  ): Promise<CoverReply | null> {
+    if (
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      remaining === 0
+    )
+      return null;
+    const result = await run<CoverReply>(target, "cover", (id, options) =>
+      post<CoverReply>(
+        "/api/studio/cover",
+        { sessionId: id, ...which },
+        { ...options, timeoutMs: options.timeoutMs + 60_000 },
+      ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return null;
+    }
+    if ("savedId" in which) {
+      const { cover, model } = result.reply;
+      setSavedItem((item) =>
+        item ? { ...item, cover, coverModel: model } : item,
+      );
+      setShelfRefresh((n) => n + 1);
+    }
+    return result.reply;
+  }
+  // Check figures against the web: the grounded rubric judge on the open lesson, one
+  // request on the test-learner model. Read-only; the lesson is unchanged.
+  async function checkFigures(): Promise<JudgeReply | null> {
+    if (
+      !player ||
+      busyRef.current ||
+      !authenticated ||
+      !target?.configured ||
+      remaining === 0
+    )
+      return null;
+    let lesson: Lesson;
+    try {
+      lesson = validateLesson(player.lesson);
+    } catch {
+      return null;
+    }
+    const result = await run<JudgeReply>(
+      tester ?? target,
+      "judge",
+      (id, options) =>
+        post<JudgeReply>(
+          "/api/studio/judge",
+          {
+            sessionId: id,
+            lesson,
+            topic: lesson.title[language],
+            language,
+          },
+          { ...options, timeoutMs: options.timeoutMs + 60_000 },
+        ),
+    );
+    if (!result.ok) {
+      if (!result.stale) setMessage(failureMessage(result.error));
+      return null;
+    }
+    return result.reply;
   }
   // The test learner (tester role) tries the validated draft; its answers are checked by code.
   async function tryLesson() {
@@ -1058,6 +1213,7 @@ export function Studio({
         coverModel: current?.coverModel ?? null,
         illustrations: current?.illustrations ?? null,
         sketch: source === "studio-sketch" ? sourceImage : null,
+        reviewed,
         tryout:
           tryout && tryout.key === tryoutKey
             ? {
@@ -1122,6 +1278,7 @@ export function Studio({
   function openSaved(record: SavedLesson) {
     const { lesson: body, show: script, ...summary } = record;
     const lesson = loadLesson(body);
+    setReviewed(Boolean(summary.reviewedAt));
     setRevision(null);
     restoreResults(lesson, record, summary.updatedAt);
     setComposeStamp(null);
@@ -1156,6 +1313,29 @@ export function Studio({
       setMessage(t(language, "Studio.completeBothLanguagesAndCheck"));
     }
   }
+  // "#edit:<id>" from a shared page or a library card: load the saved copy into the
+  // review view once the creator is signed in, then settle the address on #create.
+  const edited = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editId || !authenticated || edited.current === editId) return;
+    edited.current = editId;
+    let live = true;
+    void readMine(editId)
+      .then((record) => {
+        if (!live) return;
+        openSaved(record);
+        location.hash = "#create";
+      })
+      .catch(() => {
+        if (live) setMessage(t(language, "Library.editUnavailable"));
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openSaved reads the latest state when it runs
+  }, [editId, authenticated]);
+  // The Create button's own request: compose, or the Search first step before it.
+  const composing = activeMode === "compose" || activeMode === "ground";
   const canRequest =
     authenticated && Boolean(target?.configured) && remaining > 0;
   // What each model-backed action depends on; a cached result is current while its key holds.
@@ -1264,7 +1444,7 @@ export function Studio({
             </div>
             <FeaturedLesson language={language} id="explainback" />
           </section>
-          <Gallery language={language} />
+          <Gallery language={language} post={authenticated ? post : null} />
           <section className="create-invitation">
             <div>
               <p className="eyebrow">
@@ -1289,29 +1469,12 @@ export function Studio({
               { label: t(language, "App.create") },
             ]}
             title={t(language, "Studio.startWithALittleCuriosity")}
-            meta={`${t(language, "Studio.aQuestionOrASketch")} ${t(language, "Studio.fiveStepsEachShowsItsCost")}`}
+            meta={`${t(language, "Studio.aQuestionOrASketch")} ${t(language, "Studio.sixStepsEachShowsItsCost")}`}
           />
-          <StudioStepper
-            language={language}
-            current={!draft ? "ask" : showing ? "show" : "review"}
-            done={{
-              ask: Boolean(draft),
-              review: reviewed,
-              try: Boolean(tryout),
-              show: Boolean(show),
-              save: Boolean(savedId),
-            }}
-          />
-        </>
-      )}
-      {view === "create" &&
-        authenticated &&
-        target?.configured &&
-        Boolean(draft) &&
-        !presenting && (
           <JudgePath
             language={language}
             steps={judgeSteps}
+            reviewed={reviewed}
             running={judgeRunning || busy}
             blocked={judgeBlocker(
               judgeSteps,
@@ -1319,10 +1482,12 @@ export function Studio({
               remaining,
             )}
             used={8 - remaining}
+            actions={authenticated && Boolean(target?.configured)}
             onRun={(id) => void runJudgeStep(id)}
             onRunAll={() => void runJudgeAll()}
           />
-        )}
+        </>
+      )}
       {!draft && view === "create" && (
         <section className="author-workspace">
           {!authenticated ? (
@@ -1334,214 +1499,223 @@ export function Studio({
             </div>
           ) : (
             <>
-              <div className="create-columns">
-                <div className="create-main">
-                  <form
-                    className="author-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void request("compose");
-                    }}
-                  >
-                    <label htmlFor={`${formId}-topic`}>
-                      {t(language, "Studio.whatWouldYouLikeTo2")}
-                    </label>
-                    <textarea
-                      id={`${formId}-topic`}
-                      value={topic}
-                      onChange={(event) => setTopic(event.target.value)}
-                      maxLength={600}
-                      rows={4}
-                      placeholder={t(language, "Studio.whyDoesCoffeeCoolMore")}
+              <form
+                className="author-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void request("compose");
+                }}
+              >
+                <label htmlFor={`${formId}-topic`}>
+                  {t(language, "Studio.whatWouldYouLikeTo2")}
+                </label>
+                <textarea
+                  id={`${formId}-topic`}
+                  value={topic}
+                  onChange={(event) => setTopic(event.target.value)}
+                  maxLength={600}
+                  rows={4}
+                  placeholder={t(language, "Studio.whyDoesCoffeeCoolMore")}
+                  disabled={busy}
+                />
+                <div className="topic-starters">
+                  <span>{t(language, "Studio.tryAStartingPoint")}</span>
+                  {[
+                    [
+                      "Cooling coffee",
+                      "咖啡冷却",
+                      studioWalkthrough(language).topic,
+                    ],
+                    [
+                      "Web requests",
+                      "网页请求",
+                      t(language, "Studio.explainHowABrowserLoads"),
+                    ],
+                    [
+                      "Quantum interference",
+                      "量子干涉",
+                      t(language, "Studio.howDoesAQuantumComputer"),
+                    ],
+                  ].map(([en, zh, value]) => (
+                    <button
+                      type="button"
+                      className="text-button"
+                      key={en}
+                      disabled={busy}
+                      onClick={() => setTopic(value)}
+                    >
+                      {say(language, en, zh)} ↗
+                    </button>
+                  ))}
+                </div>
+                <div className="author-settings">
+                  <label>
+                    {t(language, "Studio.creationMode")}
+                    <select
+                      value={creation}
+                      onChange={(event) => setCreation(event.target.value)}
+                      disabled={busy}
+                    >
+                      <option value="generated">
+                        {t(language, "Studio.newTopicDemo")}
+                      </option>
+                      <option value="catalog">
+                        {t(language, "Studio.existingExperiments")}
+                      </option>
+                    </select>
+                  </label>
+                  <label>
+                    {t(language, "Studio.creatorModel")}
+                    <select
+                      value={target?.id ?? ""}
+                      onChange={(event) => {
+                        setModelId(event.target.value);
+                        invalidate();
+                      }}
+                      disabled={busy}
+                    >
+                      {targets.map((m) => (
+                        <option
+                          key={m.id}
+                          value={m.id}
+                          disabled={!m.configured}
+                        >
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="image-attachment">
+                  <label className="file-action">
+                    <span aria-hidden="true">＋</span>
+                    {t(language, "Studio.addAPhotoSketchOr")}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      onChange={(event) => {
+                        if (!busyRef.current && authenticated)
+                          void image.attach(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
                       disabled={busy}
                     />
-                    <div className="topic-starters">
-                      <span>{t(language, "Studio.tryAStartingPoint")}</span>
-                      {[
-                        [
-                          "Cooling coffee",
-                          "咖啡冷却",
-                          studioWalkthrough(language).topic,
-                        ],
-                        [
-                          "Web requests",
-                          "网页请求",
-                          t(language, "Studio.explainHowABrowserLoads"),
-                        ],
-                        [
-                          "Quantum interference",
-                          "量子干涉",
-                          t(language, "Studio.howDoesAQuantumComputer"),
-                        ],
-                      ].map(([en, zh, value]) => (
-                        <button
-                          type="button"
-                          className="text-button"
-                          key={en}
-                          disabled={busy}
-                          onClick={() => setTopic(value)}
-                        >
-                          {say(language, en, zh)} ↗
-                        </button>
-                      ))}
-                    </div>
-                    <div className="author-settings">
-                      <label>
-                        {t(language, "Studio.creationMode")}
-                        <select
-                          value={creation}
-                          onChange={(event) => setCreation(event.target.value)}
-                          disabled={busy}
-                        >
-                          <option value="generated">
-                            {t(language, "Studio.newTopicDemo")}
-                          </option>
-                          <option value="catalog">
-                            {t(language, "Studio.existingExperiments")}
-                          </option>
-                        </select>
-                      </label>
-                      <label>
-                        {t(language, "Studio.creatorModel")}
-                        <select
-                          value={target?.id ?? ""}
-                          onChange={(event) => {
-                            setModelId(event.target.value);
-                            invalidate();
-                          }}
-                          disabled={busy}
-                        >
-                          {targets.map((m) => (
-                            <option
-                              key={m.id}
-                              value={m.id}
-                              disabled={!m.configured}
-                            >
-                              {m.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                    <div className="image-attachment">
-                      <label className="file-action">
-                        <span aria-hidden="true">＋</span>
-                        {t(language, "Studio.addAPhotoSketchOr")}
-                        <input
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          onChange={(event) => {
-                            if (!busyRef.current && authenticated)
-                              void image.attach(event.target.files?.[0]);
-                            event.target.value = "";
-                          }}
-                          disabled={busy}
-                        />
-                      </label>
-                      <span className="fine">
-                        {t(language, "Studio.optionalUpTo12Mb")}
-                      </span>
-                      {image.loading && (
-                        <p role="status">
-                          {t(language, "Studio.preparingImageLocally")}
-                        </p>
-                      )}
-                      {image.image && (
-                        <div className="image-preview">
-                          <img
-                            src={image.image.dataUrl}
-                            alt={t(language, "Studio.attachedImagePreview")}
-                          />
-                          <span>{image.image.name}</span>
-                          <button
-                            type="button"
-                            className="text-button"
-                            disabled={busy}
-                            onClick={image.clear}
-                          >
-                            {t(language, "Studio.removeImage")}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="author-submit">
-                      <button
-                        type="submit"
-                        disabled={busy || image.loading || !canRequest}
-                      >
-                        {say(
-                          language,
-                          busy ? "Muse is working…" : "Create a lesson",
-                          busy ? "Muse 正在处理…" : "创建课程",
-                        )}{" "}
-                        <span aria-hidden="true">↗</span>
-                      </button>
-                      {canCompare && (
-                        <button
-                          type="button"
-                          className="secondary"
-                          disabled={busy || image.loading || !canRequest}
-                          onClick={() => void compareModels()}
-                        >
-                          {busy
-                            ? t(language, "Studio.comparing")
-                            : t(language, "Studio.compareTwoModels")}{" "}
-                          <span aria-hidden="true">⇄</span>
-                        </button>
-                      )}
-                      {canCompare && (
-                        <label className="compare-judge-pick">
-                          {t(language, "Compare.judge")}
-                          <select
-                            value={judge?.id ?? ""}
-                            onChange={(event) => setJudgeId(event.target.value)}
-                            disabled={busy}
-                          >
-                            {judgeOptions.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {evaluationModelLabel(m.model)}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
-                      <label className="file-action import-action">
-                        {t(language, "Studio.importLessonJson")}
-                        <input
-                          type="file"
-                          accept=".json,application/json"
-                          disabled={busy}
-                          onChange={(event) => {
-                            void importLesson(event.target.files?.[0]);
-                            event.target.value = "";
-                          }}
-                        />
-                      </label>
-                    </div>
-                    <p className="fine author-privacy">
-                      {t(language, "Studio.oneModelRequestWhenYou")}
-                      {canCompare && ` ${t(language, "Studio.compareNote")}`}
+                  </label>
+                  <span className="fine">
+                    {t(language, "Studio.optionalUpTo12Mb")}
+                  </span>
+                  {image.loading && (
+                    <p role="status">
+                      {t(language, "Studio.preparingImageLocally")}
                     </p>
-                  </form>
+                  )}
+                  {image.image && (
+                    <div className="image-preview">
+                      <img
+                        src={image.image.dataUrl}
+                        alt={t(language, "Studio.attachedImagePreview")}
+                      />
+                      <span>{image.image.name}</span>
+                      <button
+                        type="button"
+                        className="text-button"
+                        disabled={busy}
+                        onClick={image.clear}
+                      >
+                        {t(language, "Studio.removeImage")}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {target?.configured && (
-                  <aside className="create-aside">
-                    <JudgePath
-                      language={language}
-                      steps={judgeSteps}
-                      running={judgeRunning || busy}
-                      blocked={judgeBlocker(
-                        judgeSteps,
-                        providerStatus?.access?.remaining ?? null,
-                        remaining,
-                      )}
-                      used={8 - remaining}
-                      onRun={(id) => void runJudgeStep(id)}
-                      onRunAll={() => void runJudgeAll()}
+                <label className="search-first">
+                  <input
+                    type="checkbox"
+                    checked={searchFirst}
+                    disabled={busy || creation !== "generated"}
+                    onChange={(event) => setSearchFirst(event.target.checked)}
+                  />
+                  <span>
+                    {t(language, "Studio.searchFirst")}
+                    <span className="fine">
+                      {t(language, "Studio.searchFirstNote")}
+                    </span>
+                  </span>
+                </label>
+                <div className="author-submit">
+                  <button
+                    type="submit"
+                    disabled={busy || image.loading || !canRequest}
+                  >
+                    {say(
+                      language,
+                      composing ? "Muse is working…" : "Create a lesson",
+                      composing ? "Muse 正在处理…" : "创建课程",
+                    )}{" "}
+                    <span aria-hidden="true">↗</span>
+                  </button>
+                  {canCompare && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy || image.loading || !canRequest}
+                      onClick={() => void compareModels()}
+                    >
+                      {activeMode === "compare"
+                        ? t(language, "Studio.comparing")
+                        : t(language, "Studio.compareTwoModels")}{" "}
+                      <span aria-hidden="true">⇄</span>
+                    </button>
+                  )}
+                  {canCompare && (
+                    <label className="compare-judge-pick">
+                      {t(language, "Compare.judge")}
+                      <select
+                        value={judge?.id ?? ""}
+                        onChange={(event) => setJudgeId(event.target.value)}
+                        disabled={busy}
+                      >
+                        {judgeOptions.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {evaluationModelLabel(m.model)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {canCompare && (
+                    <label className="grounded-judge-pick">
+                      <input
+                        type="checkbox"
+                        checked={groundedJudge}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setGroundedJudge(event.target.checked)
+                        }
+                      />
+                      {t(language, "Compare.checkFiguresOnline")}
+                    </label>
+                  )}
+                  <label className="file-action import-action">
+                    {t(language, "Studio.importLessonJson")}
+                    <input
+                      type="file"
+                      accept=".json,application/json"
+                      disabled={busy}
+                      onChange={(event) => {
+                        void importLesson(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
                     />
-                  </aside>
-                )}
-              </div>
+                  </label>
+                </div>
+                <p className="fine author-privacy">
+                  {t(language, "Studio.oneModelRequestWhenYou")}
+                  {searchFirst &&
+                    creation === "generated" &&
+                    ` ${t(language, "Studio.searchFirstCost")}`}
+                  {canCompare && ` ${t(language, "Studio.compareNote")}`}
+                </p>
+              </form>
               {comparison && !draft && (
                 <LiveComparison
                   reply={comparison}
@@ -1641,8 +1815,10 @@ export function Studio({
             <DraftReview
               key={revisionKey}
               draft={draft}
+              references={references}
               language={language}
               busy={busy}
+              activeMode={activeMode}
               reviewed={reviewed}
               setReviewed={setReviewed}
               onChange={(next) => {
@@ -1672,15 +1848,54 @@ export function Studio({
               savedId={savedId}
               saving={saving}
             />
+            {savedId &&
+              savedItem &&
+              authenticated &&
+              providerStatus?.images &&
+              target?.configured && (
+                <CoverTool
+                  key={`saved-${savedId}`}
+                  language={language}
+                  saved={savedItem}
+                  busy={busy || saving}
+                  working={activeMode === "cover"}
+                  onDraw={() => drawCover({ savedId })}
+                />
+              )}
           </Suspense>
         )}
         {presenting && player && (
           <>
+            {source === "shared" && external && (
+              <p className="shared-notice" role="note">
+                {sharedProvenanceText(external, language)}{" "}
+                <a
+                  href={reportLessonUrl(external.id, external.title[language])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t(language, "Library.reportThisLesson")}
+                </a>
+              </p>
+            )}
+            {source === "shared" && external?.mine && authenticated && (
+              <OwnerActions
+                language={language}
+                id={external.id}
+                post={post}
+                busy={busy}
+                onNotice={setMessage}
+                onDeleted={() => {
+                  location.hash = "#studio";
+                }}
+              />
+            )}
             <LessonPlayer
               player={player}
               language={language}
               visible={visible && showLesson}
               busy={busy}
+              working={activeMode === "guide"}
               canAsk={canRequest}
               feedback={feedback}
               onGuide={(own) => void request("guide", own)}
@@ -1695,6 +1910,29 @@ export function Studio({
               onPace={setPace}
               onState={onPlayerState}
             />
+            {lessonId &&
+              !lessonId.startsWith("shared:") &&
+              authenticated &&
+              providerStatus?.images &&
+              target?.configured && (
+                <CoverTool
+                  key={lessonId}
+                  language={language}
+                  lessonId={lessonId}
+                  busy={busy}
+                  working={activeMode === "cover"}
+                  onDraw={() => drawCover({ lessonId })}
+                />
+              )}
+            {lessonId && authenticated && target?.configured && (
+              <FigureCheck
+                key={`figures-${lessonId}`}
+                language={language}
+                busy={busy}
+                working={activeMode === "judge"}
+                onCheck={checkFigures}
+              />
+            )}
             {((feedback && metrics?.mode === "guide") ||
               metrics?.mode === "transcribe") && (
               <RequestSummary metrics={metrics} language={language} />
@@ -1726,8 +1964,8 @@ export function Studio({
                   </p>
                 )}
                 <p>
-                  {source === "shared"
-                    ? t(language, "Library.sharedLessonNote")
+                  {source === "shared" && external
+                    ? sharedProvenanceText(external, language)
                     : source === "studio-sketch"
                       ? t(language, "Studio.sketchLessonNote")
                       : source === "evaluation" && evaluationItem
