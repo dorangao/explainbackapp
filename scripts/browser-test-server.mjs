@@ -124,7 +124,9 @@ const server = createApp({
           }),
         },
       };
-    if (name === "judge_lesson")
+    if (name === "judge_lesson") {
+      // Grounded (web search on): a sixth score and one disputed figure with its page.
+      const grounded = Boolean(args.webSearch);
       return {
         structured: {
           name,
@@ -135,12 +137,32 @@ const server = createApp({
               transferClarity: 2,
               bilingualParity: 2,
               assumptions: 2,
+              ...(grounded ? { factualCurrency: 1 } : {}),
             },
             issues: [],
             summary: "Fixture judge: consistent and neutral.",
+            ...(grounded
+              ? {
+                  factualIssues: [
+                    {
+                      claim: "cooling coefficient 0.1 per minute",
+                      finding: "Fixture: a typical cup cools nearer 0.05 per minute.",
+                      url: "https://example.org/newton-cooling",
+                    },
+                  ],
+                }
+              : {}),
           },
         },
+        ...(grounded
+          ? {
+              sources: [
+                { url: "https://example.org/newton-cooling", title: "Newton cooling reference" },
+              ],
+            }
+          : {}),
       };
+    }
     if (name === "try_lesson")
       return {
         toolCall: {

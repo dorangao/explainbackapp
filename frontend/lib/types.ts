@@ -334,11 +334,29 @@ export type GroundReply = ReplyMetrics & {
 };
 // A library cover drawn for a reviewed lesson at a creator's request.
 export type CoverReply = ReplyMetrics & {
-  lessonId: string;
+  // One of the two: a reviewed lesson's id, or the creator's own saved lesson's id.
+  lessonId?: string;
+  savedId?: string;
   cover: string;
   model: string;
   createdAt: string;
   promptVersion: string;
+  attemptsRemaining: number;
+};
+// The rubric judge's verdict on one lesson, checked from its page (grounded by default).
+export type JudgeReply = ReplyMetrics & {
+  judge: {
+    model: string;
+    version?: string;
+    total: number;
+    max: number;
+    scores: Record<string, number>;
+    issues: string[];
+    summary: string;
+    factualIssues?: FactualIssue[];
+    pagesRead?: number;
+  };
+  grounded: boolean;
   attemptsRemaining: number;
 };
 export type ComposeReply = ReplyMetrics & {

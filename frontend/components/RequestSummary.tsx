@@ -21,6 +21,7 @@ export function RequestSummary({
     show: t(language, "RevisionSummary.wroteTheShowFor"),
     illustrate: t(language, "RevisionSummary.drewAnIllustrationFor"),
     cover: t(language, "RevisionSummary.drewACoverFor"),
+    judge: t(language, "RevisionSummary.checkedTheFiguresOf"),
     detect: t(language, "RevisionSummary.lookedForAnObjectIn"),
     transcribe: t(language, "RevisionSummary.transcribedYourExplanation"),
     compare: t(language, "RevisionSummary.comparedTwoModels"),

@@ -18,6 +18,7 @@ export type RequestMetrics = {
     | "show"
     | "illustrate"
     | "cover"
+    | "judge"
     | "detect"
     | "transcribe"
     | "compare";

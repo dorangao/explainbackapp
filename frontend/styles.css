@@ -1129,6 +1129,34 @@ body {
 .cover-tool-body {
   min-width: 0;
 }
+/* Check figures: the judge's verdict on the open lesson, below the cover tool. */
+.figure-check {
+  margin: 28px 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.figure-check h3 {
+  margin: 4px 0 8px;
+  font-size: 1.1rem;
+}
+.figure-check > .fine {
+  max-width: 64ch;
+}
+.figure-result {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.figure-result h4 {
+  margin: 12px 0 6px;
+  font-size: 0.85rem;
+}
+.figure-score {
+  margin: 0;
+}
 .cover-tool-body h3 {
   margin: 4px 0 8px;
   font-size: 1.1rem;

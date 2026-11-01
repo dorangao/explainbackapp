@@ -79,3 +79,51 @@ describe("CoverTool", () => {
     expect(screen.getByRole("button").textContent).toMatch(/drawing/);
   });
 });
+
+describe("CoverTool for a saved lesson", () => {
+  it("shows the saved lesson's own cover and draws one onto the record without touching the library overrides", async () => {
+    const onDraw = vi.fn(async () => ({
+      savedId: "0123456789abcdef",
+      cover: "https://store.example/images/own.webp",
+      model: "muse-image-1.0",
+      createdAt: "2026-11-01",
+      promptVersion: "cover-v1",
+      attemptsRemaining: 6,
+    }));
+    const { container } = render(
+      <CoverTool
+        language="en"
+        saved={{ cover: null, coverModel: null }}
+        busy={false}
+        onDraw={onDraw}
+      />,
+    );
+    expect(screen.getByText(/no cover yet/)).toBeTruthy();
+    expect(screen.getByText(/Your lesson's card shows it/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Draw a cover" }));
+    await screen.findByText(/New cover drawn/);
+    expect(container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://store.example/images/own.webp",
+    );
+    expect(screen.getByText(/muse-image-1\.0 · 2026-11-01/)).toBeTruthy();
+  });
+  it("names the narrated show as the source of a saved show cover", () => {
+    render(
+      <CoverTool
+        language="en"
+        saved={{
+          cover: "https://store.example/images/show.webp",
+          coverModel: null,
+        }}
+        busy={false}
+        onDraw={vi.fn(async () => null)}
+      />,
+    );
+    expect(
+      screen.getByText(/Current cover: from the narrated show\./),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Redraw the cover" }),
+    ).toBeTruthy();
+  });
+});
