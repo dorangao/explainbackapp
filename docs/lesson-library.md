@@ -62,7 +62,7 @@ Image bytes live in [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) w
 
 ## The judge path (added October 29, 2026 Pacific)
 
-A signed-in creator sees **The 6-step tour** at the top of the Create page: draft the cooling-coffee lesson, try it as a learner, make the narrated show with its cover, illustrate the claim slide, save, share. **Run next** does one step; **Run all remaining** runs them in order and stops at the first failure. The illustration step draws the slide the writer flagged but the show had no time for, so a complete tour ends with both pictures. Each step is the same action as its button elsewhere on the page, so caches, the request budget and messages behave identically: a step whose result is already present (or restored from this browser) is marked done and costs nothing, and the footer states how many requests the remaining steps will make and how many this session has used. The illustration step is marked *Not on this server* when the image model is absent. The tour is a reviewer aid and a rehearsal script for the demo video; it adds no server routes.
+**The 6-step tour** is the flow at the top of the Create page (since October 31, 2026 Pacific it replaces the five-step creation bar and the side panel): six bubbles joined by a line, Draft, Try, Narrate, Illustrate, Save and Share. A finished step fills with a check, the current one is solid, and each bubble carries a hint: its cost, *Done*, or, once a draft is in but not yet reviewed, an amber *Review the draft below*. Hovering a bubble shows what the step does and what it shows; a **What each step shows** disclosure lists the same as cards with their Run buttons. Visitors see the flow without the buttons. For a signed-in creator, **Run next** does one step; **Run all remaining** runs them in order and stops at the first failure. The illustration step draws the slide the writer flagged but the show had no time for, so a complete tour ends with both pictures. Each step is the same action as its button elsewhere on the page, so caches, the request budget and messages behave identically: a step whose result is already present (or restored from this browser) is marked done and costs nothing, and the footer states how many requests the remaining steps will make and how many this session has used. The illustration step is marked *Not on this server* when the image model is absent. The tour is a reviewer aid and a rehearsal script for the demo video; it adds no server routes.
 
 ## Display units (added October 31, 2026 Pacific)
 
@@ -74,7 +74,7 @@ A generated model lesson is authored and computed in its own units (the cooling 
 
 ## The 6-step tour in the hero (added October 31, 2026 Pacific)
 
-The library's hero features the how-to lesson, **How ExplainBack makes a lesson**, as the 6-step tour: its narrated show opens and starts playing from **Play the tour** (`/#show:explainback/play`), and **Start here** opens the lesson. The same six steps are what a signed-in reviewer runs live from the Create page's tour panel.
+The library's hero features the how-to lesson, **How ExplainBack makes a lesson**, as the 6-step tour: its narrated show opens and starts playing from **Play the tour** (`/#show:explainback/play`), and **Start here** opens the lesson. The same six steps are the flow at the top of the Create page, which a signed-in reviewer runs live.
 
 ## Evaluation showcase (added October 31, 2026 Pacific)
 
