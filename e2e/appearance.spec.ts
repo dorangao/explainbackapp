@@ -7,14 +7,20 @@ import { readFile } from "node:fs/promises";
 test.use({ serviceWorkers: "block" });
 
 const choices = [
-  ["paper", "Paper Default"],
-  ["midnight", "Midnight Paper"],
-  ["glass", "Liquid Glass"],
-  ["meta", "Meta Blue"],
+  ["paper", "Paper", "Light"],
+  ["paper", "Paper", "Dark"],
+  ["glass", "Liquid Glass", "Light"],
+  ["glass", "Liquid Glass", "Dark"],
+  ["meta", "Meta Blue", "Light"],
+  ["meta", "Meta Blue", "Dark"],
 ] as const;
-async function choose(page: Page, name: string) {
+async function choose(page: Page, name: string, mode = "Light") {
   await page.getByRole("button", { name: "Appearance", exact: true }).click();
-  await page.getByRole("radio", { name, exact: true }).check();
+  await page
+    .getByRole("radio", { name: mode, exact: true })
+    .locator("..")
+    .click();
+  await page.getByRole("radio", { name, exact: true }).locator("..").click();
   await page.keyboard.press("Escape");
 }
 async function audit(page: Page, label: string) {
@@ -116,8 +122,8 @@ test("active scientific diagrams retain readable labels and their named series c
       0.4,
     );
   });
-  for (const [id, name] of choices) {
-    await choose(page, name);
+  for (const [id, name, mode] of choices) {
+    await choose(page, name, mode);
     const colors = await page.locator("#diagram-fixture").evaluate((root) => {
       const style = (selector: string) =>
         getComputedStyle(root.querySelector(selector)!);
@@ -152,12 +158,104 @@ test("a saved theme is applied while the React bundle is still blocked", async (
   );
   await page.route("**/assets/*.js", (route) => route.abort());
   await page.goto("/");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "midnight");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
   await expect(page.locator("html")).toHaveCSS(
     "background-color",
     "rgb(20, 36, 31)",
   );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-color-scheme",
+    "dark",
+  );
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-mode",
+    "dark",
+  );
   await expect(page.locator("#root")).toBeEmpty();
+});
+
+test("System resolves before React and follows device changes; manual mode stays fixed", async ({
+  page,
+}) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.route("**/assets/*.js", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.locator("#root")).toBeEmpty();
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-appearance-mode",
+    "system",
+  );
+  await expect(page.locator("html")).toHaveCSS(
+    "background-color",
+    "rgb(20, 36, 31)",
+  );
+  await page.unroute("**/assets/*.js");
+  await page.reload();
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  await expect(
+    page.getByRole("radio", { name: "System", exact: true }),
+  ).toBeChecked();
+  await expect(page.locator(".appearance-status")).toHaveText(
+    "Following device · Dark",
+  );
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator(".appearance-status")).toHaveText(
+    "Following device · Light",
+  );
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  await page
+    .getByRole("radio", { name: "Dark", exact: true })
+    .locator("..")
+    .click();
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator(".appearance-status")).toHaveText(
+    "Dark · Set manually",
+  );
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
+  await page
+    .getByRole("radio", { name: "System", exact: true })
+    .locator("..")
+    .click();
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+});
+
+test("open tabs synchronize preferences and reset to System when storage is cleared", async ({
+  page,
+  context,
+}) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Appearance", exact: true }).click();
+  const other = await context.newPage();
+  await other.goto("/");
+  await choose(other, "Liquid Glass", "Dark");
+  await expect(
+    page.getByRole("radio", { name: "Dark", exact: true }),
+  ).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Liquid Glass" })).toBeChecked();
+  await other.getByRole("button", { name: "Appearance", exact: true }).click();
+  await other.getByRole("checkbox", { name: "Reduce transparency" }).check();
+  await expect(
+    page.getByRole("checkbox", { name: "Reduce transparency" }),
+  ).toBeChecked();
+  await expect(page.locator(".site-header")).toHaveCSS(
+    "backdrop-filter",
+    "none",
+  );
+  await expect(page.locator(".site-header")).toHaveCSS(
+    "background-color",
+    "rgb(26, 48, 58)",
+  );
+  await other.evaluate(() => localStorage.removeItem("explainback-appearance"));
+  await expect(
+    page.getByRole("radio", { name: "System", exact: true }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("radio", { name: "Paper", exact: true }),
+  ).toBeChecked();
+  await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
+  await other.close();
 });
 
 test("themes preserve a lesson's state and do not make model requests", async ({
@@ -173,8 +271,8 @@ test("themes preserve a lesson's state and do not make model requests", async ({
   await page
     .getByRole("button", { name: "Show final state", exact: true })
     .click();
-  for (const [id, name] of choices) {
-    await choose(page, name);
+  for (const [id, name, mode] of choices) {
+    await choose(page, name, mode);
     await expect(page.locator("html")).toHaveAttribute("data-theme", id);
     await expect(
       page.getByRole("button", { name: "Explain the result →", exact: true }),
@@ -190,10 +288,10 @@ test("theme changes preserve an unsaved author draft and survive reload", async 
   await page.goto("/#invite:BROWSER-TEST-CODE");
   const topic = page.getByLabel("What would you like to explore?");
   await topic.fill("My unsaved lesson about cooling");
-  await choose(page, "Midnight Paper");
+  await choose(page, "Paper", "Dark");
   await expect(topic).toHaveValue("My unsaved lesson about cooling");
   await page.reload();
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "midnight");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "paper");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
 });
 
@@ -202,11 +300,22 @@ test("keyboard radio selection, Escape, and glass opacity work", async ({
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Appearance", exact: true }).click();
-  await page.keyboard.press("ArrowDown");
   await expect(
-    page.getByRole("radio", { name: "Midnight Paper" }),
+    page.getByRole("radio", { name: "System", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("radio", { name: "Light", exact: true }),
   ).toBeChecked();
-  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("radio", { name: "Dark", exact: true }),
+  ).toBeChecked();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("radio", { name: "Paper", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("radio", { name: "Liquid Glass" })).toBeChecked();
   await page.getByRole("checkbox", { name: "Reduce transparency" }).check();
   await expect(page.locator(".site-header")).toHaveCSS(
@@ -249,7 +358,10 @@ test("phone menu exposes the bilingual picker without overflow", async ({
   await page.getByRole("button", { name: "Menu", exact: true }).click();
   await page.getByLabel("Language / 语言").selectOption("zh");
   await page.getByRole("button", { name: "外观", exact: true }).click();
-  await page.getByRole("radio", { name: "夜色纸感" }).check();
+  await page
+    .getByRole("radio", { name: "深色", exact: true })
+    .locator("..")
+    .click();
   const box = await page.locator(".appearance-panel").boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(320);
@@ -257,37 +369,95 @@ test("phone menu exposes the bilingual picker without overflow", async ({
     await page.evaluate(() => document.documentElement.scrollWidth),
   ).toBeLessThanOrEqual(320);
   await audit(page, "Chinese mobile picker");
+  await page.screenshot({ path: "output/appearance-modes/picker-320-zh.png" });
 });
 
-for (const [id, name] of choices) {
-  test(`${name}: library, picker and lesson pass the automated contrast audit`, async ({
+test("all dark palettes print with light ink and surfaces", async ({
+  page,
+}) => {
+  await page.goto("/");
+  for (const name of ["Paper", "Liquid Glass", "Meta Blue"]) {
+    await page.emulateMedia({ media: "screen" });
+    await choose(page, name, "Dark");
+    await page.emulateMedia({ media: "print" });
+    await expect(page.locator("body")).toHaveCSS(
+      "background-color",
+      "rgb(255, 255, 255)",
+    );
+    await expect(page.locator(".intro-studio h1")).toHaveCSS(
+      "color",
+      "rgb(32, 51, 47)",
+    );
+    await expect(page.locator(".lesson-card").first()).toHaveCSS(
+      "background-color",
+      "rgb(255, 255, 255)",
+    );
+  }
+});
+
+test("forced colors retain a visible mode selection and keyboard focus", async ({
+  page,
+}) => {
+  await page.emulateMedia({ forcedColors: "active", reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Appearance", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  const system = page.getByRole("radio", { name: "System", exact: true });
+  await expect(system).toBeFocused();
+  await expect(system.locator("..")).toHaveCSS("outline-style", "solid");
+  await expect(
+    system.locator("..").locator(".appearance-mode-check"),
+  ).toBeVisible();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("radio", { name: "Light", exact: true }),
+  ).toBeChecked();
+  await page.screenshot({
+    path: "output/appearance-modes/picker-forced-colors.png",
+  });
+});
+
+for (const [id, name, mode] of choices) {
+  test(`${name} ${mode}: library, picker and lesson pass the automated contrast audit`, async ({
     page,
   }) => {
     await page.setViewportSize({ width: 1440, height: 1024 });
     await page.goto("/");
-    await choose(page, name);
+    await choose(page, name, mode);
     await audit(page, `${id} library`);
     await page.screenshot({
-      path: `output/theme-design-2026-11-01/${id}-library.png`,
+      path: `output/appearance-modes/${id}-${mode.toLowerCase()}-library.png`,
       fullPage: false,
     });
     await page.getByRole("button", { name: "Appearance", exact: true }).click();
-    await audit(page, `${id} picker`);
+    await audit(page, `${id} ${mode} picker`);
+    const tiles = page.locator(".appearance-option");
+    for (const tile of await tiles.all()) {
+      const box = await tile.boundingBox();
+      const swatch = await tile.locator(".appearance-swatch").boundingBox();
+      expect(box!.width).toBeGreaterThan(70);
+      expect(box!.height).toBeGreaterThanOrEqual(100);
+      expect(swatch!.width).toBeGreaterThan(50);
+      expect(swatch!.height).toBeGreaterThanOrEqual(40);
+    }
+    await page.screenshot({
+      path: `output/appearance-modes/${id}-${mode.toLowerCase()}-picker.png`,
+    });
     await page.keyboard.press("Escape");
     await page.goto("/#lesson:cooling");
     await page.getByRole("button", { name: "Disagree", exact: true }).click();
     await page.getByRole("button", { name: /Test this claim/ }).click();
     await audit(page, `${id} experiment`);
     await page.screenshot({
-      path: `output/theme-design-2026-11-01/${id}-lesson.png`,
+      path: `output/appearance-modes/${id}-${mode.toLowerCase()}-lesson.png`,
     });
   });
-  test(`${name}: remaining screens and phone layouts stay readable`, async ({
+  test(`${name} ${mode}: remaining screens and phone layouts stay readable`, async ({
     page,
   }) => {
     test.setTimeout(60000);
     await page.goto("/");
-    await choose(page, name);
+    await choose(page, name, mode);
     for (const hash of [
       "about",
       "evaluation",
@@ -317,7 +487,7 @@ for (const [id, name] of choices) {
       await expect(page.locator(".lab-root:visible")).toBeVisible();
       await audit(page, `${id} ${hash} bench`);
       await page.screenshot({
-        path: `output/theme-design-2026-11-01/${id}-${hash}.png`,
+        path: `output/appearance-modes/${id}-${mode.toLowerCase()}-${hash}.png`,
         fullPage: true,
       });
     }
@@ -341,7 +511,7 @@ for (const [id, name] of choices) {
     }
     await page.setViewportSize({ width: 390, height: 844 });
     await page.screenshot({
-      path: `output/theme-design-2026-11-01/${id}-mobile.png`,
+      path: `output/appearance-modes/${id}-${mode.toLowerCase()}-mobile.png`,
       fullPage: false,
     });
   });

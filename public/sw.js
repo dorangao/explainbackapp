@@ -3,7 +3,7 @@
 // This is an additive shell update: retain hashed app assets already fetched by
 // the controlling worker. Changed script bytes still trigger installation.
 const VERSION = "explainback-shell-v1";
-const SHELL = ["/", "/appearance.js", "/themes.css", "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
+const SHELL = ["/", "/appearance.js?v=2", "/themes.css?v=2", "/manifest.webmanifest", "/favicon.svg", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

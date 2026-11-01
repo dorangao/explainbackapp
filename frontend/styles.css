@@ -875,7 +875,7 @@ body {
   color: var(--ink);
   font-weight: 500;
 }
-.app-shell input:not([type="range"]):not([type="checkbox"]),
+.app-shell input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
 .app-shell textarea,
 .app-shell select {
   font: inherit;
