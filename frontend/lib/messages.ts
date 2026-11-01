@@ -775,20 +775,10 @@ export const messages = {
     zh: "探索一个想法，观察变化，再用自己的话讲出来。中英文互动课程，从好奇开始。",
   },
   "Studio.exploreTheLibrary": { en: "Explore the library", zh: "探索课程库" },
-  "Studio.fiveStepsEachShowsItsCost": {
-    en: "Five steps; each shows its cost before you run it.",
-    zh: "共五步，每一步在运行前都标明其请求次数。",
+  "Studio.sixStepsEachShowsItsCost": {
+    en: "Six steps; each shows its cost before you run it.",
+    zh: "共六步，每一步在运行前都标明其请求次数。",
   },
-  "Studio.creationSteps": { en: "Creation steps", zh: "创建步骤" },
-  "Studio.stepAsk": { en: "Ask", zh: "提问" },
-  "Studio.stepReview": { en: "Review", zh: "审阅" },
-  "Studio.stepTry": { en: "Try as a learner", zh: "以学习者身份试学" },
-  "Studio.stepShow": { en: "Show", zh: "讲解秀" },
-  "Studio.stepSave": { en: "Save and share", zh: "保存与分享" },
-  "Studio.stepDone": { en: "Done", zh: "已完成" },
-  "Studio.costOne": { en: "1 request", zh: "1 次请求" },
-  "Studio.costNone": { en: "No request", zh: "不需请求" },
-  "Studio.costShow": { en: "1 to 2 requests", zh: "1 到 2 次请求" },
   "Studio.howDoesAQuantumComputer": {
     en: "How does a quantum computer use interference?",
     zh: "量子计算机如何利用干涉？",
@@ -939,6 +929,20 @@ export const messages = {
   "JudgePath.intro": {
     en: "Draft, try, narrate, illustrate, save, share: the whole creation story in order. Results you already have are reused, so repeating the tour costs nothing.",
     zh: "起草、试学、讲解、配图、保存、分享：按顺序走完整个创作过程。已有的结果会被复用，重复一遍不花费请求。",
+  },
+  "JudgePath.draftWord": { en: "Draft", zh: "起草" },
+  "JudgePath.tryoutWord": { en: "Try", zh: "试学" },
+  "JudgePath.showWord": { en: "Narrate", zh: "讲解" },
+  "JudgePath.illustrateWord": { en: "Illustrate", zh: "配图" },
+  "JudgePath.saveWord": { en: "Save", zh: "保存" },
+  "JudgePath.shareWord": { en: "Share", zh: "分享" },
+  "JudgePath.reviewTheDraft": {
+    en: "Review the draft below",
+    zh: "请先审阅下方草稿",
+  },
+  "JudgePath.whatEachStepShows": {
+    en: "What each step shows",
+    zh: "每一步展示什么",
   },
   "JudgePath.draft": { en: "Draft a lesson", zh: "起草课程" },
   "JudgePath.draftDetail": {
@@ -1304,7 +1308,10 @@ export const messages = {
   "Compare.transferClarity": { en: "Transfer clarity", zh: "迁移题清晰" },
   "Compare.bilingualParity": { en: "Bilingual parity", zh: "双语一致" },
   "Compare.assumptions": { en: "Explicit assumptions", zh: "明确的假设" },
-  "Library.yourLessons": { en: "05 · SAVE AND SHARE", zh: "05 · 保存与分享" },
+  "Library.yourLessons": {
+    en: "STEPS 5 AND 6 · SAVE AND SHARE",
+    zh: "第 5、6 步 · 保存与分享",
+  },
   "Library.pickUpWhereYouLeft": {
     en: "Pick up where you left off.",
     zh: "从上次停下的地方继续。",
