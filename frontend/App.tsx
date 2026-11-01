@@ -25,6 +25,7 @@ import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Studio } from "./components/Studio";
 import { AccessPanel } from "./components/AccessPanel";
+import { BackToTop } from "./components/BackToTop";
 import { useInstallPrompt } from "./lib/install";
 import { editIdFromHash, readShared, sharedIdFromHash } from "./lib/library";
 import type { SavedLesson } from "./lib/library";
@@ -590,6 +591,7 @@ export function App() {
           </p>
         )}
       </main>
+      <BackToTop language={language} target={main} />
       <footer className="site-footer">
         <div className="footer-brand">
           <Brand compact />

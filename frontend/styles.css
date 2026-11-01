@@ -2434,6 +2434,15 @@ body {
     max-height: 140px;
     object-fit: contain;
   }
+  /* A cover fills the single-column card at its own 3:2 instead of sitting letterboxed
+     at 140px; the drawn SVG art keeps its height. */
+  img.lesson-art-image {
+    height: auto;
+    max-height: none;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    padding: 0;
+  }
   .lesson-card-body {
     padding: 20px;
   }
@@ -3110,6 +3119,30 @@ body {
 .shelf-confirm {
   display: flex;
   gap: 8px;
+}
+/* Back to top: a fixed pill once the page has scrolled past a screen and a half. */
+.back-to-top {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.back-to-top:hover {
+  background: #e2efe6;
+}
+@media (max-width: 540px) {
+  .back-to-top {
+    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 10px 14px;
+  }
 }
 /* Edit and Delete for the creator's own shared lesson, on its page and its card. */
 .owner-actions {

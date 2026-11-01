@@ -525,3 +525,23 @@ test("on a phone, Sign in folds the menu and brings the access panel into view",
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
   await expect(page.locator("#reviewer-code")).toBeFocused();
 });
+
+test("a long page offers Back to top on desktop and on a phone", async ({
+  page,
+}) => {
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.goto("/#library");
+    await expect(page.getByRole("button", { name: "Back to top" })).toHaveCount(
+      0,
+    );
+    await page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    await expect(
+      page.getByRole("button", { name: "Back to top" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Back to top" }).click();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  }
+});

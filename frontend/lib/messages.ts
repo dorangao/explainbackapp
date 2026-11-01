@@ -46,6 +46,7 @@ export const messages = {
   "App.explore": { en: "Explore", zh: "探索" },
   "App.library": { en: "Library", zh: "课程库" },
   "App.menu": { en: "Menu", zh: "菜单" },
+  "App.backToTop": { en: "Back to top", zh: "回到顶部" },
   "App.closeMenu": { en: "Close menu", zh: "关闭菜单" },
   "App.physicsBench": { en: "Physics & math", zh: "物理与数学" },
   "App.quantumBench": { en: "Quantum computing", zh: "量子计算" },
