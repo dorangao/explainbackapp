@@ -26,11 +26,14 @@ test("search first grounds a draft on a sourced figure and the lesson lists its 
   await expect(
     page.getByRole("heading", { name: "Cooling coffee", exact: true }),
   ).toBeVisible();
-  expect(requests).toEqual([
-    "/api/studio/session",
-    "/api/studio/ground",
-    "/api/studio/compose",
-  ]);
+  // Request events can arrive a beat after the reply has rendered; poll for the order.
+  await expect
+    .poll(() => requests)
+    .toEqual([
+      "/api/studio/session",
+      "/api/studio/ground",
+      "/api/studio/compose",
+    ]);
   await expect(
     page.getByText(/Grounded on one sourced figure as of 2026-10-31/),
   ).toBeVisible();
