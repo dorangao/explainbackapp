@@ -328,6 +328,13 @@ export function LessonPlayer({
     "transfer",
     "complete",
   ].indexOf(state.stage);
+  // What each bubble of the flow holds, shown on hover and in the disclosure.
+  const flowTips = [
+    t(language, "LessonPlayer.flowPredict"),
+    t(language, "LessonPlayer.flowExperiment"),
+    t(language, "LessonPlayer.flowExplain"),
+    t(language, "LessonPlayer.flowTransfer"),
+  ];
   const nextDisabled =
     busy ||
     (state.stage === "predict" && !state.prediction) ||
@@ -375,6 +382,17 @@ export function LessonPlayer({
     setAnswer("");
     heading.current?.focus();
   };
+  // The step's primary action: in the Predict row beside the three calls, else at the end.
+  const nextButton = (
+    <button
+      disabled={nextDisabled}
+      onClick={() => {
+        nextRef.current();
+      }}
+    >
+      {nextLabel}
+    </button>
+  );
   function setInput(id: string, value: number) {
     try {
       act(() => player.input(id, value));
@@ -466,63 +484,118 @@ export function LessonPlayer({
           </>
         </div>
       )}
-      <ol
-        className="learning-steps"
+      <nav
+        className="learning-flow"
         aria-label={t(language, "LessonPlayer.learningProgress")}
       >
-        {labels.map((label, i) => (
-          <li
-            key={label}
-            aria-current={index === i ? "step" : undefined}
-            className={index > i ? "is-complete" : ""}
-          >
-            <span>{index > i ? "✓" : `0${i + 1}`}</span>
-            {label}
-          </li>
-        ))}
-      </ol>
+        <ol>
+          {labels.map((label, i) => (
+            <li
+              key={label}
+              aria-current={index === i ? "step" : undefined}
+              className={
+                index > i ? "is-complete" : index === i ? "is-current" : ""
+              }
+            >
+              <span className="flow-node" aria-hidden="true">
+                {index > i ? "✓" : i + 1}
+              </span>
+              <span className="flow-label">{label}</span>
+              <span className="flow-tip" role="tooltip">
+                {index > i ? `${t(language, "LessonPlayer.done")} · ` : ""}
+                {flowTips[i]}
+              </span>
+            </li>
+          ))}
+        </ol>
+        <details className="flow-details">
+          <summary>{t(language, "LessonPlayer.whatHappensAtEachStep")}</summary>
+          <div>
+            {labels.map((label, i) => (
+              <p key={label}>
+                <strong>{label}.</strong> {flowTips[i]}
+              </p>
+            ))}
+          </div>
+        </details>
+      </nav>
       <div className="player-layout">
         <div className="player-main">
-          <h3 ref={heading} tabIndex={-1}>
-            {stages[state.stage]}
-          </h3>
-          {!["transfer", "complete"].includes(state.stage) && (
-            <blockquote className="claim">
-              <span className="eyebrow">
-                {t(language, "LessonPlayer.theClaim")}
-              </span>
-              {e.claim}
-            </blockquote>
-          )}
-          {state.stage === "predict" && (
-            <>
-              <p>
-                {t(language, "LessonPlayer.chooseBeforeRevealingTheResult")}
-              </p>
-              <div className="prediction-options">
-                {(["agree", "disagree", "unsure"] as const).map((value, i) => (
-                  <button
-                    key={value}
-                    className="secondary"
-                    aria-pressed={state.prediction === value}
-                    disabled={busy}
-                    onClick={() => {
-                      manual();
-                      player.predict(value);
-                      update();
-                    }}
-                  >
-                    {
-                      [
-                        t(language, "LessonPlayer.agree"),
-                        t(language, "LessonPlayer.disagree"),
-                        t(language, "LessonPlayer.notSure"),
-                      ][i]
-                    }
-                  </button>
-                ))}
+          <div className="stage-card">
+            <div className="stage-head">
+              <h3 ref={heading} tabIndex={-1}>
+                {stages[state.stage]}
+              </h3>
+              {index < labels.length && (
+                <span className="fine">
+                  {t(language, "LessonPlayer.stepOf")
+                    .replace("{n}", String(index + 1))
+                    .replace("{total}", String(labels.length))}
+                </span>
+              )}
+            </div>
+            {!["transfer", "complete"].includes(state.stage) && (
+              <blockquote className="claim">
+                <span className="eyebrow">
+                  {t(language, "LessonPlayer.theClaim")}
+                </span>
+                {e.claim}
+              </blockquote>
+            )}
+            {state.stage === "predict" && (
+              <>
+                <div className="prediction-row">
+                  <span className="prediction-prompt">
+                    {t(language, "LessonPlayer.yourCall")}
+                  </span>
+                  {(["agree", "disagree", "unsure"] as const).map(
+                    (value, i) => (
+                      <button
+                        key={value}
+                        className="secondary"
+                        aria-pressed={state.prediction === value}
+                        disabled={busy}
+                        onClick={() => {
+                          manual();
+                          player.predict(value);
+                          update();
+                        }}
+                      >
+                        {
+                          [
+                            t(language, "LessonPlayer.agree"),
+                            t(language, "LessonPlayer.disagree"),
+                            t(language, "LessonPlayer.notSure"),
+                          ][i]
+                        }
+                      </button>
+                    ),
+                  )}
+                  {nextButton}
+                </div>
+                <p className="fine">
+                  {t(language, "LessonPlayer.chooseBeforeRevealingTheResult")}
+                </p>
+              </>
+            )}
+          </div>
+          {state.stage === "predict" && e.kind !== "process" && (
+            <div className="experiment-surface experiment-preview">
+              <div className="preview-head">
+                <span className="eyebrow">
+                  {t(language, "LessonPlayer.whatYouWillTest")}
+                </span>
+                <span className="fine">{e.caption(0)}</span>
               </div>
-            </>
+              <ExperimentView
+                experiment={e}
+                progress={0}
+                language={language}
+                interactive={false}
+                preview
+                onScrub={() => {}}
+              />
+            </div>
           )}
           {["experiment", "explain"].includes(state.stage) && (
             <div className="experiment-surface">
@@ -922,25 +995,20 @@ export function LessonPlayer({
               {notice}
             </p>
           )}
-          <div className="player-next">
-            <button
-              disabled={nextDisabled}
-              onClick={() => {
-                nextRef.current();
-              }}
-            >
-              {nextLabel}
-            </button>
-            {!["predict", "complete"].includes(state.stage) && (
-              <button
-                className="text-button"
-                disabled={busy}
-                onClick={() => act(() => player.replay())}
-              >
-                {t(language, "LessonPlayer.replayExperiment")}
-              </button>
-            )}
-          </div>
+          {state.stage !== "predict" && (
+            <div className="player-next">
+              {nextButton}
+              {!["predict", "complete"].includes(state.stage) && (
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => act(() => player.replay())}
+                >
+                  {t(language, "LessonPlayer.replayExperiment")}
+                </button>
+              )}
+            </div>
+          )}
         </div>
         {state.stage !== "complete" && (
           <aside className="player-inspector">
@@ -949,7 +1017,9 @@ export function LessonPlayer({
                 language,
                 state.stage === "transfer"
                   ? "LessonPlayer.aboutThisModel"
-                  : "LessonPlayer.yourExperiment",
+                  : state.stage === "predict"
+                    ? "LessonPlayer.setUpTheExperiment"
+                    : "LessonPlayer.yourExperiment",
               )}
             </p>
             {state.prediction && state.stage !== "transfer" && (
@@ -1020,37 +1090,39 @@ export function LessonPlayer({
                 const converted = raw.unit !== input.unit;
                 return (
                   <div className="parameter" key={input.id}>
-                    <label htmlFor={`${formId}-parameter-${input.id}`}>
-                      {input.label} <span>({input.unit})</span>
-                    </label>
-                    <input
-                      id={`${formId}-parameter-${input.id}`}
-                      type="number"
-                      min={input.min}
-                      max={input.max}
-                      step={converted ? "any" : input.step}
-                      key={`${input.id}-${input.value}`}
-                      defaultValue={input.value}
-                      disabled={busy}
-                      onBlur={(event) => {
-                        const value = event.target.value;
-                        if (value !== "" && event.target.validity.valid) {
-                          if (
-                            Number(value) !== input.value &&
-                            !setInput(
-                              input.id,
-                              presented.toBaseInput(input.id, Number(value)),
+                    <div className="parameter-head">
+                      <label htmlFor={`${formId}-parameter-${input.id}`}>
+                        {input.label} <span>({input.unit})</span>
+                      </label>
+                      <input
+                        id={`${formId}-parameter-${input.id}`}
+                        type="number"
+                        min={input.min}
+                        max={input.max}
+                        step={converted ? "any" : input.step}
+                        key={`${input.id}-${input.value}`}
+                        defaultValue={input.value}
+                        disabled={busy}
+                        onBlur={(event) => {
+                          const value = event.target.value;
+                          if (value !== "" && event.target.validity.valid) {
+                            if (
+                              Number(value) !== input.value &&
+                              !setInput(
+                                input.id,
+                                presented.toBaseInput(input.id, Number(value)),
+                              )
                             )
-                          )
+                              event.target.value = String(input.value);
+                          } else {
                             event.target.value = String(input.value);
-                        } else {
-                          event.target.value = String(input.value);
-                          setNotice(
-                            t(language, "LessonPlayer.useAValueWithinThe"),
-                          );
-                        }
-                      }}
-                    />
+                            setNotice(
+                              t(language, "LessonPlayer.useAValueWithinThe"),
+                            );
+                          }
+                        }}
+                      />
+                    </div>
                     <input
                       type="range"
                       aria-label={`${input.label} slider`}
@@ -1089,7 +1161,7 @@ export function LessonPlayer({
                 </select>
               </label>
             )}
-            <details className="assumptions" open>
+            <details className="assumptions" open={state.stage !== "predict"}>
               <summary>{t(language, "LessonPlayer.assumptionsLimits")}</summary>
               <p>{e.assumptions}</p>
               {e.generated && (

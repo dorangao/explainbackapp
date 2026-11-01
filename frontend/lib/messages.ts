@@ -532,6 +532,48 @@ export const messages = {
   },
   "LessonPlayer.yourAnswer": { en: "Your answer", zh: "你的答案" },
   "LessonPlayer.yourExperiment": { en: "YOUR EXPERIMENT", zh: "你的实验" },
+  "LessonPlayer.setUpTheExperiment": {
+    en: "SET UP THE EXPERIMENT",
+    zh: "设置实验",
+  },
+  "LessonPlayer.whatYouWillTest": {
+    en: "WHAT YOU WILL TEST",
+    zh: "你将检验的内容",
+  },
+  "LessonPlayer.yourCall": { en: "Your call:", zh: "你的判断：" },
+  "LessonPlayer.stepOf": {
+    en: "Step {n} of {total}",
+    zh: "第 {n} 步，共 {total} 步",
+  },
+  "LessonPlayer.done": { en: "Done", zh: "已完成" },
+  "LessonPlayer.whatHappensAtEachStep": {
+    en: "What happens at each step",
+    zh: "每一步做什么",
+  },
+  "LessonPlayer.flowPredict": {
+    en: "Make your call on the claim before the result is shown.",
+    zh: "在看到结果之前，先对观点表态。",
+  },
+  "LessonPlayer.flowExperiment": {
+    en: "Run the model, scrub through it and read the final numbers.",
+    zh: "运行模型，拖动进度，读取最终数值。",
+  },
+  "LessonPlayer.flowExplain": {
+    en: "Say what changed and why; Muse can check your wording.",
+    zh: "说出什么变了、为什么变；可以让 Muse 检查你的表述。",
+  },
+  "LessonPlayer.flowTransfer": {
+    en: "Answer a fresh case with the same idea; code marks it.",
+    zh: "用同一个想法回答一个新情境，由代码批改。",
+  },
+  "ExperimentView.hiddenUntilYouPredict": {
+    en: "result hidden until you predict",
+    zh: "预测前不显示结果",
+  },
+  "ExperimentView.theCurveAppearsAfterYouPredict": {
+    en: "The curve appears after you predict",
+    zh: "预测之后才会显示曲线",
+  },
   "LessonPlayer.yourPrediction": { en: "Your prediction: ", zh: "你的预测：" },
   "RevisionSummary.comparedFieldByFieldIn": {
     en: "Compared field by field in the current language. Switch language to compare the other translation. A listed change is not a verified improvement; review it before presenting.",
