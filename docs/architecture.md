@@ -19,6 +19,8 @@ flowchart LR
   Validate --> API
   API -->|"Validated lesson or feedback"| Browser
   Browser -->|"User-confirmed playback"| Engine
+  Browser --> Canvas["Lesson canvas: confirmed image region/control<br/>SVG prediction and calculated curve"]
+  Canvas -->|"Bounded drawing points with explain-back"| API
   Local["Local Node development server"] -.->|"in-memory state / optional Ollama"| API
 ```
 
@@ -29,6 +31,7 @@ flowchart LR
 3. The server validates structured lesson data, including obvious question-shaped generated prediction claims, before returning it. The author reviews and can revise the assumptions, formulas and teaching text before presentation. Validation does not establish scientific correctness or guarantee that a statement is meaningful or testable.
 4. The browser runs bounded model or process demonstrations and checks numeric transfers locally. Optional model feedback is a separate explicit request; the generated equations and authored explanations still need human review.
 5. Background requests and responses, including attached images, are stored by Meta. The app stores temporary session state in Redis in the cloud; it does not resume background work after a page reload or navigation. Browser speech synthesis plays show narration; optional Meta Image draws show covers and, on request, one illustration per slide; optional Meta Voice transcribes the spoken explain-back. With Vercel Blob configured, drawn images and source sketches are stored as public, unguessable URLs and kept with saved lessons.
+6. For an image-based numeric lesson, the creator can select a SAM suggestion, draw a region, or select the whole image with the keyboard, then explicitly connect it to an existing control. This optional chapter metadata requires renewed lesson review and stays with saved/exported/shared lessons. It does not infer physical measurements from image pixels. The learner can draw a predicted curve with a pointer or enter three points, reveal the existing model calculation, and submit their explanation and prediction together for feedback. [Lesson canvas](lesson-canvas.md) describes the boundaries and recovery behavior.
 
 The public evaluation card is built from `docs/evaluation.md` and documents methods and limits. Dated evaluation reports and operational measurements are kept in the separate private repository and are not linked from the public app. Selected lesson fixtures remain public and reviewable.
 
@@ -39,6 +42,7 @@ The public evaluation card is built from `docs/evaluation.md` and documents meth
 | Client | React 19, TypeScript, Vite; bilingual English / Simplified Chinese interface | `frontend/`, `package.json` |
 | Appearance | Paper (default), Midnight Paper, Liquid Glass and Meta Blue; semantic CSS colors and scoped material styles; a bilingual header picker stores only the selected theme and reduced-transparency preference in browser local storage | `public/appearance.js`, `public/themes.css`, `frontend/appearance.css`, `frontend/components/Appearance.tsx` |
 | Simulations and graphics | Plain ES modules, D3 scale/shape/selection; bounded expressions and predefined engines | `public/`, `frontend/components/ExperimentView.tsx` |
+| Lesson canvas | SVG and Pointer Events; creator-confirmed image regions/control links, keyboard point entry, prediction overlay, shared bounded drawing validation and server-recomputed comparison values | `frontend/components/CanvasBindingEditor.tsx`, `frontend/components/PredictionCanvas.tsx`, `public/lesson-canvas.mjs` |
 | Server | Node.js 26, Express 5; shared local and Vercel API handler | `src/server.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
 | State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
@@ -71,7 +75,7 @@ Liquid Glass uses translucent material on the header and controls, with opaque r
 | Muse Spark 1.3 | Plays the first-time learner (tryout), grades explain-backs, writes the narrated show script; drafts alongside Wonder and, unless the creator picks Wonder, judges both drafts when a creator compares; the hosted default | `src/lesson-tester.mjs`, `src/lesson-show.mjs`, `src/studio-compare.mjs` |
 | Muse Image | Draws the show cover, the slides the show writer flags (up to two, within the request budget) and, on request, any other slide | `/api/studio/show`, `/api/studio/illustrate` |
 | Muse Voice Transcribe | Transcribes the spoken explain-back | `/api/studio/transcribe` |
-| SAM 3.1 | Finds the one thing a creator names in their sketch or photo and draws boxes over it (Spotlight) | `/api/studio/detect`, `frontend/components/Spotlight.tsx` |
+| SAM 3.1 | Finds the one thing a creator names in their sketch or photo; boxes appear in Spotlight and as selectable suggestions in the canvas editor. The creator confirms which region represents which control | `/api/studio/detect`, `frontend/components/Spotlight.tsx`, `frontend/components/CanvasBindingEditor.tsx` |
 | Muse Glimmer | Local creator model through Ollama (not on Vercel) | `EXPLAINBACK_OLLAMA_MODELS` |
 | Muse Spark Open | Open weights; any self-hosted build runs through the same Ollama option | `EXPLAINBACK_OLLAMA_MODELS` |
 | Muse Code | A development product, not an API; not part of the app | — |

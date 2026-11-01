@@ -1,5 +1,6 @@
 // Shared contract: authored text, catalog references and bounded declarative models.
 import {validateDemo,demoSchema} from './demo-model.mjs';
+import {validateCanvas} from './lesson-canvas.mjs';
 export const experimentIds=Object.freeze(['acceleration','roll','landing','suction','qubit','interference','entanglement','search']);
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 // A review hint, not language certification: foreign scripts can be legitimate
@@ -47,8 +48,9 @@ export function validateLesson(value){
  const ids=new Set();
  const lesson={version:value.version,...(withUnits?{units:value.units}:{}),...(sources?{sources}:{}),...(currency?{currency}:{}),title:bilingual(value.title,80,'title'),intro:bilingual(value.intro,200,'intro'),chapters:value.chapters.map((c,i)=>{
   if(value.version===2&&c?.experiment==='generated'){
-   if(!shape(c,['experiment','framing','explanation','demo']))throw new Error('Invalid generated chapter.');
-   return {experiment:'generated',framing:bilingual(c.framing,180,`chapter ${i+1} framing`),explanation:bilingual(c.explanation,260,`chapter ${i+1} explanation`),demo:validateDemo(c.demo)};
+   if(!shape(c,['experiment','framing','explanation','demo',...('canvas' in c?['canvas']:[])]))throw new Error('Invalid generated chapter.');
+   const demo=validateDemo(c.demo),canvas='canvas' in c?validateCanvas(c.canvas,demo):undefined;
+   return {experiment:'generated',framing:bilingual(c.framing,180,`chapter ${i+1} framing`),explanation:bilingual(c.explanation,260,`chapter ${i+1} explanation`),demo,...(canvas?{canvas}:{})};
   }
   if(!shape(c,['experiment','framing','explanation'])||!experimentIds.includes(c.experiment)||ids.has(c.experiment))throw new Error('Choose distinct supported experiments.');
   ids.add(c.experiment);return {experiment:c.experiment,framing:bilingual(c.framing,180,`chapter ${i+1} framing`),explanation:bilingual(c.explanation,260,`chapter ${i+1} explanation`)};

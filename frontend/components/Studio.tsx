@@ -80,6 +80,7 @@ import { OwnerActions } from "./OwnerActions";
 import { FigureCheck } from "./FigureCheck";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
+import type { Drawing } from "../lib/types";
 import { withoutUnits } from "../lib/units";
 import { EVALUATION_CARD_HASH, reportLessonUrl } from "../lib/evaluation";
 import { sharedProvenanceText } from "../lib/shared-note";
@@ -154,6 +155,7 @@ export function Studio({
     [show, setShow] = useState<Cached<ShowReply> | null>(null),
     [guide, setGuide] = useState<Record<string, Cached<Feedback>>>({}),
     [explanations, setExplanations] = useState<Record<string, string>>({}),
+    [drawings, setDrawings] = useState<Record<string, Drawing>>({}),
     [composeStamp, setComposeStamp] = useState<Stamp | null>(null),
     [reviseStamp, setReviseStamp] = useState<Stamp | null>(null),
     [revisionPrompt, setRevisionPrompt] = useState(""),
@@ -243,6 +245,9 @@ export function Studio({
     setPresenting(false);
     setReviewed(false);
     setSource(null);
+    setSourceImage(null);
+    setDetection(null);
+    setDrawings({});
     setFeedback(null);
     setShowing(false);
     setRevisionKey((k) => k + 1);
@@ -252,6 +257,8 @@ export function Studio({
   const closeLesson = useCallback(() => {
     invalidate();
     setDraft(null);
+    setSourceImage(null);
+    setDetection(null);
     setPlayer(null);
     setPresenting(false);
     setReviewed(false);
@@ -263,6 +270,7 @@ export function Studio({
     setShow(null);
     setGuide({});
     setExplanations({});
+    setDrawings({});
     setComposeStamp(null);
     setReviseStamp(null);
     setRevisionPrompt("");
@@ -292,6 +300,9 @@ export function Studio({
     setShow(saved.show);
     setGuide(saved.guide);
     setExplanations(saved.explanations);
+    setDrawings(saved.drawings ?? {});
+    setSourceImage(saved.sourceImage ?? null);
+    if (saved.sourceImage) setSource("studio-sketch");
     setPace(saved.pace);
     setSavedId(saved.savedId);
     setReferences(saved.references ?? null);
@@ -319,6 +330,8 @@ export function Studio({
           show,
           guide,
           explanations,
+          drawings,
+          sourceImage,
           player: presenting ? playerState.current : null,
           presenting,
           pace,
@@ -342,6 +355,8 @@ export function Studio({
     show,
     guide,
     explanations,
+    drawings,
+    sourceImage,
     presenting,
     pace,
     playerTick,
@@ -450,6 +465,7 @@ export function Studio({
     mode: "compose" | "guide",
     text?: string,
     starterTopic?: string,
+    drawing?: Drawing | null,
   ) {
     const revisionText = mode === "compose" ? text : undefined,
       learnerText = mode === "guide" ? text?.trim() : undefined,
@@ -547,6 +563,7 @@ export function Studio({
               controls: player!.state.controls,
               metric: player!.state.metric,
               ...(learnerText ? { explanation: learnerText } : {}),
+              ...(drawing ? { drawing } : {}),
             };
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
@@ -555,7 +572,7 @@ export function Studio({
     const before = revisionText && draft ? structuredClone(draft) : null;
     const requestKey =
       mode === "guide" && player
-        ? guideKey(player, language, learnerText)
+        ? guideKey(player, language, learnerText, drawing)
         : revisionText
           ? ""
           : composeKey;
@@ -661,6 +678,10 @@ export function Studio({
             : composed.lesson,
         );
         setRevision(before ? { before, after: next } : null);
+        if (before && sourceImage) {
+          setSourceImage(sourceImage);
+          setSource("studio-sketch");
+        }
         if (before)
           setReviseStamp({
             at: Date.now(),
@@ -1847,6 +1868,13 @@ export function Studio({
               onSave={authenticated ? () => void saveLesson() : undefined}
               savedId={savedId}
               saving={saving}
+              sourceImage={sourceImage}
+              detection={detection?.image === sourceImage ? detection : null}
+              onFind={
+                canRequest && providerStatus?.detect
+                  ? (concept) => void detect(concept)
+                  : undefined
+              }
             />
             {savedId &&
               savedItem &&
@@ -1898,7 +1926,9 @@ export function Studio({
               working={activeMode === "guide"}
               canAsk={canRequest}
               feedback={feedback}
-              onGuide={(own) => void request("guide", own)}
+              onGuide={(own, drawing) =>
+                void request("guide", own, undefined, drawing)
+              }
               onTranscribe={providerStatus?.voice ? transcribe : undefined}
               onClearFeedback={clearFeedback}
               onBack={() => setPresenting(false)}
@@ -1906,6 +1936,9 @@ export function Studio({
               guideCache={guide[String(player.state.chapter)] ?? null}
               explanations={explanations}
               onExplanations={setExplanations}
+              sourceImage={sourceImage}
+              drawings={drawings}
+              onDrawings={setDrawings}
               pace={pace}
               onPace={setPace}
               onState={onPlayerState}

@@ -1,7 +1,7 @@
 // Cached model results and the inputs they answered. A result is shown again without a
 // provider request while its inputs are unchanged; a changed input marks it stale and the
 // next request is an explicit "send changes" click. Nothing here talks to the server.
-import type { Language, Player } from "./types";
+import type { Drawing, Language, Player } from "./types";
 
 export type Cached<T> = { reply: T; at: number; key: string };
 export type Pace = "off" | "slow" | "normal" | "fast";
@@ -40,6 +40,7 @@ export function guideKey(
   player: Player,
   language: Language,
   explanation: string | undefined,
+  drawing?: Drawing | null,
 ) {
   const s = player.state;
   return fingerprint({
@@ -51,6 +52,19 @@ export function guideKey(
     metric: s.metric,
     language,
     explanation: explanation?.trim() || undefined,
+    ...(drawing ? { drawing } : {}),
+  });
+}
+// Independent of playback progress and UI language; changes of model/controls/output
+// invalidate a graph prediction. Authored graph units remain fixed.
+export function drawingKey(player: Player) {
+  const s = player.state;
+  return fingerprint({
+    chapter: player.lesson.chapters[s.chapter],
+    index: s.chapter,
+    controls: s.controls,
+    metric: s.metric,
+    variant: s.variant,
   });
 }
 export const formatCachedAt = (at: number, language: Language) =>

@@ -3,6 +3,7 @@
 // are stored; the draft and replies carry none today and this file must keep it so.
 import type {
   Feedback,
+  Drawing,
   Lesson,
   Player,
   PlayerState,
@@ -13,6 +14,7 @@ import type {
 import type { Cached, Pace } from "./studio-cache";
 import { paces } from "./studio-cache";
 import { createLessonPlayer, validateLesson } from "./shared";
+import { validateDrawing } from "../../public/lesson-canvas.mjs";
 
 export const storageKey = "explainback-studio-draft";
 export type StoredStudio = {
@@ -36,6 +38,8 @@ export type StoredStudio = {
   savedId: string | null;
   // The fact sheet the draft was grounded on, if Search first was used.
   references?: References | null;
+  sourceImage?: string | null;
+  drawings?: Record<string, Drawing>;
 };
 // Blocklist of field names that must never reach storage, whatever a reply contains.
 const secretField = /session|code|token|secret|password|key$|authorization/i;
@@ -76,7 +80,11 @@ export function saveStudio(
     try {
       store.setItem(
         storageKey,
-        JSON.stringify({ ...(record as object), show: null }),
+        JSON.stringify({
+          ...(record as object),
+          show: null,
+          sourceImage: null,
+        }),
       );
     } catch {}
   }
@@ -102,6 +110,15 @@ export function loadStudio(): StoredStudio | null {
         ? (c as Cached<T>)
         : null;
     const guide: Record<string, Cached<Feedback>> = {};
+    const drawings: Record<string, Drawing> = {};
+    for (const [key, item] of Object.entries(value.drawings ?? {}).slice(-24)) {
+      try {
+        if (/^[a-z0-9-]{1,80}$/i.test(key))
+          drawings[key] = validateDrawing(item);
+      } catch {
+        /* Ignore corrupt browser drawings. */
+      }
+    }
     for (const [k, v] of Object.entries(value.guide ?? {})) {
       const c = cached<Feedback>(v);
       if (c) guide[k] = c;
@@ -124,6 +141,15 @@ export function loadStudio(): StoredStudio | null {
       tryout: cached<TryoutReply>(value.tryout),
       show: cached<ShowReply>(value.show),
       guide,
+      drawings,
+      sourceImage:
+        typeof value.sourceImage === "string" &&
+        value.sourceImage.length <= 1_200_000 &&
+        /^(data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$|https:\/\/|\/gallery\/)/.test(
+          value.sourceImage,
+        )
+          ? value.sourceImage
+          : null,
       explanations: Object.fromEntries(
         Object.entries(value.explanations ?? {}).filter(
           ([, v]) => typeof v === "string",
