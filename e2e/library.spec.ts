@@ -58,7 +58,18 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   const guest = await visitor.newPage();
   await guest.goto(link);
   await expect(guest.locator(".lesson-player")).toBeVisible();
-  await expect(guest.getByText(/Shared by its creator/)).toBeVisible();
+  // The shared page says who made it and offers a prefilled report.
+  await expect(guest.locator(".shared-notice")).toContainText(
+    "An invited creator made this",
+  );
+  await expect(
+    guest
+      .locator(".shared-notice")
+      .getByRole("link", { name: "Report this lesson" }),
+  ).toHaveAttribute(
+    "href",
+    /github\.com\/dorangao\/explainbackapp\/issues\/new\?/,
+  );
   await guest.getByRole("button", { name: "Disagree", exact: true }).click();
   await guest
     .getByRole("navigation", { name: "Main navigation" })
@@ -74,6 +85,19 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await expect(
     guest.locator(".lesson-card-shared .lesson-art-image"),
   ).toBeVisible();
+  // The card carries the same note, and its details hold the report link.
+  await expect(
+    guest.locator(".lesson-card-shared .lesson-review-note"),
+  ).toHaveText("Shared by an invited creator · not reviewed");
+  await guest
+    .locator(".lesson-card-shared")
+    .getByText("About this lesson")
+    .click();
+  await expect(
+    guest
+      .locator(".lesson-card-shared")
+      .getByRole("link", { name: "Report this lesson" }),
+  ).toHaveAttribute("href", /issues\/new\?/);
   await guest
     .getByRole("link", { name: /Open lesson: Cooling coffee/ })
     .click();

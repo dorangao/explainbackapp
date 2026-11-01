@@ -20,6 +20,7 @@ import type {
 import { listShared } from "../lib/library";
 import type { CoverRecord } from "../lib/library";
 import { useCovers } from "../lib/covers";
+import { reportLessonUrl } from "../lib/evaluation";
 import type { SavedSummary } from "../lib/library";
 import { kindLabel } from "./Library";
 function LessonArt({ id }: { id: string }) {
@@ -492,6 +493,11 @@ function LibraryCard({
             {t(language, "Gallery.humanReviewRequired")}
           </p>
         )}
+        {entry.shared && (
+          <p className="lesson-review-note fine">
+            {t(language, "Gallery.sharedBadgeNote")}
+          </p>
+        )}
         <details className="lesson-source">
           <summary>{t(language, "Gallery.aboutThisLesson")}</summary>
           <p>
@@ -499,6 +505,18 @@ function LibraryCard({
             {cover &&
               ` ${t(language, override ? "Gallery.creatorCoverNote" : "Gallery.coverNote").replace("{date}", cover.createdAt)}`}
           </p>
+          {entry.shared && (
+            <p className="lesson-report">
+              <a
+                href={reportLessonUrl(entry.shared.id, title)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t(language, "Library.reportThisLesson")}
+              </a>{" "}
+              {t(language, "Library.reportNote")}
+            </p>
+          )}
         </details>
       </div>
     </article>
