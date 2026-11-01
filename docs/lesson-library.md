@@ -14,7 +14,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 - The **Private / Shared by link** switch on a saved lesson turns a public link on or off: `https://explainback.app/#shared:<id>`. Ids are 16 random hex characters.
 - A shared lesson opens for anyone without signing in, straight into the player, with its show when one was saved, and a provenance note saying it was shared by its creator from Lesson Studio rather than reviewed by the library's author.
 - Copy link, the system share sheet where the browser offers one (phones, Safari), and the existing Export JSON remain the ways to pass a lesson on. Turning the switch off hides the lesson immediately; the saved copy is unchanged.
-- Shared lessons also appear in the library under **Shared by creators**, newest first, up to 48, and take part in search and filters.
+- Shared lessons also appear in the library under **Shared by creators**, newest first, up to 48, and take part in search and filters. Every creator-shared lesson carries the same note, on its card ("Shared by an invited creator · not reviewed", with the full wording under About this lesson) and above the player on its page: an invited creator made it, ExplainBack has not reviewed it, the numbers are computed by code from the creator's formulas and the science and wording are the creator's. Both places link **Report this lesson**, which opens a prefilled issue on the public repository naming the lesson's link, so the author can find and unshare it; the creator can unshare or delete it from their shelf at any time.
 
 ## Catalog
 

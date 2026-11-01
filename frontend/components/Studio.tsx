@@ -78,7 +78,7 @@ import { CoverTool } from "./CoverTool";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
 import { withoutUnits } from "../lib/units";
-import { EVALUATION_CARD_HASH } from "../lib/evaluation";
+import { EVALUATION_CARD_HASH, reportLessonUrl } from "../lib/evaluation";
 import { toDataUrl } from "../lib/image";
 import type { Detection } from "./Spotlight";
 import { RevisionSummary } from "./RevisionSummary";
@@ -1771,6 +1771,18 @@ export function Studio({
         )}
         {presenting && player && (
           <>
+            {source === "shared" && external && (
+              <p className="shared-notice" role="note">
+                {t(language, "Gallery.sharedProvenance")}{" "}
+                <a
+                  href={reportLessonUrl(external.id, external.title[language])}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t(language, "Library.reportThisLesson")}
+                </a>
+              </p>
+            )}
             <LessonPlayer
               player={player}
               language={language}
@@ -1834,7 +1846,7 @@ export function Studio({
                 )}
                 <p>
                   {source === "shared"
-                    ? t(language, "Library.sharedLessonNote")
+                    ? t(language, "Gallery.sharedProvenance")
                     : source === "studio-sketch"
                       ? t(language, "Studio.sketchLessonNote")
                       : source === "evaluation" && evaluationItem

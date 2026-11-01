@@ -119,6 +119,10 @@ export const messages = {
     en: "Lesson requests and responses, including any attached image, are sent to Meta's Muse models and stored there. Use synthetic examples.",
     zh: "课程请求与回复（含附带图片）会发送给 Meta 的 Muse 模型并存储在那里。请使用合成示例。",
   },
+  "About.limit5": {
+    en: "Lessons shared by invited creators are not reviewed by ExplainBack. Each carries a note saying so and a link to report it.",
+    zh: "受邀创作者分享的课程未经 ExplainBack 审阅。每节都带有说明和举报链接。",
+  },
   "About.limit4": {
     en: "Sessions are temporary. Saved lessons belong to the access label that created them, and a shared link stays open after its code is revoked.",
     zh: "会话是临时的。已保存的课程归创建它的访问标签所有；分享链接在访问码撤销后仍可打开。",
@@ -1275,8 +1279,17 @@ export const messages = {
     zh: "来自草图 · 作者已审阅",
   },
   "Gallery.sharedProvenance": {
-    en: "A creator shared this from Studio by link. The author has not reviewed it; the creator is responsible for its content.",
-    zh: "由创作者在 Studio 中通过链接分享。作者未审阅；内容由创作者负责。",
+    en: "An invited creator made this in Lesson Studio and shared it by link. ExplainBack has not reviewed it: the numbers are computed by code from the creator's formulas, and the science and wording are the creator's.",
+    zh: "由受邀创作者在课程工作室制作并通过链接分享。ExplainBack 未审阅：数字由代码按创作者的公式计算，科学内容与表述由创作者负责。",
+  },
+  "Gallery.sharedBadgeNote": {
+    en: "Shared by an invited creator · not reviewed",
+    zh: "受邀创作者分享 · 未经审阅",
+  },
+  "Library.reportThisLesson": { en: "Report this lesson", zh: "举报此课程" },
+  "Library.reportNote": {
+    en: "Opens a prefilled report. A reported lesson can be taken off the shared list.",
+    zh: "打开预填的举报。被举报的课程可从分享列表中移除。",
   },
   "Gallery.gridFootnote": {
     en: "Lessons from the evaluation and from creators sit in the same grid as the reviewed ones; their badge and the note under each card say where they came from.",
@@ -1486,10 +1499,6 @@ export const messages = {
   "Studio.sketchLessonNote": {
     en: "Drafted by Muse from your sketch in Lesson Studio. The sketch is kept with the lesson; review the model and assumptions before presenting.",
     zh: "由 Muse 根据你在课程工作室上传的草图起草。草图随课程保存；演示前请审阅模型与假设。",
-  },
-  "Library.sharedLessonNote": {
-    en: "Shared by its creator from Lesson Studio. Drafted with Muse and reviewed by that creator, not by the author of the library.",
-    zh: "由创作者从课程工作室分享。使用 Muse 起草并由该创作者审阅，未经课程库作者审阅。",
   },
   "Library.sharedUnavailable": {
     en: "This shared lesson is not available. Its creator may have turned the link off.",

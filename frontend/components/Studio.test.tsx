@@ -1495,8 +1495,19 @@ describe("Sketch provenance notes", () => {
         grades: {},
       },
     });
-    expect(await screen.findByText(/Shared by its creator/)).toBeTruthy();
+    expect(
+      (await screen.findAllByText(/An invited creator made this/)).length,
+    ).toBeGreaterThan(0);
     expect(screen.queryByText(/October 28, 2026/)).toBeNull();
+    // The report link is prefilled with the lesson's link.
+    const report = screen.getAllByRole("link", { name: "Report this lesson" });
+    expect(report.length).toBeGreaterThan(0);
+    const href = report[0].getAttribute("href") ?? "";
+    expect(
+      href.startsWith("https://github.com/dorangao/explainbackapp/issues/new?"),
+    ).toBe(true);
+    expect(decodeURIComponent(href)).toContain("#shared:0123456789abcdef");
+    expect(report[0].getAttribute("rel")).toBe("noopener noreferrer");
     expect(
       (document.querySelector(".spotlight img") as HTMLImageElement | null)
         ?.src,
