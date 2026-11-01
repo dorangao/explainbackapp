@@ -128,6 +128,8 @@ export function Studio({
     // Search first: Spark gathers sourced figures before the draft (one extra request);
     // the sheet travels with revisions and is remembered with the draft.
     [searchFirst, setSearchFirst] = useState(false),
+    // Compare: let the rubric judge search the web and score factual currency (judge v2).
+    [groundedJudge, setGroundedJudge] = useState(false),
     [references, setReferences] = useState<References | null>(null),
     [modelId, setModelId] = useState(""),
     [draft, setDraft] = useState<Lesson | null>(null),
@@ -729,7 +731,12 @@ export function Studio({
       (id, options) =>
         post<CompareReply>(
           "/api/studio/compare",
-          { sessionId: id, topic: asked, judge: judge?.id },
+          {
+            sessionId: id,
+            topic: asked,
+            judge: judge?.id,
+            ...(groundedJudge ? { grounded: true } : {}),
+          },
           { ...options, timeoutMs: options.timeoutMs + 60_000 },
         ),
     );
@@ -1568,6 +1575,19 @@ export function Studio({
                           </option>
                         ))}
                       </select>
+                    </label>
+                  )}
+                  {canCompare && (
+                    <label className="grounded-judge-pick">
+                      <input
+                        type="checkbox"
+                        checked={groundedJudge}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setGroundedJudge(event.target.checked)
+                        }
+                      />
+                      {t(language, "Compare.checkFiguresOnline")}
                     </label>
                   )}
                   <label className="file-action import-action">

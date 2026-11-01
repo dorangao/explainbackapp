@@ -11,7 +11,7 @@ ExplainBack uses it in one place so far, before the author drafts a new topic de
 | --- | --- | --- |
 | Ground (new, `/api/studio/ground`) | Yes | Gathers a few sourced figures for the topic before the draft. |
 | Draft and revise (`/api/studio/compose`) | No search of its own | Receives the fact sheet as `references`; may name only its pages as sources. |
-| Rubric judge (Compare, eval harness) | Planned (phase 2) | A separate request that could check named figures against current pages. |
+| Rubric judge (Compare, eval harness) | Optional (`studio-judge-v2`) | A separate request; with **Check figures against the web** (Compare) or `--grounded-judge` (harness) it searches and scores factual currency, citing pages. |
 | Narrated show, illustrations | No | Written and drawn from the checked lesson. |
 | Learner tryout, explain-back guide, bench coach, quantum coach | Never | The learner must know only the lesson; the guide and coaches judge against checked facts. |
 
@@ -61,10 +61,25 @@ The ground request counts as one of the session's eight attempts and against the
 budget. In the live probe (Spark, low context) it returned in about seven seconds with
 roughly fifteen thousand input tokens, most of them the search results the API injected.
 
+## Grounded judge and the current-information suite (phase 2)
+
+Added October 31, 2026 Pacific. The rubric judge has a grounded variant, `studio-judge-v2`:
+it may search the web before scoring, gains a sixth item (factual currency, so the total
+is out of 12) and returns the figures it disputed, each with the page it cites; a citation
+is verified only when that page was among the judge's own search results. In Compare the
+option is **Check figures against the web** beside the judge picker; the comparison then
+shows the extra score row, the disputed figures with their sources, and a note that the
+cited pages were only search results. In the harness it is `--grounded-judge`.
+
+`studio-current-v1` is a frozen suite of six bilingual pairs whose lesson needs a figure
+from the world as it is now (four current values, two stable controls), each with a
+reference figure recorded on the freezing date, its source and a tolerance in one or more
+units. The scorer reports a *reference hit* when any declared input default or transfer
+value lands within the tolerance; it is an observation beside the automated checks, never
+part of them. `--ground` runs the Search first step before each draft, so the same suite
+run with and without it shows what grounding changes. See [evaluation.md](evaluation.md).
+
 ## Not yet
 
-- A grounded rubric judge (phase 2): a `studio-judge-v2` item for factual currency with
-  citations, and a frozen suite of topics that need current figures, with reference
-  values recorded at freezing time, so grounded and ungrounded drafts can be compared.
 - Date awareness in the author and judge instructions (phase 3), so a lesson can be
   marked stable or dated.

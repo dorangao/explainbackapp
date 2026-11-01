@@ -336,6 +336,12 @@ export type ComposeReply = ReplyMetrics & {
   attemptsRemaining: number;
 };
 export type StudioSession = { sessionId: string };
+export type FactualIssue = {
+  claim: string;
+  finding: string;
+  url: string | null;
+  verified: boolean;
+};
 // One model's reply when the same question is drafted with both Muse text models.
 export type CompareDraft = {
   model: string;
@@ -356,6 +362,10 @@ export type CompareDraft = {
         scores: Record<string, number>;
         issues: string[];
         summary: string;
+        // Grounded judge (v2): figures it disputed after a web search, with the page cited;
+        // `verified` means that page was among the search results.
+        factualIssues?: FactualIssue[];
+        pagesRead?: number;
       }
     | { failure: string; reason?: string }
     | null;

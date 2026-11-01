@@ -1,0 +1,351 @@
+{
+  "version": "studio-current-v1",
+  "frozen": "2026-10-31",
+  "purpose": "Topics whose lesson needs a figure from the world as it is now, so a draft written from memory and one grounded on a web search can be compared. Four pairs depend on current values (the US federal funds target range, the US 30-year mortgage rate, the Mauna Loa CO2 concentration, the world population) and two are stable controls (the US federal minimum wage, the carbon-14 half-life). Each case carries a reference figure recorded on the freezing date with its source; the scorer reports whether any declared input default or transfer value lands within the reference's tolerance (a reference hit). The hit is an observation beside the automated checks, never part of them, and the sources are listed so a reader can re-check the figures later.",
+  "cases": [
+    {
+      "id": "fed-funds-en",
+      "pair": "fed-funds",
+      "language": "en",
+      "category": "model",
+      "topic": "How does the current US federal funds target rate affect what a savings balance earns over a few years? Build an adjustable compound growth model whose default rate is today's actual federal funds target rate, with the balance, the rate and the years as inputs.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元"],
+        "review": [
+          "The default rate matches the current target range, not an older one.",
+          "Compounding frequency is stated.",
+          "No investment advice."
+        ]
+      },
+      "reference": {
+        "name": "US federal funds target range, midpoint",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": [
+          "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm"
+        ],
+        "note": "Held at 3.75 to 4.00 percent on October 28, 2026. Either end or the midpoint counts.",
+        "aliases": [
+          { "value": 3.875, "tolerance": 0.13, "unit": "%" },
+          { "value": 0.03875, "tolerance": 0.0013, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "fed-funds-zh",
+      "pair": "fed-funds",
+      "language": "zh",
+      "category": "model",
+      "topic": "当前美国联邦基金目标利率会怎样影响一笔存款几年后的收益？建立一个可调的复利增长模型，默认利率使用今天实际的联邦基金目标利率，输入包括本金、利率和年数。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元"],
+        "review": [
+          "默认利率与当前目标区间一致，而不是旧值。",
+          "说明了复利频率。",
+          "没有投资建议。"
+        ]
+      },
+      "reference": {
+        "name": "US federal funds target range, midpoint",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": [
+          "https://www.federalreserve.gov/newsevents/pressreleases/monetary20261028a.htm"
+        ],
+        "note": "Held at 3.75 to 4.00 percent on October 28, 2026. Either end or the midpoint counts.",
+        "aliases": [
+          { "value": 3.875, "tolerance": 0.13, "unit": "%" },
+          { "value": 0.03875, "tolerance": 0.0013, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "mortgage-rate-en",
+      "pair": "mortgage-rate",
+      "language": "en",
+      "category": "model",
+      "topic": "At today's typical US 30-year fixed mortgage rate, how much of an early monthly payment goes to interest rather than principal? Build an adjustable model with the loan amount, the yearly rate (default: the current average rate) and the term in years.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元", "%"],
+        "review": [
+          "The default rate is the current weekly average, not a 2024 or 2025 value.",
+          "The payment formula or its simplification is stated.",
+          "No lending advice."
+        ]
+      },
+      "reference": {
+        "name": "US 30-year fixed mortgage rate, weekly average",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://fred.stlouisfed.org/series/MORTGAGE30US"],
+        "note": "7.40 percent for the week of October 15, 2026, in the Freddie Mac survey as copied by FRED; weekly values move by tenths.",
+        "aliases": [
+          { "value": 7.4, "tolerance": 0.45, "unit": "%" },
+          { "value": 0.074, "tolerance": 0.0045, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "mortgage-rate-zh",
+      "pair": "mortgage-rate",
+      "language": "zh",
+      "category": "model",
+      "topic": "按照今天美国典型的 30 年期固定房贷利率，早期每月还款中有多少是利息而不是本金？建立一个可调模型，输入包括贷款金额、年利率（默认值为当前平均利率）和贷款年限。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元", "%"],
+        "review": [
+          "默认利率是当前的周平均值，而不是 2024 或 2025 年的数值。",
+          "说明了还款公式或其简化。",
+          "没有贷款建议。"
+        ]
+      },
+      "reference": {
+        "name": "US 30-year fixed mortgage rate, weekly average",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://fred.stlouisfed.org/series/MORTGAGE30US"],
+        "note": "7.40 percent for the week of October 15, 2026, in the Freddie Mac survey as copied by FRED; weekly values move by tenths.",
+        "aliases": [
+          { "value": 7.4, "tolerance": 0.45, "unit": "%" },
+          { "value": 0.074, "tolerance": 0.0045, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "co2-level-en",
+      "pair": "co2-level",
+      "language": "en",
+      "category": "model",
+      "topic": "How fast is the carbon dioxide concentration in the air rising? Build an adjustable model that starts from the current Mauna Loa monthly average and grows by an adjustable amount per year, and ask when a chosen level is reached.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["ppm", "ppmv"],
+        "review": [
+          "The starting level is the current reading, not a 2020 or 2023 value.",
+          "The yearly increase is stated as an assumption.",
+          "The seasonal cycle is mentioned as a limit or left out explicitly."
+        ]
+      },
+      "reference": {
+        "name": "Mauna Loa monthly mean CO2",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://gml.noaa.gov/ccgg/trends/"],
+        "note": "431.44 ppm in June 2026 (NOAA); the seasonal cycle spans about 6 ppm, so late-2026 monthly means sit a few ppm lower.",
+        "aliases": [{ "value": 430, "tolerance": 4, "unit": "ppm" }]
+      }
+    },
+    {
+      "id": "co2-level-zh",
+      "pair": "co2-level",
+      "language": "zh",
+      "category": "model",
+      "topic": "空气中的二氧化碳浓度上升得有多快？建立一个可调模型，从冒纳罗亚观测站当前的月平均值开始，按可调的每年增量增长，并提问何时达到某个选定的浓度。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["ppm", "ppmv"],
+        "review": [
+          "起始浓度是当前读数，而不是 2020 或 2023 年的数值。",
+          "每年增量作为假设写明。",
+          "季节波动作为限制提及，或明确略去。"
+        ]
+      },
+      "reference": {
+        "name": "Mauna Loa monthly mean CO2",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://gml.noaa.gov/ccgg/trends/"],
+        "note": "431.44 ppm in June 2026 (NOAA); the seasonal cycle spans about 6 ppm, so late-2026 monthly means sit a few ppm lower.",
+        "aliases": [{ "value": 430, "tolerance": 4, "unit": "ppm" }]
+      }
+    },
+    {
+      "id": "world-population-en",
+      "pair": "world-population",
+      "language": "en",
+      "category": "model",
+      "topic": "How long until the world population reaches 9 billion at today's growth rate? Build an adjustable model that starts from the current world population with the yearly growth rate as an input.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["billion", "people", "亿", "person", "persons", "1"],
+        "review": [
+          "The starting population is the current estimate, not 8.0 billion.",
+          "The growth rate is stated as an assumption that changes over time.",
+          "The unit of the population axis is clear."
+        ]
+      },
+      "reference": {
+        "name": "World population",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://population.un.org/wpp/"],
+        "note": "About 8.30 billion in 2026 in the UN World Population Prospects 2024; grows by roughly 70 million a year.",
+        "aliases": [
+          { "value": 8.3, "tolerance": 0.12, "unit": "billion" },
+          { "value": 83, "tolerance": 1.2, "unit": "亿" },
+          { "value": 8300, "tolerance": 120, "unit": "million" },
+          { "value": 8300000000, "tolerance": 120000000, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "world-population-zh",
+      "pair": "world-population",
+      "language": "zh",
+      "category": "model",
+      "topic": "按今天的增长率，世界人口多久会达到 90 亿？建立一个可调模型，从当前的世界人口开始，以年增长率作为输入。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["billion", "people", "亿", "person", "persons", "1"],
+        "review": [
+          "起始人口是当前估计值，而不是 80 亿。",
+          "增长率作为会随时间变化的假设写明。",
+          "人口轴的单位清楚。"
+        ]
+      },
+      "reference": {
+        "name": "World population",
+        "current": true,
+        "asOf": "2026-10-31",
+        "sources": ["https://population.un.org/wpp/"],
+        "note": "About 8.30 billion in 2026 in the UN World Population Prospects 2024; grows by roughly 70 million a year.",
+        "aliases": [
+          { "value": 8.3, "tolerance": 0.12, "unit": "billion" },
+          { "value": 83, "tolerance": 1.2, "unit": "亿" },
+          { "value": 8300, "tolerance": 120, "unit": "million" },
+          { "value": 8300000000, "tolerance": 120000000, "unit": "1" }
+        ]
+      }
+    },
+    {
+      "id": "minimum-wage-en",
+      "pair": "minimum-wage",
+      "language": "en",
+      "category": "model",
+      "topic": "How many hours at the current US federal minimum wage does it take to earn a given amount? Build an adjustable model with the hourly wage (default: the actual federal minimum), the hours per week and the number of weeks.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元"],
+        "review": [
+          "The default wage is the federal rate, with state rates mentioned as a limit.",
+          "Taxes are excluded explicitly.",
+          "No employment advice."
+        ]
+      },
+      "reference": {
+        "name": "US federal minimum wage",
+        "current": false,
+        "asOf": "2026-10-31",
+        "sources": ["https://www.dol.gov/agencies/whd/minimum-wage"],
+        "note": "7.25 dollars an hour since July 2009; a stable control for the suite.",
+        "aliases": [{ "value": 7.25, "tolerance": 0.01, "unit": "$/h" }]
+      }
+    },
+    {
+      "id": "minimum-wage-zh",
+      "pair": "minimum-wage",
+      "language": "zh",
+      "category": "model",
+      "topic": "按美国当前的联邦最低工资，赚到某个金额需要工作多少小时？建立一个可调模型，输入包括时薪（默认值为实际的联邦最低工资）、每周工时和周数。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["$", "USD", "dollars", "美元"],
+        "review": [
+          "默认时薪是联邦标准，并把各州标准作为限制提及。",
+          "明确不计税。",
+          "没有就业建议。"
+        ]
+      },
+      "reference": {
+        "name": "US federal minimum wage",
+        "current": false,
+        "asOf": "2026-10-31",
+        "sources": ["https://www.dol.gov/agencies/whd/minimum-wage"],
+        "note": "7.25 dollars an hour since July 2009; a stable control for the suite.",
+        "aliases": [{ "value": 7.25, "tolerance": 0.01, "unit": "$/h" }]
+      }
+    },
+    {
+      "id": "carbon-14-en",
+      "pair": "carbon-14",
+      "language": "en",
+      "category": "model",
+      "topic": "How do scientists estimate the age of a bone from its remaining carbon-14? Build an adjustable decay model that uses the actual half-life of carbon-14 as its default and converts a remaining fraction into an age.",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["years", "year", "yr", "a", "年", "ka"],
+        "review": [
+          "The half-life default is the accepted value, about 5,700 years.",
+          "Calibration is mentioned as a limit.",
+          "The remaining fraction is dimensionless and bounded."
+        ]
+      },
+      "reference": {
+        "name": "Carbon-14 half-life",
+        "current": false,
+        "asOf": "2026-10-31",
+        "sources": ["https://en.wikipedia.org/wiki/Carbon-14"],
+        "note": "5,700 ± 30 years (older texts give 5,730); a stable control for the suite.",
+        "aliases": [
+          { "value": 5715, "tolerance": 45, "unit": "years" },
+          { "value": 5.715, "tolerance": 0.045, "unit": "ka" }
+        ]
+      }
+    },
+    {
+      "id": "carbon-14-zh",
+      "pair": "carbon-14",
+      "language": "zh",
+      "category": "model",
+      "topic": "科学家如何根据骨头中剩余的碳-14 估计其年代？建立一个可调的衰变模型，默认使用碳-14 的实际半衰期，并把剩余比例换算成年代。",
+      "expected": {
+        "status": "ready",
+        "kind": "model",
+        "maxChapters": 2,
+        "outputUnit": ["years", "year", "yr", "a", "年", "ka"],
+        "review": [
+          "半衰期默认值是公认值，约 5700 年。",
+          "把校正作为限制提及。",
+          "剩余比例无量纲且有界。"
+        ]
+      },
+      "reference": {
+        "name": "Carbon-14 half-life",
+        "current": false,
+        "asOf": "2026-10-31",
+        "sources": ["https://en.wikipedia.org/wiki/Carbon-14"],
+        "note": "5,700 ± 30 years (older texts give 5,730); a stable control for the suite.",
+        "aliases": [
+          { "value": 5715, "tolerance": 45, "unit": "years" },
+          { "value": 5.715, "tolerance": 0.045, "unit": "ka" }
+        ]
+      }
+    }
+  ]
+}
