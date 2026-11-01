@@ -19,7 +19,7 @@ import { MicrophoneError, startRecording } from "../lib/recorder";
 import type { Recording } from "../lib/recorder";
 import type { Feedback, Language, Player } from "../lib/types";
 import { say } from "../lib/types";
-import { formatDemoNumber } from "../lib/shared";
+import { formatDemoNumber, shownUnit } from "../lib/shared";
 import { guideKey, paceFactor, paces } from "../lib/studio-cache";
 import { PageHeader } from "./PageHeader";
 import { CurrencyNote } from "./CurrencyNote";
@@ -42,6 +42,7 @@ export function LessonPlayer({
   language,
   visible,
   busy,
+  working = busy,
   canAsk,
   feedback,
   onGuide,
@@ -60,6 +61,8 @@ export function LessonPlayer({
   language: Language;
   visible: boolean;
   busy: boolean;
+  // Whether the request in flight is this player's own (the explain step).
+  working?: boolean;
   canAsk: boolean;
   feedback: Feedback | null;
   onGuide: (explanation?: string) => void;
@@ -170,6 +173,7 @@ export function LessonPlayer({
     [language, stopVoice],
   );
   const heading = useRef<HTMLHeadingElement>(null),
+    stageCard = useRef<HTMLDivElement>(null),
     state = player.state;
   // The player mutates in place; chapter, variant, metric and controls key the memo.
   const experimentKey = `${state.chapter}/${state.variant}/${state.metric}/${JSON.stringify(state.controls)}`;
@@ -381,7 +385,11 @@ export function LessonPlayer({
       else player.next();
     });
     setAnswer("");
-    heading.current?.focus();
+    // Announce the new stage without yanking the page: focus the heading in place, then
+    // bring the stage card into view only as far as needed.
+    heading.current?.focus({ preventScroll: true });
+    // Optional call: the test DOM has no scrollIntoView.
+    stageCard.current?.scrollIntoView?.({ block: "nearest" });
   };
   // The step's primary action: in the Predict row beside the three calls, else at the end.
   const nextButton = (
@@ -522,7 +530,7 @@ export function LessonPlayer({
       </nav>
       <div className="player-layout">
         <div className="player-main">
-          <div className="stage-card">
+          <div className="stage-card" ref={stageCard}>
             <div className="stage-head">
               <h3 ref={heading} tabIndex={-1}>
                 {stages[state.stage]}
@@ -665,7 +673,8 @@ export function LessonPlayer({
                     <div key={m.label}>
                       <dt>{m.label}</dt>
                       <dd>
-                        {formatDemoNumber(m.value)} <small>{m.unit}</small>
+                        {formatDemoNumber(m.value)}{" "}
+                        <small>{shownUnit(m.unit)}</small>
                       </dd>
                     </div>
                   ))}
@@ -830,10 +839,10 @@ export function LessonPlayer({
                 >
                   {say(
                     language,
-                    busy
+                    working
                       ? "Muse is working…"
                       : "Ask Muse to explain this result",
-                    busy ? "Muse 正在处理…" : "让 Muse 解释这个结果",
+                    working ? "Muse 正在处理…" : "让 Muse 解释这个结果",
                   )}
                 </button>
               )}
@@ -925,7 +934,8 @@ export function LessonPlayer({
                   }}
                 >
                   <label>
-                    {t(language, "LessonPlayer.yourAnswer")} ({e.transfer.unit})
+                    {t(language, "LessonPlayer.yourAnswer")}
+                    {shownUnit(e.transfer.unit) && ` (${e.transfer.unit})`}
                     <input
                       value={answer}
                       onChange={(event) => {
@@ -1093,7 +1103,13 @@ export function LessonPlayer({
                   <div className="parameter" key={input.id}>
                     <div className="parameter-head">
                       <label htmlFor={`${formId}-parameter-${input.id}`}>
-                        {input.label} <span>({input.unit})</span>
+                        {input.label}
+                        {shownUnit(input.unit) && (
+                          <>
+                            {" "}
+                            <span>({input.unit})</span>
+                          </>
+                        )}
                       </label>
                       <input
                         id={`${formId}-parameter-${input.id}`}
@@ -1156,7 +1172,8 @@ export function LessonPlayer({
                 >
                   {e.formulas?.map((f, i) => (
                     <option key={f.id} value={i}>
-                      {f.label} ({f.unit})
+                      {f.label}
+                      {shownUnit(f.unit) && ` (${f.unit})`}
                     </option>
                   ))}
                 </select>

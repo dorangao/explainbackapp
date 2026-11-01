@@ -108,4 +108,8 @@ export const demoSchema={anyOf:[
  obj({kind:{type:'string',enum:['process']},...common,stages:{type:'array',items:obj({title:bilingual,detail:bilingual})},transfer:obj({question:bilingual,choices:{type:'array',items:bilingual},answer:{type:'integer'},rationale:bilingual})})
 ]};
 
+// The contract wants a unit on every quantity; authors write "1" when there is none.
+// Readers never see that "1": shownUnit drops it and withUnit joins a value to its unit.
+export const shownUnit=unit=>unit==null||unit===''||String(unit).trim()==='1'?'':String(unit);
+export const withUnit=(text,unit)=>{const u=shownUnit(unit);return u?`${text} ${u}`:String(text);};
 export const formatDemoNumber=n=>n===0?'0':Math.abs(n)<.01||Math.abs(n)>=1e5?n.toExponential(3):String(Number(n.toPrecision(5)));

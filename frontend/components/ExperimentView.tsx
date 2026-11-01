@@ -1,6 +1,6 @@
 import type { Experiment, Language } from "../lib/types";
 import { t } from "../lib/messages";
-import { formatDemoNumber as fmt } from "../lib/shared";
+import { formatDemoNumber as fmt, shownUnit } from "../lib/shared";
 const colors = ["#116d60", "#ad582d", "#655598", "#456a99"];
 export function ExperimentView({
   experiment: e,
@@ -53,6 +53,8 @@ export function ExperimentView({
   const X = (v: number) => 64 + v * 548,
     Y = (v: number) => 224 - ((v - low) / (high - low)) * 188,
     values = e.sample(u);
+  // The chart's accessible name: the title, then the unit when the quantity has one.
+  const titled = shownUnit(e.unit) ? `${e.title} · ${e.unit}` : e.title;
   return (
     <div className="experiment-drawing" data-preview={preview || undefined}>
       <svg
@@ -60,8 +62,8 @@ export function ExperimentView({
         role="img"
         aria-label={
           preview
-            ? `${e.title} · ${e.unit} · ${t(language, "ExperimentView.hiddenUntilYouPredict")}`
-            : `${e.title} · ${e.unit}`
+            ? `${titled} · ${t(language, "ExperimentView.hiddenUntilYouPredict")}`
+            : titled
         }
       >
         {preview && (
@@ -157,7 +159,7 @@ export function ExperimentView({
           />
         )}
         <text x={64} y={18} fontSize={12} fill="#354a42">
-          {e.unit}
+          {shownUnit(e.unit)}
         </text>
         <text x={64} y={245} fontSize={11} fill="#5d6c67">
           {e.gates?.[0] ?? e.axisEnds?.[0] ?? 0}
@@ -171,7 +173,7 @@ export function ExperimentView({
         {e.series.map((label, i) => (
           <span key={label}>
             <span className={`series-swatch series-${i}`} />
-            {label}: <strong>{fmt(values[i])}</strong> {e.unit}
+            {label}: <strong>{fmt(values[i])}</strong> {shownUnit(e.unit)}
           </span>
         ))}
       </div>

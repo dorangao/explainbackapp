@@ -7,6 +7,7 @@ import {
   evaluationLesson,
   evaluationModelLabel,
   evaluationNote,
+  shownUnit,
 } from "../lib/shared";
 import type {
   Bilingual,
@@ -179,7 +180,7 @@ export function ModelColumn({
                       {input.label[language]}
                       <span className="fine">
                         {" "}
-                        {input.min}–{input.max} {input.unit}
+                        {input.min}–{input.max} {shownUnit(input.unit)}
                       </span>
                     </li>
                   ))}
@@ -189,7 +190,7 @@ export function ModelColumn({
                   {demo.outputs.map((output) => (
                     <li key={output.id}>
                       {output.label[language]}
-                      {output.unit && output.unit !== "1" && (
+                      {shownUnit(output.unit) && (
                         <span className="fine"> ({output.unit})</span>
                       )}
                       <code className="compare-expression">
@@ -200,7 +201,7 @@ export function ModelColumn({
                 </ul>
                 <p className="fine">
                   {t(language, "Compare.axis")}: {demo.axis.label[language]}{" "}
-                  {demo.axis.min}–{demo.axis.max} {demo.axis.unit}
+                  {demo.axis.min}–{demo.axis.max} {shownUnit(demo.axis.unit)}
                 </p>
               </>
             ) : (

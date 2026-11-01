@@ -44,6 +44,8 @@ export function useProviderSession({
   onSettled?: () => void;
 }) {
   const [busy, setBusy] = useState(false),
+    // Which request is in flight, so a button can say "working" only for its own call.
+    [activeMode, setActiveMode] = useState<RequestMetrics["mode"] | null>(null),
     [remaining, setRemaining] = useState(8),
     [sessionId, setSessionId] = useState<string | null>(null),
     [metrics, setMetrics] = useState<RequestMetrics | null>(null);
@@ -80,6 +82,7 @@ export function useProviderSession({
       setRemaining(8);
       setMetrics(null);
       markBusy(false);
+      setActiveMode(null);
       onInvalidateRef.current?.();
       if (old && remote)
         void postRef
@@ -141,6 +144,7 @@ export function useProviderSession({
         controller = new AbortController();
       pending.current = controller;
       markBusy(true);
+      setActiveMode(mode);
       setLanguageInterrupted(false);
       const options = {
         timeoutMs: (target.timeoutMs ?? 60000) + 65000,
@@ -192,6 +196,7 @@ export function useProviderSession({
         if (current(token)) {
           pending.current = null;
           markBusy(false);
+          setActiveMode(null);
         }
         settledRef.current?.();
       }
@@ -200,6 +205,7 @@ export function useProviderSession({
   );
   return {
     busy,
+    activeMode,
     busyRef,
     remaining,
     sessionId,
