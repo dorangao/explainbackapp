@@ -76,6 +76,7 @@ import { LessonPlayer } from "./LessonPlayer";
 import { RequestSummary } from "./RequestSummary";
 import { DraftReview } from "./DraftReview";
 import { CoverTool } from "./CoverTool";
+import { OwnerActions } from "./OwnerActions";
 import { FigureCheck } from "./FigureCheck";
 import { LiveComparison } from "./Comparison";
 import { Spotlight } from "./Spotlight";
@@ -111,6 +112,7 @@ export function Studio({
   onRequestSettled,
   onRequestAccess,
   external = null,
+  editId = null,
 }: {
   language: Language;
   authenticated: boolean;
@@ -126,6 +128,8 @@ export function Studio({
   onRequestAccess: () => void;
   // A shared lesson opened by link (`#shared:ID`): reviewed content from another creator.
   external?: SavedLesson | null;
+  // "#edit:<id>": one of the creator's own saved lessons to open for editing.
+  editId?: string | null;
 }) {
   const formId = useId();
   const [topic, setTopic] = useState(""),
@@ -1309,6 +1313,27 @@ export function Studio({
       setMessage(t(language, "Studio.completeBothLanguagesAndCheck"));
     }
   }
+  // "#edit:<id>" from a shared page or a library card: load the saved copy into the
+  // review view once the creator is signed in, then settle the address on #create.
+  const edited = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editId || !authenticated || edited.current === editId) return;
+    edited.current = editId;
+    let live = true;
+    void readMine(editId)
+      .then((record) => {
+        if (!live) return;
+        openSaved(record);
+        location.hash = "#create";
+      })
+      .catch(() => {
+        if (live) setMessage(t(language, "Library.editUnavailable"));
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openSaved reads the latest state when it runs
+  }, [editId, authenticated]);
   // The Create button's own request: compose, or the Search first step before it.
   const composing = activeMode === "compose" || activeMode === "ground";
   const canRequest =
@@ -1419,7 +1444,7 @@ export function Studio({
             </div>
             <FeaturedLesson language={language} id="explainback" />
           </section>
-          <Gallery language={language} />
+          <Gallery language={language} post={authenticated ? post : null} />
           <section className="create-invitation">
             <div>
               <p className="eyebrow">
@@ -1852,6 +1877,18 @@ export function Studio({
                   {t(language, "Library.reportThisLesson")}
                 </a>
               </p>
+            )}
+            {source === "shared" && external?.mine && authenticated && (
+              <OwnerActions
+                language={language}
+                id={external.id}
+                post={post}
+                busy={busy}
+                onNotice={setMessage}
+                onDeleted={() => {
+                  location.hash = "#studio";
+                }}
+              />
             )}
             <LessonPlayer
               player={player}

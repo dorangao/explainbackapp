@@ -1496,7 +1496,21 @@ export const messages = {
   },
   "Library.open": { en: "open now", zh: "当前打开" },
   "Library.updated": { en: "Updated", zh: "更新于" },
-  "Library.openLesson": { en: "Open", zh: "打开" },
+  "Library.openLesson": { en: "Edit", zh: "编辑" },
+  "Library.editThisLesson": { en: "Edit this lesson", zh: "编辑此课程" },
+  "Library.yourLesson": { en: "Your lesson", zh: "你的课程" },
+  "Library.yourLessonNote": {
+    en: "Yours · a save keeps this same link; deleting removes it for everyone.",
+    zh: "你的课程 · 保存后仍是同一链接；删除后所有人都无法再打开。",
+  },
+  "Library.editUnavailable": {
+    en: "That lesson could not be opened for editing. It may have been deleted.",
+    zh: "无法打开该课程进行编辑，它可能已被删除。",
+  },
+  "Library.deleteFailed": {
+    en: "The lesson could not be deleted. Try again.",
+    zh: "无法删除该课程，请重试。",
+  },
   "Library.delete": { en: "Delete", zh: "删除" },
   "Library.yesDelete": { en: "Yes, delete", zh: "确认删除" },
   "Library.keep": { en: "Keep", zh: "保留" },
