@@ -388,7 +388,8 @@ export function LessonPlayer({
     // Announce the new stage without yanking the page: focus the heading in place, then
     // bring the stage card into view only as far as needed.
     heading.current?.focus({ preventScroll: true });
-    stageCard.current?.scrollIntoView({ block: "nearest" });
+    // Optional call: the test DOM has no scrollIntoView.
+    stageCard.current?.scrollIntoView?.({ block: "nearest" });
   };
   // The step's primary action: in the Predict row beside the three calls, else at the end.
   const nextButton = (
