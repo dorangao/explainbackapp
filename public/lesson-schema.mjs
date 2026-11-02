@@ -1,6 +1,7 @@
 // Shared contract: authored text, catalog references and bounded declarative models.
 import {validateDemo,demoSchema} from './demo-model.mjs';
 import {validateCanvas} from './lesson-canvas.mjs';
+import {boundedBilingual} from './schema-text.mjs';
 export const experimentIds=Object.freeze(['acceleration','roll','landing','suction','qubit','interference','entanglement','search']);
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 // A review hint, not language certification: foreign scripts can be legitimate
@@ -71,5 +72,5 @@ function validateCurrency(value){
 }
 export const withCurrency=schema=>({...schema,properties:{...schema.properties,currency:{type:'string',enum:[...currencyStatuses]}},required:[...(schema.required??[]),'currency']});
 export const withSources=schema=>({...schema,properties:{...schema.properties,sources:{type:'array',items:{type:'string'}}},required:[...(schema.required??[]),'sources']});
-export const lessonSchema={type:'object',properties:{version:{type:'integer',enum:[1]},title:bilingualSchema,intro:bilingualSchema,chapters:{type:'array',items:{type:'object',properties:{experiment:{type:'string',enum:experimentIds},framing:bilingualSchema,explanation:bilingualSchema},required:['experiment','framing','explanation'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};
-export const generatedLessonSchema={type:'object',properties:{version:{type:'integer',enum:[2]},title:bilingualSchema,intro:bilingualSchema,chapters:{type:'array',items:{type:'object',properties:{experiment:{type:'string',enum:['generated']},framing:bilingualSchema,explanation:bilingualSchema,demo:demoSchema},required:['experiment','framing','explanation','demo'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};
+export const lessonSchema={type:'object',properties:{version:{type:'integer',enum:[1]},title:boundedBilingual(80),intro:boundedBilingual(200),chapters:{type:'array',minItems:1,maxItems:3,items:{type:'object',properties:{experiment:{type:'string',enum:experimentIds},framing:boundedBilingual(180),explanation:boundedBilingual(260)},required:['experiment','framing','explanation'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};
+export const generatedLessonSchema={type:'object',properties:{version:{type:'integer',enum:[2]},title:boundedBilingual(80),intro:boundedBilingual(200),chapters:{type:'array',minItems:1,maxItems:3,items:{type:'object',properties:{experiment:{type:'string',enum:['generated']},framing:boundedBilingual(180),explanation:boundedBilingual(260),demo:demoSchema},required:['experiment','framing','explanation','demo'],additionalProperties:false}}},required:['version','title','intro','chapters'],additionalProperties:false};
