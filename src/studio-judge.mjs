@@ -17,7 +17,7 @@ export async function judgeLesson(ctx){
   if(body.grounded!==undefined&&typeof body.grounded!=='boolean')throw new RequestError(400,'Invalid grounded flag.');
   const grounded=body.grounded!==false;
   const request=lessonJudgeRequest({topic,language,category:lessonKind(lesson)},{status:'ready',message:{en:'',zh:''},lesson},{grounded});
-  if(s.attempts>=8||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
+  if(s.attempts>=ctx.sessionLimit||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-s.attempts);throw failure;}
   s.attempts++;await ctx.save();
   const trace=ctx.traceEnabled?createTrace(ctx.redacted,{initial:await ctx.state.readTrace(body.sessionId),onChange:rows=>ctx.state.writeTrace(body.sessionId,rows,ctx.lock)}):null;
   const call=trace?.start({provider:target.provider,model:target.model,input:request.input,instructions:request.instructions});
@@ -30,10 +30,10 @@ export async function judgeLesson(ctx){
     const judge={...readLessonJudge(raw,{grounded}),model:raw.model??target.model,version:judgeVersionFor(grounded)};
     call?.finish('accepted');try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
-    ctx.json(200,{judge,grounded,elapsedMs:Math.round(performance.now()-startedAt),usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{judge,grounded,elapsedMs:Math.round(performance.now()-startedAt),usage:raw.usage?{input:raw.usage.input_tokens??null,output:raw.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});
   }catch(error){
     call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
     if(error instanceof RequestError)throw error;
-    const failure=new RequestError(502,'The figures could not be checked. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
+    const failure=new RequestError(502,'The figures could not be checked. Retry explicitly.');failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-s.attempts);throw failure;
   }finally{try{await trace?.flush();}catch{}}
 }

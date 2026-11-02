@@ -11,7 +11,15 @@ import {scoreOpenReply} from './eval/studio.mjs';
 // on the session budget: two drafts, then up to two judge scores. The judge is the tester
 // role (Spark) unless the body names the other compared model's id.
 const usage=u=>u?{input:u.input_tokens??null,output:u.output_tokens??null}:null;
-const hasBudget=async ctx=>ctx.s.attempts<8&&await ctx.state.consumeTurn(ctx.bucket,ctx.limit);
+const reserveBudget=async ctx=>{
+ if(ctx.s.attempts>=ctx.sessionLimit)return false;
+ // Reserve synchronously: parallel judges must not both claim the final slot
+ // while the hourly counter is being checked. Release an unsuccessful reservation.
+ ctx.s.attempts++;
+ try{if(await ctx.state.consumeTurn(ctx.bucket,ctx.limit))return true;}
+ catch(error){ctx.s.attempts--;throw error;}
+ ctx.s.attempts--;return false;
+};
 export async function compareDrafts(ctx){
   const {body,s}=ctx;
   const [first,second]=ctx.models;
@@ -25,8 +33,8 @@ export async function compareDrafts(ctx){
   let args;try{args=lessonAuthorRequest({topic:body.topic,creation:'generated'},'compose');}catch{throw new RequestError(400,'Use a short topic under 600 characters.');}
   const topic=body.topic.trim(),wantJudge=body.judge!==false;
   // Both drafts are charged up front so a half-finished comparison cannot run on credit.
-  if(s.attempts>6||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
-  if(!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
+  if(s.attempts>ctx.sessionLimit-2||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-s.attempts);throw failure;}
+  if(!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-s.attempts);throw failure;}
   s.attempts+=2;await ctx.save();
   const trace=ctx.traceEnabled?createTrace(ctx.redacted,{initial:await ctx.state.readTrace(body.sessionId),onChange:rows=>ctx.state.writeTrace(body.sessionId,rows,ctx.lock)}):null;
   const startedAt=performance.now();
@@ -58,8 +66,7 @@ export async function compareDrafts(ctx){
     // own draft as well as the other model's.
     const judgeOne=async reply=>{
       if(!wantJudge||reply.status!=='ready'||!judgeTarget?.configured)return;
-      if(!await hasBudget(ctx)){reply.judge={failure:'budget',reason:'No request left for the judge.'};return;}
-      s.attempts++;
+      if(!await reserveBudget(ctx)){reply.judge={failure:'budget',reason:'No request left for the judge.'};return;}
       const item={topic,language:/[㐀-鿿]/.test(topic)?'zh':'en',category:reply.kind};
       const request=lessonJudgeRequest(item,reply.response,{grounded});
       const call=trace?.start({provider:judgeTarget.provider,model:judgeTarget.model,input:request.input,instructions:request.instructions});
@@ -76,9 +83,9 @@ export async function compareDrafts(ctx){
     try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
     for(const reply of replies)delete reply.response;
-    ctx.json(200,{question:topic,promptVersion:authorPromptVersion,judgeVersion:judgeVersionFor(grounded),grounded:wantJudge&&grounded,judge:wantJudge?judgeTarget?.model??null:null,replies,model:`${first.model} · ${second.model}`,elapsedMs:Math.round(performance.now()-startedAt),usage:null,llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{question:topic,promptVersion:authorPromptVersion,judgeVersion:judgeVersionFor(grounded),grounded:wantJudge&&grounded,judge:wantJudge?judgeTarget?.model??null:null,replies,model:`${first.model} · ${second.model}`,elapsedMs:Math.round(performance.now()-startedAt),usage:null,llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});
   }catch(error){
     if(error instanceof RequestError)throw error;
-    const failure=new RequestError(502,'The comparison could not be completed. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
+    const failure=new RequestError(502,'The comparison could not be completed. Retry explicitly.');failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-s.attempts);throw failure;
   }finally{try{await trace?.flush();}catch{}}
 }

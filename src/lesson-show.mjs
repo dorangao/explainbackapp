@@ -1,11 +1,12 @@
-import {validateLesson,bilingualSchema} from '../public/lesson-schema.mjs';
+import {validateLesson} from '../public/lesson-schema.mjs';
+import {boundedBilingual,boundedText} from '../public/schema-text.mjs';
 import {reasoningEffortFor} from './reasoning-effort.mjs';
 
 // A narrated show for a lesson: the creator model writes a short bilingual slide script
 // (what to show, what to say) and a prompt for one cover illustration from Muse Image.
 // The browser renders the slides from the checked lesson and speaks the narration; the
 // model never sees or writes anything the renderer would execute.
-export const showPromptVersion='show-v2';
+export const showPromptVersion='show-v3';
 // At most this many slides per show get an illustration besides the cover.
 export const MAX_SHOW_ILLUSTRATIONS=2;
 // A show has a cover, up to three slides per chapter and a takeaway; never more than 12.
@@ -14,9 +15,9 @@ const illustratable=['claim','transfer','takeaway'];
 export const slideKinds=['cover','claim','experiment','evidence','transfer','takeaway'];
 const text=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;
 const bilingual=(v,max)=>v&&typeof v==='object'&&Object.keys(v).sort().join('|')==='en|zh'&&text(v.en,max)&&text(v.zh,max);
-const slideSchema={type:'object',additionalProperties:false,properties:{kind:{type:'string',enum:slideKinds},chapter:{type:'integer'},heading:bilingualSchema,narration:bilingualSchema,illustrate:{type:'boolean'}},required:['kind','chapter','heading','narration','illustrate']};
+const slideSchema={type:'object',additionalProperties:false,properties:{kind:{type:'string',enum:slideKinds},chapter:{type:'integer'},heading:boundedBilingual(80),narration:boundedBilingual(360),illustrate:{type:'boolean'}},required:['kind','chapter','heading','narration','illustrate']};
 export const showTool=[{type:'function',name:'make_show',description:'Write the slide script and cover prompt for a narrated lesson show.',strict:true,
- parameters:{type:'object',additionalProperties:false,properties:{slides:{type:'array',items:slideSchema},coverPrompt:{type:'string'}},required:['slides','coverPrompt']}}];
+ parameters:{type:'object',additionalProperties:false,properties:{slides:{type:'array',minItems:4,maxItems:12,items:slideSchema},coverPrompt:boundedText(400)},required:['slides','coverPrompt']}}];
 export function showRequest(body){
  const lesson=validateLesson(body?.lesson);
  const chapters=lesson.chapters.map((c,i)=>({chapter:i,framing:c.framing,explanation:c.explanation,experiment:c.experiment,demo:c.demo?{kind:c.demo.kind,title:c.demo.title,claim:c.demo.claim,assumptions:c.demo.assumptions,...(c.demo.kind==='model'?{inputs:c.demo.inputs.map(p=>({label:p.label,unit:p.unit})),outputs:c.demo.outputs.map(o=>({label:o.label,unit:o.unit})),axis:c.demo.axis.label,transfer:c.demo.transfer.question}:{stages:c.demo.stages.map(s=>s.title),transfer:c.demo.transfer.question})}:undefined}));

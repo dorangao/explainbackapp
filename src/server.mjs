@@ -60,6 +60,7 @@ export function createHandler({
   // SAM 3.1 finds the object a creator names in their sketch or photo; null hides it.
   segmentCall = process.env.MODEL_API_KEY?.trim()?(args=>segmentMetaImage({apiKey:process.env.MODEL_API_KEY,...args})):null,
   traceEnabled = process.env.EXPLAINBACK_TRACE === '1',
+  quotaMultiplier = process.env.EXPLAINBACK_QUOTA_MULTIPLIER ?? 1,
   testerCredentials = {},accessCodes=parseAccessCodes(process.env.EXPLAINBACK_ACCESS_CODES),openAccess=process.env.EXPLAINBACK_OPEN_ACCESS==='1',
   state=createMemoryState(),auth=createTesterAuth({...testerCredentials,accessCodes:accessCodes.codes??accessCodes,onRevoke:owner=>state.revokeOwner(owner)}),getOrigin=localOrigin,
   // The visitor address that failed sign-ins are counted against. Locally it is the
@@ -69,6 +70,10 @@ export function createHandler({
   // platform request id): the operator log on Vercel. Never bodies, cookies or query strings.
   requestLog=process.env.EXPLAINBACK_REQUEST_LOG==='1'||(Boolean(process.env.VERCEL)&&process.env.EXPLAINBACK_REQUEST_LOG!=='0'),
 } = {}) {
+  const multiplier=Number(quotaMultiplier);
+  if(!['string','number'].includes(typeof quotaMultiplier)||!Number.isSafeInteger(multiplier)||multiplier<1||multiplier>10)throw new Error('Configure a quota multiplier from 1 to 10.');
+  const sessionLimit=8*multiplier,coachLimit=TURN_LIMIT*multiplier;
+  const hourlyBudget=audience=>{const [bucket,base]=budgetFor(audience);return [bucket,base*multiplier];};
   const codes=accessCodes.codes??accessCodes;
   // Local development only: EXPLAINBACK_OPEN_ACCESS=1 treats every request as one shared
   // signed-in tester. The cloud handler passes openAccess:false, so it cannot apply on Vercel.
@@ -96,7 +101,7 @@ export function createHandler({
   // who tries a draft and reports back. Each falls back to the default target when absent.
   const roleTarget=prefix=>targets.find(t=>t.configured&&t.provider==='meta'&&t.model.startsWith(prefix))??defaultTarget;
   const roles={creator:roleTarget('muse-wonder').id,tester:roleTarget('muse-spark').id};
-  const sessionView=s=>({...view(s),llm:s.llm});
+  const sessionView=s=>({...view(s),attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm});
   const app = express();
   app.disable('x-powered-by');
   app.enable('case sensitive routing');
@@ -172,8 +177,8 @@ export function createHandler({
   // A creator's saved lessons. Saving makes no model request.
   registerLessonRoutes(app,{state,access,imageStore,ownerOf,reply,tracked,requireOrigin,parseBody});
   app.get('/api/status', tracked(async (req,res) => {
-    const tester=res.locals.tester; const [bucket,limit]=budgetFor(tester?.audience);
-    const audience=tester.audience?{...publicAudience(tester.audience),remaining:await state.remainingTurns(bucket,limit)}:null;
+    const tester=res.locals.tester; const [bucket,limit]=hourlyBudget(tester?.audience);
+    const audience=tester.audience?{...publicAudience(tester.audience),quota:limit,remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
   const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/cover','/api/studio/judge','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
@@ -181,7 +186,7 @@ export function createHandler({
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
     const tester=res.locals.tester, body=req.body, path=req.path;
-    const [bucket,limit]=budgetFor(tester?.audience);
+    const [bucket,limit]=hourlyBudget(tester?.audience);
     const quotaExceeded=()=>new RequestError(429,tester?.audience?'This access code’s hourly request budget is used up. Reviewed lessons still open without live requests.':'API request limit reached. No request was sent.');
     try {
       if(!await access.active(tester.id)){json(401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});return;}
@@ -191,7 +196,7 @@ export function createHandler({
         const sessionId=newSessionId();
         const s={workflow:path==='/api/studio/session'?'lesson-studio':'quantum-showcase',language:body.language,llm:target,owner:tester.id,audience:tester.audience?.label??null,createdAt:Date.now(),attempts:0};
         if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached.');
-        json(200,{sessionId,llm:target,attemptsRemaining:8});return;
+        json(200,{sessionId,llm:target,attemptsRemaining:sessionLimit});return;
       }
       if (path === '/api/session') { // baseline coach and claim-testing sessions
         if (body.synthetic !== true) throw new RequestError(400, 'Use synthetic examples for this prototype.');
@@ -223,14 +228,14 @@ export function createHandler({
       const save=async rows=>{if(!await state.save(body.sessionId,s,lock,rows))throw new RequestError(409,'Session was reset or expired; the response was discarded.');};
       if(s.workflow==='lesson-studio'&&path==='/api/studio/poll'){
         if(!s.background)throw new RequestError(404,'No background lesson is available.');
-        if(s.background.result){json(200,s.background.result);return;}
+        if(s.background.result){json(200,{...s.background.result,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;}
         let raw;try{raw=await router.pollBackground(s.llm.id,s.background.id);}catch{throw new RequestError(502,'Could not retrieve the background lesson. Try again.');}
         if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
-        if(raw.pending){json(200,{pending:true,attemptsRemaining:8-s.attempts});return;}
-        if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=8-s.attempts;throw failure;}
-        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation,false,s.background.references);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=8-s.attempts;throw failure;}
+        if(raw.pending){json(200,{pending:true,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;}
+        if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
+        let result;try{result=readLessonAuthor(raw,'compose',s.background.creation,false,s.background.references);}catch(error){delete s.background;await save();const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.reason=rejectionReason(tagRejection(error));failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
         if(typeof raw?.id==='string'&&/^resp_/.test(raw.id))s.chains={...(s.chains??{}),[`${s.llm.id}:author`]:raw.id};
-        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),reasoning:raw.reasoning??null,llm:s.llm,attemptsRemaining:8-s.attempts};
+        const answer={...result,model:raw.model??s.llm.model,elapsedMs:Date.now()-s.background.startedAt,usage:usageSummary(raw.usage),reasoning:raw.reasoning??null,llm:s.llm,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)};
         s.background={result:answer};await save();json(200,answer);return;
       }
       if(path==='/api/trace'){
@@ -239,7 +244,7 @@ export function createHandler({
       }
       if(s.workflow==='lesson-studio'&&path==='/api/studio/transcribe'){
         // The learner's spoken explanation becomes editable text; it counts against the hourly
-        // budget but not the eight lesson attempts. Audio bytes never reach the trace or logs.
+        // budget but not the lesson session attempts. Audio bytes never reach the trace or logs.
         if(!transcribeCall)throw new RequestError(503,'Voice transcription is not configured.');
         if(!['en','zh'].includes(body.language))throw new RequestError(400,'Choose a language.');
         let wav;try{wav=readWavBase64(body.audio);}catch{throw new RequestError(400,'Record up to one minute of speech as mono 16-bit WAV.');}
@@ -253,11 +258,11 @@ export function createHandler({
           if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
           call?.finish(result.text?'accepted':'empty');try{await trace?.flush();}catch{}
           await save(trace?.read());
-          json(200,{text:result.text,model:result.model,audioDurationMs:result.audioDurationMs??wav.durationMs,elapsedMs:Math.round(performance.now()-startedAt),usage:null,attemptsRemaining:8-s.attempts});return;
+          json(200,{text:result.text,model:result.model,audioDurationMs:result.audioDurationMs??wav.durationMs,elapsedMs:Math.round(performance.now()-startedAt),usage:null,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;
         }catch(error){
           call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
           if(error instanceof RequestError)throw error;
-          const failure=new RequestError(502,'The recording could not be transcribed. Try again or type your explanation.');failure.attemptsRemaining=8-s.attempts;throw failure;
+          const failure=new RequestError(502,'The recording could not be transcribed. Try again or type your explanation.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;
         }finally{try{await trace?.flush();}catch{}}
       }
       if(s.workflow==='lesson-studio'){
@@ -265,7 +270,7 @@ export function createHandler({
         if(!mode)throw new RequestError(400,'Use this session for Lesson Studio only.');
         // Image routes (SAM 3.1 detection, Muse Image illustration) live in studio-images.mjs
         // and share this handler's session, budget and trace plumbing through `ctx`.
-        const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageStore,imageBudgetMs,owner:ownerOf(tester)};
+        const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,sessionLimit,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageStore,imageBudgetMs,owner:ownerOf(tester)};
         if(mode==='detect'){await detectInImage(ctx);return;}
         if(mode==='illustrate'){await illustrateSlide(ctx);return;}
         if(mode==='cover'){await drawCover(ctx);return;}
@@ -285,16 +290,16 @@ export function createHandler({
         if(s.background&&!s.background.result)throw new RequestError(409,'A background lesson is still in progress.');
         if(s.background?.result)delete s.background;
         if(args.images&&s.llm.provider!=='meta')throw new RequestError(400,'Image input needs a Meta model. Switch the model or remove the image.');
-        if(s.attempts>=8||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=8-s.attempts;throw failure;}
+        if(s.attempts>=sessionLimit||!await state.consumeTurn(bucket,limit)){const failure=quotaExceeded();failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
         s.attempts++;await save();
         if(background){
           try{
             const startedAt=Date.now(),started=await router.startBackground(s.llm.id,{...args,promptCacheKey:`explainback-${mode}`,reasoningSummary:'auto'});
             if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
-            if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation,false,body.references);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:8-s.attempts};s.background={result:answer};await save();json(200,answer);return;}
+            if(!started.pendingId){const result=readLessonAuthor(started,'compose',body.creation,false,body.references);const answer={...result,model:started.model??s.llm.model,elapsedMs:Date.now()-startedAt,usage:started.usage?{input:started.usage.input_tokens??null,output:started.usage.output_tokens??null}:null,llm:s.llm,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)};s.background={result:answer};await save();json(200,answer);return;}
             s.background={id:started.pendingId,creation:body.creation??'catalog',startedAt,...(body.references!==undefined?{references:body.references}:{})};await save();
-            json(202,{pending:true,attemptsRemaining:8-s.attempts});return;
-          }catch(error){if(error instanceof RequestError)throw error;const failure=new RequestError(502,'Background lesson could not be started. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;}
+            json(202,{pending:true,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;
+          }catch(error){if(error instanceof RequestError)throw error;const failure=new RequestError(502,'Background lesson could not be started. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
         }
         const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
         const call=trace?.start({provider:llm.provider,model:llm.model,input:args.input,instructions:args.instructions});
@@ -345,20 +350,20 @@ export function createHandler({
           if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
           if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
           call?.finish('accepted');try{await trace?.flush();}catch{}
-          await save(trace?.read());json(200,{...result,...metrics,llm,attemptsRemaining:8-s.attempts});return;
+          await save(trace?.read());json(200,{...result,...metrics,llm,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;
         }catch(error){
           const reason=rejectionReason(error);
           call?.finish(error instanceof RequestError?'discarded':'failed or rejected',reason);
           if(error instanceof RequestError)throw error;
-          if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){const failure=new RequestError(409,error.message);failure.attemptsRemaining=8-s.attempts;throw failure;}
-          const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;failure.reason=reason;throw failure;
+          if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){const failure=new RequestError(409,error.message);failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
+          const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);failure.reason=reason;throw failure;
         }finally{try{await trace?.flush();}catch{}}
       }
       if(path.startsWith('/api/studio/'))throw new RequestError(400,'Start a Lesson Studio session first.');
       if(s.workflow==='quantum-showcase'){
         if(path!=='/api/quantum/explain')throw new RequestError(400,'Use this session for the quantum showcase only.');
         let args;try{args=quantumCoachRequest(body,s.language);}catch{throw new RequestError(400,'Choose an allowed circuit and preset question.');}
-        if(s.attempts>=8||!await state.consumeTurn(bucket,limit))throw quotaExceeded();
+        if(s.attempts>=sessionLimit||!await state.consumeTurn(bucket,limit))throw quotaExceeded();
         s.attempts++;await save();
         const trace=traceEnabled?createTrace(redacted,{initial:await state.readTrace(body.sessionId),onChange:rows=>state.writeTrace(body.sessionId,rows,lock)}):null;
         const call=trace?.start({provider:s.llm.provider,model:s.llm.model,input:args.input,instructions:args.instructions});
@@ -368,11 +373,11 @@ export function createHandler({
           if(!await access.active(tester.id)){call?.finish('discarded');await state.remove(body.sessionId);throw new RequestError(401,'Sign in to tester access.');}
           if(!await state.get(body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');
           call?.finish('accepted');try{await trace?.flush();}catch{}
-          await save(trace?.read());json(200,{...result,llm:s.llm,attemptsRemaining:8-s.attempts});return;
+          await save(trace?.read());json(200,{...result,llm:s.llm,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;
         }catch(error){
           call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
           if(error instanceof RequestError)throw error;
-          const failure=new RequestError(502,'Provider explanation could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=8-s.attempts;throw failure;
+          const failure=new RequestError(502,'Provider explanation could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;
         }finally{try{await trace?.flush();}catch{}}
       }
       if(path==='/api/quantum/explain')throw new RequestError(400,'Start a quantum showcase session first.');
@@ -381,7 +386,7 @@ export function createHandler({
         let result;
         try{result=confirmClaim(s,{claimId:body.claimId,decision:body.decision,source:body.source});}
         catch{throw new RequestError(400,'The claim changed or cannot be confirmed.');}
-        await save();json(200,{sessionId:body.sessionId,...result,llm:s.llm});
+        await save();json(200,{sessionId:body.sessionId,...result,attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm});
         return;
       }
       if(path==='/api/replay') {
@@ -398,7 +403,7 @@ export function createHandler({
       const words = typeof body.explanation === 'string' ? body.explanation : '';
       if (s.phase === 'complete') throw new RequestError(400, 'This session is complete. Start another example.'); // no further turns
       if (!words.trim() || words.length > 1200) throw new RequestError(400, 'Enter 1–1200 characters of synthetic reasoning.');
-      if (s.attempts >= TURN_LIMIT || !await state.consumeTurn(bucket,limit)) throw quotaExceeded();
+      if (s.attempts >= coachLimit || !await state.consumeTurn(bucket,limit)) throw quotaExceeded();
       s.attempts++;
       if(body.demoPreset)s.demoUsed=true;
       await save(); // Count attempts before sending, including rejected upstream output.
@@ -417,14 +422,14 @@ export function createHandler({
         traceCall?.finish('accepted');
         // Drain intermediate writes; the atomic final save repairs a failed trace write.
         try{await s.trace?.flush();}catch{}
-        await save(s.trace?.read());json(200, { sessionId: body.sessionId, ...next,llm:s.llm });
+        await save(s.trace?.read());json(200, { sessionId: body.sessionId, ...next,attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm });
       } catch (error) {
         traceCall?.finish(error instanceof RequestError?'discarded':'failed or rejected');
         if (error instanceof RequestError) throw error; // client errors pass through unchanged
         if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){traceCall?.event({type:'error',message:error.message});throw new RequestError(409,error.message);}
         // Deliberately do not log or return raw upstream errors, prompts or secrets.
         const failure = new RequestError(502, 'Provider feedback could not be completed or validated. Your text is preserved. Check the selected model and connection, then retry explicitly.');
-        failure.attemptsRemaining = Math.max(0, TURN_LIMIT - s.attempts);
+        failure.attemptsRemaining = Math.max(0, coachLimit - s.attempts);
         throw failure;
       } finally { try{await s.trace?.flush();}catch{/* Diagnostics cannot override a committed response. */} }
     } finally {
