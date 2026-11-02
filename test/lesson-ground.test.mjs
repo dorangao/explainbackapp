@@ -93,6 +93,24 @@ test('the lesson contract keeps a bounded list of titled https sources and nothi
  assert.equal('sources' in generatedLessonSchema.properties,false);
 });
 
+test('distinct sourced facts sharing a URL and value survive the ground-to-author handoff',async()=>{
+ const {readGround,validateReferences}=await import('../src/lesson-ground.mjs');
+ const {lessonAuthorRequest}=await import('../src/lesson-author.mjs');
+ const first={statement:bi('The example frequency ratio is 1.','示例频率比为1。'),value:'1',unit:'1',url:page};
+ const facts=[first,
+  {...first,statement:bi('The example damping ratio is 1.','示例阻尼比为1。')},
+  {...first,statement:bi('The example driving frequency is 1 Hz.','示例驱动频率为1赫兹。'),unit:'Hz'}];
+ const grounded=readGround({structured:{name:'ground_topic',value:{...sheet(),facts}},sources:[{url:page,title:'Example figures'}]});
+ const references={asOf:grounded.asOf,facts:grounded.facts.map(({verified,...fact})=>fact)};
+ assert.equal(validateReferences(references).facts.length,3);
+ const request=lessonAuthorRequest({topic:'Example oscillator',creation:'generated',references},'compose');
+ assert.deepEqual(JSON.parse(request.input).references.facts,facts);
+ // Exact repeated facts are rejected consistently, including whitespace-only differences.
+ const duplicate={...first,value:' 1 ',statement:{en:` ${first.statement.en} `,zh:first.statement.zh}};
+ assert.throws(()=>readGround({structured:{name:'ground_topic',value:{...sheet(),facts:[first,duplicate]}}}),/Duplicate fact/);
+ assert.throws(()=>validateReferences({asOf:grounded.asOf,facts:[{...first,title:null},{...duplicate,title:null}]}),/Duplicate reference/);
+});
+
 test('the author receives the sheet as references, prefers it, and may name only its pages as sources',async()=>{
  const {lessonAuthorRequest,readLessonAuthor}=await import('../src/lesson-author.mjs');
  const references={asOf:'2026-10-31',facts:[{...sheet().facts[0],title:'Carbon-14 - Wikipedia'}]};
@@ -114,12 +132,13 @@ test('the author receives the sheet as references, prefers it, and may name only
 });
 
 test('the ground route uses Spark, counts one attempt, stands outside the author conversation and feeds compose',async t=>{
+ const sharedValueSheet={...sheet(),facts:[sheet().facts[0],{...sheet().facts[0],statement:bi('The example comparison interval is 5700 years.','示例比较时间间隔为5700年。')}]};
  const targets=['muse-wonder-1.0','muse-spark-1.3'].map(model=>({id:'meta:'+model,provider:'meta',model,label:model,configured:true,timeoutMs:30000}));
  const router={defaultId:targets[0].id,list:()=>targets,call:async()=>assert.fail('injected model call expected')};
  const seen=[];
  const server=createApp({testerCredentials,router,modelCall:async(args,id)=>{
   seen.push({id,name:args.tools?.[0]?.name,webSearch:args.webSearch,previous:args.previousResponseId??null,references:JSON.parse(args.input).references??null,instructions:args.instructions});
-  if(args.tools[0].name==='ground_topic')return {id:'resp_ground',structured:{name:'ground_topic',value:sheet()},sources:[{url:page,title:'Carbon-14 - Wikipedia'}],model:'muse-spark-1.3'};
+  if(args.tools[0].name==='ground_topic')return {id:'resp_ground',structured:{name:'ground_topic',value:sharedValueSheet},sources:[{url:page,title:'Carbon-14 - Wikipedia'}],model:'muse-spark-1.3'};
   return {id:'resp_compose',structured:{name:'compose_lesson',value:{status:'ready',message:bi('Ready','就绪'),lesson:{...coolingLesson(),sources:[page]}}},model:'muse-wonder-1.0'};
  }});
  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
@@ -134,6 +153,7 @@ test('the ground route uses Spark, counts one attempt, stands outside the author
  const draft=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Carbon dating',creation:'generated',references})).json();
  assert.deepEqual(draft.lesson.sources,[{url:page,title:'Carbon-14 - Wikipedia'}]);assert.equal(draft.attemptsRemaining,6);
  assert.equal(seen[1].previous,null,'compose does not chain onto the ground response');assert.equal(seen[1].references.facts[0].value,'5700');assert.match(seen[1].instructions,/REFERENCES/);
+ assert.equal(seen[1].references.facts.length,2,'distinct facts with a shared page and value both reach the author');
  // A tampered sheet is refused before any model call.
  assert.equal((await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Carbon dating',creation:'generated',references:{asOf:'2026-10-31',facts:[{...references.facts[0],url:'javascript:alert(1)'}]}})).status,400);
  assert.equal(seen.length,2);

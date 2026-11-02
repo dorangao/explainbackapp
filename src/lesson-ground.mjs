@@ -9,6 +9,9 @@ export const MAX_FACTS=6;
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 const text=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;
 const bilingualOk=(v,max)=>shape(v,['en','zh'])&&text(v.en,max)&&text(v.zh,max);
+// Different quantities on one page can have the same value. Compare the whole fact,
+// excluding display metadata, after the same whitespace normalization used below.
+const factKey=f=>JSON.stringify([f.url,f.value.trim(),f.unit.trim(),f.statement.en.trim(),f.statement.zh.trim()]);
 const isoDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
 const factSchema={type:'object',properties:{statement:boundedBilingual(200),value:boundedText(40),unit:{...boundedText(24),description:'The unit only; use 1 for a count or dimensionless ratio.'},url:{...boundedText(300),pattern:'^https://',description:'Copy an HTTPS source URL from the search results exactly; no credentials.'}},required:['statement','value','unit','url'],additionalProperties:false};
 export const groundSchema={type:'object',properties:{status:{type:'string',enum:['ready','none']},asOf:{type:'string'},needsCurrent:{type:'boolean'},facts:{type:'array',maxItems:MAX_FACTS,items:factSchema},note:boundedBilingual(300)},required:['status','asOf','needsCurrent','facts','note'],additionalProperties:false};
@@ -36,12 +39,16 @@ export function readGround(result){
  if(!shape(a,['status','asOf','needsCurrent','facts','note'])||!['ready','none'].includes(a.status)||typeof a.needsCurrent!=='boolean'||!isoDate(a.asOf)||!Array.isArray(a.facts)||a.facts.length>MAX_FACTS||!bilingualOk(a.note,300))throw new Error('Invalid ground response.');
  if(a.status==='none'&&a.facts.length)throw new Error('Invalid ground response.');
  const found=Array.isArray(result.sources)?result.sources:[];
+ const seen=new Set();
  const facts=a.facts.map((f,i)=>{
   if(!shape(f,['statement','value','unit','url']))throw new Error(`Invalid fact ${i+1}: expected statement, value, unit and url.`);
   if(!bilingualOk(f.statement,200))throw new Error(`Invalid fact ${i+1} statement: both languages need 1–200 characters.`);
   if(!text(f.value,40))throw new Error(`Invalid fact ${i+1} value: use 1–40 characters.`);
   if(!text(f.unit,24))throw new Error(`Invalid fact ${i+1} unit: use 1–24 characters (1 for dimensionless).`);
   if(!httpsUrl(f.url))throw new Error(`Invalid fact ${i+1} url: use an https URL without credentials, at most 300 characters.`);
+  const key=factKey(f);
+  if(seen.has(key))throw new Error(`Duplicate fact ${i+1}.`);
+  seen.add(key);
   const source=found.find(s=>s.url===f.url)??null;
   return {statement:{en:f.statement.en.trim(),zh:f.statement.zh.trim()},value:f.value.trim(),unit:f.unit.trim(),url:f.url,title:source?.title??null,verified:Boolean(source)};
  });
@@ -54,8 +61,10 @@ export function validateReferences(value){
  if(!shape(value,['asOf','facts'])||!isoDate(value.asOf)||!Array.isArray(value.facts)||value.facts.length<1||value.facts.length>MAX_FACTS)throw new Error('Invalid references.');
  const seen=new Set();
  return {asOf:value.asOf,facts:value.facts.map(f=>{
-  if(!shape(f,['statement','value','unit','url','title'])||!bilingualOk(f.statement,200)||!text(f.value,40)||!text(f.unit,24)||!httpsUrl(f.url)||(f.title!==null&&!text(f.title,200))||seen.has(f.url+f.value))throw new Error('Invalid reference.');
-  seen.add(f.url+f.value);
+  if(!shape(f,['statement','value','unit','url','title'])||!bilingualOk(f.statement,200)||!text(f.value,40)||!text(f.unit,24)||!httpsUrl(f.url)||(f.title!==null&&!text(f.title,200)))throw new Error('Invalid reference.');
+  const key=factKey(f);
+  if(seen.has(key))throw new Error('Duplicate reference.');
+  seen.add(key);
   return {statement:{en:f.statement.en.trim(),zh:f.statement.zh.trim()},value:f.value.trim(),unit:f.unit.trim(),url:f.url,title:f.title===null?null:f.title.trim()};
  })};
 }

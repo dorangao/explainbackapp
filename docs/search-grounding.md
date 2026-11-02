@@ -33,7 +33,10 @@ demos. When it is on, a draft takes two requests:
    The response schema bounds each statement to 200 characters per language, value to
    40, unit to 24, URL to 300, and note to 300 per language. The same limits are checked
    again on receipt. Rejections name the fact number and field; they do not include its
-   untrusted contents. Invalid facts are not silently dropped or shortened.
+   untrusted contents. Invalid facts are not silently dropped or shortened. Both this
+   reader and the author-input reader reject exact repeated facts after trimming text;
+   identity includes the URL, value, unit and both statement languages. Distinct facts
+   may share a page and value. This structural check does not establish factual accuracy.
 2. **Draft.** The browser sends the sheet back as `references` (`asOf` and the facts with
    their titles). The server validates it again, field by field, so only statements,
    values, units and https URLs reach the author prompt. The author is told to prefer
