@@ -2,10 +2,26 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {showRequest,readShow,slideKinds} from '../src/lesson-show.mjs';
 import {generateMetaImage} from '../src/meta.mjs';
 import {coolingLesson,processLesson} from '../test-support/generated-lessons.mjs';
+import {callMeta} from '../src/meta.mjs';
 const bi=(en,zh=en+'（中文）')=>({en,zh});
 const slide=(kind,chapter=0)=>({kind,chapter,heading:bi(kind+' heading'),narration:bi('Spoken '+kind+' line.')});
 const good=()=>[slide('cover'),slide('claim'),slide('experiment'),slide('evidence'),slide('transfer'),slide('takeaway')];
 const reply=(slides,coverPrompt='A warm mug on a table')=>({structured:{name:'make_show',value:{slides,coverPrompt}}});
+test('the outgoing show schema bounds both languages before generation, including the oversized narration rejection',async()=>{
+ let body;
+ await callMeta({apiKey:'synthetic-key',...showRequest({lesson:coolingLesson()}),fetchImpl:async(url,init)=>{
+  body=JSON.parse(init.body);
+  return Response.json({id:'resp_show',status:'completed',output:[{type:'message',role:'assistant',content:[{type:'output_text',text:JSON.stringify({slides:good(),coverPrompt:'A warm mug'})}]}]});
+ }});
+ const schema=body.text.format.schema;
+ for(const lang of ['en','zh']){
+  assert.equal(schema.properties.slides.items.properties.heading.properties[lang].maxLength,80);
+  const narration=schema.properties.slides.items.properties.narration.properties[lang];
+  assert.equal(narration.minLength,1);assert.equal(narration.maxLength,360);
+  assert.ok(385>narration.maxLength,'the observed oversized narration cannot satisfy the provider contract');
+ }
+ assert.equal(schema.properties.coverPrompt.maxLength,400);
+});
 test('the show request sends only lesson text, labels and questions and asks for both languages',()=>{
  const r=showRequest({lesson:coolingLesson()});
  assert.equal(r.structuredOutput,true);assert.equal(r.tools[0].name,'make_show');assert.match(r.instructions,/Simplified Chinese/);

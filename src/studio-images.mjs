@@ -12,9 +12,9 @@ import {coverPrompt,coverPromptVersion,coverLesson} from './lesson-covers.mjs';
 // limit, the session lock, `save`, `json`, `quotaExceeded`, shared services and the
 // configured model calls. Each counts as one request on the session budget.
 const startTrace=async(ctx,call)=>{const trace=ctx.traceEnabled?createTrace(ctx.redacted,{initial:await ctx.state.readTrace(ctx.body.sessionId),onChange:rows=>ctx.state.writeTrace(ctx.body.sessionId,rows,ctx.lock)}):null;return {trace,call:trace?.start(call)};};
-const spend=async ctx=>{if(ctx.s.attempts>=8||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=8-ctx.s.attempts;throw failure;}ctx.s.attempts++;await ctx.save();};
+const spend=async ctx=>{if(ctx.s.attempts>=ctx.sessionLimit||!await ctx.state.consumeTurn(ctx.bucket,ctx.limit)){const failure=ctx.quotaExceeded();failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-ctx.s.attempts);throw failure;}ctx.s.attempts++;await ctx.save();};
 const stillOwned=async(ctx,call)=>{if(!await ctx.access.active(ctx.tester.id)){call?.finish('discarded');await ctx.state.remove(ctx.body.sessionId);throw new RequestError(401,'Sign in to tester access.');}if(!await ctx.state.get(ctx.body.sessionId))throw new RequestError(409,'Session was reset; response discarded.');};
-const failWith=(ctx,call,error,message)=>{call?.finish(error instanceof RequestError?'discarded':'failed or rejected');if(error instanceof RequestError)throw error;const failure=new RequestError(502,message);failure.attemptsRemaining=8-ctx.s.attempts;throw failure;};
+const failWith=(ctx,call,error,message)=>{call?.finish(error instanceof RequestError?'discarded':'failed or rejected');if(error instanceof RequestError)throw error;const failure=new RequestError(502,message);failure.attemptsRemaining=Math.max(0,ctx.sessionLimit-ctx.s.attempts);throw failure;};
 const usage=u=>u?{input:u.input_tokens??null,output:u.output_tokens??null}:null;
 // SAM 3.1 locates the one thing the creator names in their sketch or photo and returns
 // pixel boxes; it never sees the lesson.
@@ -32,7 +32,7 @@ export async function detectInImage(ctx){
     await stillOwned(ctx,call);
     call?.finish(found.boxes.length?'accepted':'empty');try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
-    ctx.json(200,{concept,boxes:found.boxes.slice(0,32),width:found.width,height:found.height,model:found.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(found.usage),llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{concept,boxes:found.boxes.slice(0,32),width:found.width,height:found.height,model:found.model,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(found.usage),llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});
   }catch(error){failWith(ctx,call,error,'The image could not be analysed. Retry explicitly.');}
   finally{try{await trace?.flush();}catch{}}
 }
@@ -74,7 +74,7 @@ export async function drawCover(ctx){
     if(previous&&previous!==src&&ctx.imageStore&&!previous.startsWith('data:')){try{await ctx.imageStore.remove([previous]);}catch{/* A stale file is harmless. */}}
     call?.finish('accepted');try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
-    ctx.json(200,{...(savedId?{savedId}:{lessonId}),cover:src,model:image.model,createdAt,promptVersion:coverPromptVersion,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(image.usage),llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{...(savedId?{savedId}:{lessonId}),cover:src,model:image.model,createdAt,promptVersion:coverPromptVersion,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(image.usage),llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});
   }catch(error){failWith(ctx,call,error,'The cover could not be drawn. Retry explicitly.');}
   finally{try{await trace?.flush();}catch{}}
 }
@@ -96,7 +96,7 @@ export async function illustrateSlide(ctx){
     const url=await ctx.storeImage(image,ctx.owner);
     call?.finish('accepted');try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
-    ctx.json(200,{image:url,model:image.model,slide,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(image.usage),llm:s.llm,attemptsRemaining:8-s.attempts});
+    ctx.json(200,{image:url,model:image.model,slide,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(image.usage),llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});
   }catch(error){failWith(ctx,call,error,'The illustration could not be drawn. Retry explicitly.');}
   finally{try{await trace?.flush();}catch{}}
 }
