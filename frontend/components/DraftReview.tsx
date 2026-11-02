@@ -256,7 +256,15 @@ export function SourcesPanel({
       {references && (
         <ol className="reference-list">
           {references.facts.map((f) => (
-            <li key={f.url + f.value}>
+            <li
+              key={JSON.stringify([
+                f.url,
+                f.value,
+                f.unit,
+                f.statement.en,
+                f.statement.zh,
+              ])}
+            >
               <span>{f.statement[language]}</span>{" "}
               <strong>
                 {f.value} {shownUnit(f.unit)}
