@@ -35,6 +35,21 @@ flowchart LR
 
 The public evaluation card is built from `docs/evaluation.md` and documents methods and limits. Dated evaluation reports and operational measurements are kept in the separate private repository and are not linked from the public app. Selected lesson fixtures remain public and reviewable.
 
+The author and grounding response schemas carry the same text-length and collection
+bounds as their readers (`public/schema-text.mjs`, `public/lesson-schema.mjs`,
+`public/demo-model.mjs`, `src/lesson-ground.mjs`). These constraints are sent in the
+structured response format; local validation remains authoritative and does not trim
+overlong content into an acceptable response. Grounding errors identify the fact and
+field without echoing rejected values.
+
+Numeric models are checked over continuous input/axis intervals. When a coarse interval
+cannot establish a valid domain, the checker subdivides the input box and recomputes all
+outputs in dependency order on each child. Both children include their shared boundary.
+Every child must pass; an unresolved box or the work/depth limit rejects the model. This
+avoids some false singularities from correlated terms (such as positive damping in an
+oscillator) without sampling, changing the equations, or accepting an actual zero
+denominator. It remains a conservative arithmetic check, not scientific validation.
+
 ## Create and Tryout workspace
 
 The creator workspace separates navigation from the working lesson and its learner attempt. A persistent lesson header exposes Create / Tryout tabs, Create home, New lesson, and saving. Global Create explicitly opens the home form and its current-work resume card. Returning home does not clear the draft; starting or opening another lesson protects unsaved changes with save, discard and keep-editing choices. Failed saves or generation leave the current work intact. A successful new draft clears the prior saved ID so it cannot overwrite that lesson.

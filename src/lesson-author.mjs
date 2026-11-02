@@ -1,4 +1,5 @@
-import {validateLesson,lessonSchema,generatedLessonSchema,bilingualSchema,experimentIds,withSources,withCurrency} from '../public/lesson-schema.mjs';
+import {validateLesson,lessonSchema,generatedLessonSchema,experimentIds,withSources,withCurrency} from '../public/lesson-schema.mjs';
+import {boundedBilingual} from '../public/schema-text.mjs';
 import {validateReferences,referencesNote,sourcesFromReferences} from './lesson-ground.mjs';
 import {reasoningEffortFor} from './reasoning-effort.mjs';
 import {lessonExperiment} from '../public/lesson-experiments.mjs';
@@ -6,7 +7,8 @@ import {chapterExperiment} from '../public/generated-demo.mjs';
 import {drawingEvidence} from '../public/lesson-canvas.mjs';
 
 // Bump when the author instructions change; evaluation reports record it next to the prompt hash.
-export const authorPromptVersion='author-v3';
+export const authorPromptVersion='author-v4';
+const bilingualSchema=boundedBilingual(300);
 const tool=(name,properties)=>[{type:'function',name,description:name==='compose_lesson'?'Compose a bilingual lesson using the supplied lesson and demo contract.':'Explain checked evidence and suggest one allowed next action.',strict:true,parameters:{type:'object',properties,required:Object.keys(properties),additionalProperties:false}}];
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 const text=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;

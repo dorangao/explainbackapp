@@ -1,4 +1,5 @@
 // A bounded arithmetic language. Generated text is never JavaScript.
+import {boundedText,boundedBilingual} from './schema-text.mjs';
 const funcs={sin:1,cos:1,exp:1,log:1,sqrt:1,abs:1,min:2,max:2};
 const constants={pi:Math.PI,e:Math.E};
 const numeric=n=>{if(!Number.isFinite(n)||Math.abs(n)>1e9)throw new Error('Non-finite or oversized model value.');return n;};
@@ -59,6 +60,29 @@ export function expressionBounds(ast,values){
  r.forEach(numeric);return [Math.min(...r),Math.max(...r)];
 }
 
+// A coarse interval forgets correlations between repeated variables: two squared
+// terms can each include zero without ever vanishing together. Subdivide inputs
+// and prove EVERY box, recomputing dependent outputs in order. This is not
+// sampling; split boundaries belong to both children. Reject if any box remains
+// unproved at the fixed work/depth limit. Never alter formulas or authored ranges.
+function validateModelBounds(outputs,initial){
+ const widths=Object.fromEntries(Object.entries(initial).map(([id,[lo,hi]])=>[id,hi-lo]));
+ const pending=[{bounds:initial,depth:0}];let checked=0;
+ while(pending.length){
+  const {bounds,depth}=pending.pop(),values={...bounds};
+  checked++;
+  try{for(const {id,ast} of outputs)values[id]=expressionBounds(ast,values);}
+  catch(error){
+   if(!/^(Possible division by zero\.|Square root needs a non-negative domain\.|Log requires positive domain\.|Power needs a valid bounded domain\.)$/.test(error.message)||depth>=12||checked+pending.length+2>256)throw error;
+   const id=Object.keys(bounds).filter(key=>widths[key]>0).sort((a,b)=>(bounds[b][1]-bounds[b][0])/widths[b]-(bounds[a][1]-bounds[a][0])/widths[a])[0];
+   if(!id)throw error;
+   const [lo,hi]=bounds[id],mid=lo+(hi-lo)/2;
+   if(mid===lo||mid===hi)throw error;
+   pending.push({bounds:{...bounds,[id]:[mid,hi]},depth:depth+1},{bounds:{...bounds,[id]:[lo,mid]},depth:depth+1});
+  }
+ }
+}
+
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 const text=(s,max)=>typeof s==='string'&&s.trim()&&s.length<=max;
 const bi=(o,max)=>shape(o,['en','zh'])&&Object.values(o).every(s=>text(s,max));
@@ -90,22 +114,23 @@ export function validateDemo(demo){
  }
  if(!shape(demo.axis,['label','unit','min','max'])||!bi(demo.axis.label,60)||!text(demo.axis.unit,24)||!range(demo.axis))throw new Error('Invalid independent axis.');
  bounds.x=[demo.axis.min,demo.axis.max];names.add('x');
+ const compiled=[];
  for(const o of demo.outputs){
   if(!shape(o,['id','label','unit','expression'])||!identifier(o.id)||names.has(o.id))throw new Error('Invalid output.');
   if(!bi(o.label,60)||!text(o.unit,24))throw new Error(`output ${o.id} needs a bilingual label (1–60) and a unit (1–24).`);
-  bounds[o.id]=expressionBounds(compileExpression(o.expression,[...names]),bounds);names.add(o.id);
+  compiled.push({id:o.id,ast:compileExpression(o.expression,[...names])});names.add(o.id);
  }
+ validateModelBounds(compiled,bounds);
  const t=demo.transfer;
  if(!shape(t,['question','values','at','output'])||!bi(t.question,200)||!Array.isArray(t.values)||t.values.length!==demo.inputs.length||new Set(t.values.map(v=>v.id)).size!==demo.inputs.length||t.values.some(v=>!shape(v,['id','value'])||!demo.inputs.some(p=>p.id===v.id&&validInputValue(p,v.value)))||!finite(t.at)||t.at<demo.axis.min||t.at>demo.axis.max||!demo.outputs.some(o=>o.id===t.output)||!t.values.some(v=>v.value!==demo.inputs.find(p=>p.id===v.id).value))throw new Error('Transfer needs a changed valid input case.');
  return structuredClone(demo);
 }
-const bilingual={type:'object',properties:{en:{type:'string'},zh:{type:'string'}},required:['en','zh'],additionalProperties:false};
 const obj=properties=>({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
-const str={type:'string'},num={type:'number'};
-const common={title:bilingual,claim:bilingual,assumptions:bilingual};
+const str=boundedText(16),unit=boundedText(24),num={type:'number'};
+const common={title:boundedBilingual(80),claim:boundedBilingual(180),assumptions:boundedBilingual(700)};
 export const demoSchema={anyOf:[
- obj({kind:{type:'string',enum:['model']},...common,inputs:{type:'array',items:obj({id:str,label:bilingual,unit:str,min:num,max:num,step:num,value:num})},axis:obj({label:bilingual,unit:str,min:num,max:num}),outputs:{type:'array',items:obj({id:str,label:bilingual,unit:str,expression:str})},transfer:obj({question:bilingual,values:{type:'array',items:obj({id:str,value:num})},at:num,output:str})}),
- obj({kind:{type:'string',enum:['process']},...common,stages:{type:'array',items:obj({title:bilingual,detail:bilingual})},transfer:obj({question:bilingual,choices:{type:'array',items:bilingual},answer:{type:'integer'},rationale:bilingual})})
+ obj({kind:{type:'string',enum:['model']},...common,inputs:{type:'array',minItems:1,maxItems:4,items:obj({id:str,label:boundedBilingual(60),unit,min:num,max:num,step:num,value:num})},axis:obj({label:boundedBilingual(60),unit,min:num,max:num}),outputs:{type:'array',minItems:1,maxItems:3,items:obj({id:str,label:boundedBilingual(60),unit,expression:boundedText(180)})},transfer:obj({question:boundedBilingual(200),values:{type:'array',minItems:1,maxItems:4,items:obj({id:str,value:num})},at:num,output:str})}),
+ obj({kind:{type:'string',enum:['process']},...common,stages:{type:'array',minItems:3,maxItems:6,items:obj({title:boundedBilingual(80),detail:boundedBilingual(240)})},transfer:obj({question:boundedBilingual(200),choices:{type:'array',minItems:3,maxItems:3,items:boundedBilingual(120)},answer:{type:'integer',minimum:0,maximum:2},rationale:boundedBilingual(240)})})
 ]};
 
 // The contract wants a unit on every quantity; authors write "1" when there is none.

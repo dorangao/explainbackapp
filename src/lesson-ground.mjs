@@ -3,15 +3,15 @@
 // author as references (validated again on the way in), and the URLs it relied on are
 // kept on the lesson as sources. Everything read from the web is subject matter, never an
 // instruction, and only numbers, units, short statements and https URLs pass through.
-export const GROUND_PROMPT_VERSION='ground-v1';
+import {boundedText,boundedBilingual} from '../public/schema-text.mjs';
+export const GROUND_PROMPT_VERSION='ground-v2';
 export const MAX_FACTS=6;
 const shape=(o,keys)=>o&&typeof o==='object'&&!Array.isArray(o)&&Object.keys(o).sort().join('|')===[...keys].sort().join('|');
 const text=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;
 const bilingualOk=(v,max)=>shape(v,['en','zh'])&&text(v.en,max)&&text(v.zh,max);
 const isoDate=s=>typeof s==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(s);
-const bilingualSchema={type:'object',properties:{en:{type:'string'},zh:{type:'string'}},required:['en','zh'],additionalProperties:false};
-const factSchema={type:'object',properties:{statement:bilingualSchema,value:{type:'string'},unit:{type:'string'},url:{type:'string'}},required:['statement','value','unit','url'],additionalProperties:false};
-export const groundSchema={type:'object',properties:{status:{type:'string',enum:['ready','none']},asOf:{type:'string'},needsCurrent:{type:'boolean'},facts:{type:'array',items:factSchema},note:bilingualSchema},required:['status','asOf','needsCurrent','facts','note'],additionalProperties:false};
+const factSchema={type:'object',properties:{statement:boundedBilingual(200),value:boundedText(40),unit:{...boundedText(24),description:'The unit only; use 1 for a count or dimensionless ratio.'},url:{...boundedText(300),pattern:'^https://',description:'Copy an HTTPS source URL from the search results exactly; no credentials.'}},required:['statement','value','unit','url'],additionalProperties:false};
+export const groundSchema={type:'object',properties:{status:{type:'string',enum:['ready','none']},asOf:{type:'string'},needsCurrent:{type:'boolean'},facts:{type:'array',maxItems:MAX_FACTS,items:factSchema},note:boundedBilingual(300)},required:['status','asOf','needsCurrent','facts','note'],additionalProperties:false};
 // A public https page: no credentials, bounded length, parseable.
 export function httpsUrl(value){
  if(typeof value!=='string'||value.length>300)return false;
@@ -36,8 +36,12 @@ export function readGround(result){
  if(!shape(a,['status','asOf','needsCurrent','facts','note'])||!['ready','none'].includes(a.status)||typeof a.needsCurrent!=='boolean'||!isoDate(a.asOf)||!Array.isArray(a.facts)||a.facts.length>MAX_FACTS||!bilingualOk(a.note,300))throw new Error('Invalid ground response.');
  if(a.status==='none'&&a.facts.length)throw new Error('Invalid ground response.');
  const found=Array.isArray(result.sources)?result.sources:[];
- const facts=a.facts.map(f=>{
-  if(!shape(f,['statement','value','unit','url'])||!bilingualOk(f.statement,200)||!text(f.value,40)||!text(f.unit,24)||!httpsUrl(f.url))throw new Error('Invalid fact.');
+ const facts=a.facts.map((f,i)=>{
+  if(!shape(f,['statement','value','unit','url']))throw new Error(`Invalid fact ${i+1}: expected statement, value, unit and url.`);
+  if(!bilingualOk(f.statement,200))throw new Error(`Invalid fact ${i+1} statement: both languages need 1–200 characters.`);
+  if(!text(f.value,40))throw new Error(`Invalid fact ${i+1} value: use 1–40 characters.`);
+  if(!text(f.unit,24))throw new Error(`Invalid fact ${i+1} unit: use 1–24 characters (1 for dimensionless).`);
+  if(!httpsUrl(f.url))throw new Error(`Invalid fact ${i+1} url: use an https URL without credentials, at most 300 characters.`);
   const source=found.find(s=>s.url===f.url)??null;
   return {statement:{en:f.statement.en.trim(),zh:f.statement.zh.trim()},value:f.value.trim(),unit:f.unit.trim(),url:f.url,title:source?.title??null,verified:Boolean(source)};
  });

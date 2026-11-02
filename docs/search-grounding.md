@@ -30,6 +30,10 @@ demos. When it is on, a draft takes two requests:
    URL, snippet, at most twenty); a fact is marked *verified* when its URL is among them.
    The step stands alone: it never chains onto, or starts, the author's or learner's
    conversation.
+   The response schema bounds each statement to 200 characters per language, value to
+   40, unit to 24, URL to 300, and note to 300 per language. The same limits are checked
+   again on receipt. Rejections name the fact number and field; they do not include its
+   untrusted contents. Invalid facts are not silently dropped or shortened.
 2. **Draft.** The browser sends the sheet back as `references` (`asOf` and the facts with
    their titles). The server validates it again, field by field, so only statements,
    values, units and https URLs reach the author prompt. The author is told to prefer
