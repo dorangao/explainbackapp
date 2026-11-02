@@ -101,6 +101,7 @@ function fakeRedis(){
    case 'ZCARD':return z(args[0]).size;
    case 'ZREVRANGE':{const start=Number(args[1]),stop=Number(args[2]);const rows=[...z(args[0]).entries()].sort((a,b)=>b[1]-a[1]||(a[0]<b[0]?1:-1)).map(e=>e[0]);return rows.slice(start,stop<0?undefined:stop+1);}
    case 'MGET':return args.map(k=>strings.get(k)??null);
+   case 'SCAN':{const prefix=args[2].slice(0,-1),offset=Number(args[0]),rows=[...strings.keys()].filter(k=>k.startsWith(prefix)).sort(),count=Number(args[4]);return [offset+count<rows.length?String(offset+count):'0',rows.slice(offset,offset+count)];}
    default:throw new Error('unsupported '+name);
   }
  };
@@ -119,6 +120,10 @@ test('redis adapter keeps per-owner and shared indexes consistent',async()=>{
  const {state}=createRedisServices({command:fakeRedis(),username:'u',password:'password-long-enough'});
  const a=buildSavedLesson({lesson:coolingLesson()},{owner:'code:judges',now:1}),b=buildSavedLesson({lesson:processLesson()},{owner:'code:judges',now:2});
  assert.equal(await state.putLesson(a,50),true);assert.equal(await state.putLesson(b,50),true);
+ const historical=buildSavedLesson({lesson:coolingLesson()},{owner:'code:revoked',now:0});
+ assert.equal(await state.putLesson(historical,50),true);
+ const all=await state.listAllLessons();assert.equal(all.cursor,null);assert.deepEqual(all.lessons.map(r=>r.id).sort(),[a.id,b.id,historical.id].sort());
+ assert.equal(await state.deleteLesson(historical.owner,historical.id),true);
  assert.deepEqual((await state.listLessons('code:judges')).map(r=>r.id),[b.id,a.id]);
  assert.deepEqual(await state.listLessons('code:other'),[]);
  assert.equal(await state.putLesson({...a,owner:'code:other'},50),false);

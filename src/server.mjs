@@ -78,6 +78,9 @@ export function createHandler({
   // Local development only: EXPLAINBACK_OPEN_ACCESS=1 treats every request as one shared
   // signed-in tester. The cloud handler passes openAccess:false, so it cannot apply on Vercel.
   const OPEN_ID='local-open-access';
+  // Only the password-authenticated tester is an administrator. Access-code audiences
+  // and the local sign-in bypass never inherit this permission.
+  const isAdmin=tester=>Boolean(tester&&!tester.audience&&tester.id!==OPEN_ID);
   const access=openAccess?{...auth,async authenticate(cookie){return await auth.authenticate(cookie)??{id:OPEN_ID,audience:null};},async active(id){return id===OPEN_ID||await auth.active(id);}}:auth;
   // Configuration problems are reported by position only; code values never reach logs.
   for(const warning of accessCodes.warnings??[])console.warn('EXPLAINBACK_ACCESS_CODES '+warning);
@@ -157,7 +160,7 @@ export function createHandler({
   // Liveness for uptime monitors: no sign-in, no state access, nothing about configuration
   // beyond the deployed commit, which the public repository shows anyway.
   app.get('/api/health', (req,res) => reply(res,200,{status:'ok',build:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)??null}));
-  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester)}));
+  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
     try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
@@ -169,13 +172,13 @@ export function createHandler({
   const ownerOf=tester=>tester.audience?.label?`code:${tester.audience.label}`:tester.id===OPEN_ID?'local':'tester';
   // Shared lessons open without signing in, like the gallery. Ids are unguessable; the
   // signed-in owner's own entries are marked mine so the page can offer Edit and Delete.
-  registerSharedRoutes(app,{state,reply,tracked,ownerOf});
+  registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin});
   app.use((req,res,next) => {
     if(req.path.startsWith('/api/')&&!res.locals.tester)return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     next();
   });
   // A creator's saved lessons. Saving makes no model request.
-  registerLessonRoutes(app,{state,access,imageStore,ownerOf,reply,tracked,requireOrigin,parseBody});
+  registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin,reply,tracked,requireOrigin,parseBody});
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=hourlyBudget(tester?.audience);
     const audience=tester.audience?{...publicAudience(tester.audience),quota:limit,remaining:await state.remainingTurns(bucket,limit)}:null;

@@ -142,7 +142,10 @@ export function LessonShelf({
   onDeleted: (id: string) => void;
 }) {
   const [items, setItems] = useState<SavedSummary[] | null>(null),
-    [limit, setLimit] = useState(50),
+    [limit, setLimit] = useState<number | null>(50),
+    [admin, setAdmin] = useState(false),
+    [cursor, setCursor] = useState<string | null>(null),
+    [loadingMore, setLoadingMore] = useState(false),
     [failed, setFailed] = useState(false),
     [confirming, setConfirming] = useState<string | null>(null),
     [opening, setOpening] = useState<string | null>(null);
@@ -151,11 +154,33 @@ export function LessonShelf({
       const result = await listMine();
       setItems(result.lessons);
       setLimit(result.limit);
+      setAdmin(result.scope === "all");
+      setCursor(result.cursor ?? null);
       setFailed(false);
     } catch {
       setFailed(true);
     }
   }, []);
+  const loadMore = async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await listMine(cursor);
+      setItems((previous) => [
+        ...new Map(
+          [...(previous ?? []), ...result.lessons].map((item) => [
+            item.id,
+            item,
+          ]),
+        ).values(),
+      ]);
+      setCursor(result.cursor ?? null);
+    } catch {
+      onNotice(t(language, "Library.couldNotLoad"));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   useEffect(() => {
     void load();
   }, [load]);
@@ -189,14 +214,23 @@ export function LessonShelf({
     <section className="lesson-shelf" aria-labelledby="lesson-shelf-heading">
       <div className="section-title">
         <div>
-          <p className="eyebrow">{t(language, "Library.yourLessons")}</p>
+          <p className="eyebrow">
+            {t(
+              language,
+              admin ? "Library.adminActions" : "Library.yourLessons",
+            )}
+          </p>
           <h2 id="lesson-shelf-heading">
-            {t(language, "Library.pickUpWhereYouLeft")}
+            {t(
+              language,
+              admin ? "Library.manageAllLessons" : "Library.pickUpWhereYouLeft",
+            )}
           </h2>
         </div>
         {items && (
           <span className="quiet-label">
-            {items.length} / {limit}
+            {items.length}
+            {limit !== null && ` / ${limit}`}
           </span>
         )}
       </div>
@@ -265,14 +299,20 @@ export function LessonShelf({
                   {whenLabel(language, item.updatedAt)}
                   {item.model && ` · ${item.model}`}
                 </p>
-                <ShareControls
-                  language={language}
-                  post={post}
-                  item={item}
-                  busy={busy}
-                  onChange={update}
-                  onNotice={onNotice}
-                />
+                {admin && !item.mine ? (
+                  <p className="fine">
+                    {t(language, "Library.adminLessonNote")}
+                  </p>
+                ) : (
+                  <ShareControls
+                    language={language}
+                    post={post}
+                    item={item}
+                    busy={busy}
+                    onChange={update}
+                    onNotice={onNotice}
+                  />
+                )}
               </div>
               <div className="shelf-actions">
                 <button
@@ -314,6 +354,16 @@ export function LessonShelf({
             </li>
           ))}
         </ul>
+      )}
+      {cursor && (
+        <button
+          type="button"
+          className="secondary"
+          disabled={busy || loadingMore}
+          onClick={() => void loadMore()}
+        >
+          {t(language, "Library.loadMore")}
+        </button>
       )}
     </section>
   );

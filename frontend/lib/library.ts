@@ -35,6 +35,8 @@ export type SavedSummary = {
   shared: boolean;
   // Set by the public shared routes for the signed-in creator who owns the lesson.
   mine?: boolean;
+  // Server-derived administrator permission; never implies creator ownership.
+  canManage?: boolean;
   // When the creator's own review was saved with this content; null when unreviewed.
   reviewedAt?: number | null;
   // The author's stable-or-dated mark, when the lesson carries one.
@@ -135,8 +137,13 @@ export const onSharedChanged = (listener: () => void) => {
   window.addEventListener(SHARED_CHANGED, listener);
   return () => window.removeEventListener(SHARED_CHANGED, listener);
 };
-export const listMine = () =>
-  getJson<{ lessons: SavedSummary[]; limit: number }>("/api/lessons");
+export const listMine = (cursor?: string) =>
+  getJson<{
+    lessons: SavedSummary[];
+    limit: number | null;
+    scope?: "all";
+    cursor?: string | null;
+  }>("/api/lessons" + (cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""));
 export const readMine = (id: string) =>
   getJson<SavedLesson>(`/api/lessons/${id}`);
 export const listShared = () =>

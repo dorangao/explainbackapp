@@ -12,6 +12,7 @@ export function OwnerActions({
   id,
   post,
   busy = false,
+  admin = false,
   onDeleted,
   onNotice,
 }: {
@@ -19,6 +20,7 @@ export function OwnerActions({
   id: string;
   post: Post;
   busy?: boolean;
+  admin?: boolean;
   onDeleted?: (id: string) => void;
   onNotice?: (text: string) => void;
 }) {
@@ -42,9 +44,17 @@ export function OwnerActions({
     <p
       className="owner-actions fine"
       role="group"
-      aria-label={t(language, "Library.yourLesson")}
+      aria-label={t(
+        language,
+        admin ? "Library.adminActions" : "Library.yourLesson",
+      )}
     >
-      <span>{t(language, "Library.yourLessonNote")}</span>
+      <span>
+        {t(
+          language,
+          admin ? "Library.adminLessonNote" : "Library.yourLessonNote",
+        )}
+      </span>
       <a className="text-button" href={editHash(id)}>
         {t(language, "Library.editThisLesson")}
       </a>

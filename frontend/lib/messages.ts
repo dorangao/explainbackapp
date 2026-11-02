@@ -21,8 +21,8 @@ export const messages = {
     zh: "评审访问码",
   },
   "AccessPanel.signInWithATester": {
-    en: "Sign in with a tester account",
-    zh: "使用测试账号登录",
+    en: "Administrator sign-in (tester account)",
+    zh: "管理员登录（测试账号）",
   },
   "AccessPanel.username": { en: "Username", zh: "用户名" },
   "AccessPanel.useSyntheticExamplesKeepPersonal": {
@@ -1500,6 +1500,16 @@ export const messages = {
   "Library.openLesson": { en: "Edit", zh: "编辑" },
   "Library.editThisLesson": { en: "Edit this lesson", zh: "编辑此课程" },
   "Library.yourLesson": { en: "Your lesson", zh: "你的课程" },
+  "Library.adminActions": { en: "Administrator actions", zh: "管理员操作" },
+  "Library.manageAllLessons": {
+    en: "Manage all saved lessons",
+    zh: "管理所有已保存的课程",
+  },
+  "Library.loadMore": { en: "Load more lessons", zh: "加载更多课程" },
+  "Library.adminLessonNote": {
+    en: "Administrator access · edits clear the creator's review; deleting removes this lesson for everyone.",
+    zh: "管理员权限 · 编辑将清除创建者的审阅标记；删除后所有人都无法再打开此课程。",
+  },
   "Library.yourLessonNote": {
     en: "Yours · a save keeps this same link; deleting removes it for everyone.",
     zh: "你的课程 · 保存后仍是同一链接；删除后所有人都无法再打开。",
