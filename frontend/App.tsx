@@ -111,7 +111,7 @@ export function App() {
     return () => {
       live = false;
     };
-  }, [route.sharedId]);
+  }, [route.sharedId, auth.identity, auth.info.authenticated]);
   useEffect(() => {
     document.documentElement.lang = language === "zh" ? "zh-CN" : "en";
     try {

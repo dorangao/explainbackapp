@@ -120,6 +120,13 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0'])===1;},
   async getLesson(id){const value=await get(lessonKey(id));return value?JSON.parse(value):null;},
   async listLessons(owner){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,99)",[ownerLessonsKey(owner)]);return (await readLessons(ids)).filter(r=>r.owner===owner);},
+  // Admin-only bounded scan includes old/private records, even if their invite was
+  // revoked. It needs no migration or global index; clients follow the opaque cursor.
+  async listAllLessons(cursor='0'){
+   const [next,keys]=await command(['SCAN',cursor,'MATCH',lessonKey('*'),'COUNT',50]);
+   const ids=keys.map(k=>k.slice(lessonKey('').length)).filter(id=>/^[a-f0-9]{16}$/.test(id));
+   return {lessons:await readLessons(ids),cursor:String(next)==='0'?null:String(next)};
+  },
   async deleteLesson(owner,id){return await run(`
    local existing=redis.call('GET',KEYS[1]);if not existing then return 0 end
    if cjson.decode(existing).owner~=ARGV[1] then return 0 end

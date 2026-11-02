@@ -495,11 +495,12 @@ function LibraryCard({
             </a>
           )}
         </div>
-        {entry.shared?.mine && post && (
+        {(entry.shared?.mine || entry.shared?.canManage) && post && (
           <OwnerActions
             language={language}
             id={entry.shared.id}
             post={post}
+            admin={!entry.shared.mine}
             onDeleted={onDeleted}
           />
         )}
@@ -650,7 +651,7 @@ export function Gallery({
       live = false;
       stop();
     };
-  }, []);
+  }, [post]);
   const entries = useMemo(
     () => [
       ...galleryLessons.map(fromReviewed),

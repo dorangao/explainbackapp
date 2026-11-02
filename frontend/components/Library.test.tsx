@@ -36,7 +36,76 @@ afterEach(() => {
   cleanup();
   getJson.mockReset();
 });
+it("offers administrator actions on another creator's shared card without calling it theirs", async () => {
+  let signedIn = false;
+  getJson.mockImplementation(async (path: string) =>
+    path === "/api/shared"
+      ? { lessons: [summary({ shared: true, canManage: signedIn })] }
+      : { covers: {} },
+  );
+  const view = render(<Gallery language="en" />);
+  await screen.findByRole("link", { name: /Open lesson: Cooling coffee/ });
+  expect(
+    screen.queryByRole("group", { name: "Administrator actions" }),
+  ).toBeNull();
+  signedIn = true;
+  view.rerender(<Gallery language="en" post={vi.fn()} />);
+  expect(
+    await screen.findByRole("group", { name: "Administrator actions" }),
+  ).toBeTruthy();
+  expect(screen.queryByRole("group", { name: "Your lesson" })).toBeNull();
+});
 describe("LessonShelf", () => {
+  it("labels the administrator shelf, loads more records and does not offer sharing another creator's private lesson", async () => {
+    getJson.mockImplementation(async (path: string) =>
+      path === "/api/lessons"
+        ? {
+            lessons: [summary({ canManage: true })],
+            limit: null,
+            scope: "all",
+            cursor: "50",
+          }
+        : {
+            lessons: [
+              summary({ canManage: true }),
+              summary({
+                id: "fedcba9876543210",
+                title: { en: "Another saved lesson", zh: "另一课程" },
+                canManage: true,
+              }),
+            ],
+            limit: null,
+            scope: "all",
+            cursor: null,
+          },
+    );
+    render(
+      <LessonShelf
+        language="en"
+        post={vi.fn()}
+        currentId={null}
+        busy={false}
+        onOpen={vi.fn()}
+        onNotice={vi.fn()}
+        onDeleted={vi.fn()}
+      />,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Manage all saved lessons" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("switch", { name: "Private" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Load more lessons" }));
+    expect(
+      await screen.findByRole("heading", { name: "Another saved lesson" }),
+    ).toBeTruthy();
+    expect(getJson).toHaveBeenCalledWith("/api/lessons?cursor=50");
+    expect(
+      screen.getAllByRole("heading", { name: "Cooling coffee" }),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Load more lessons" }),
+    ).toBeNull();
+  });
   it("lists saved lessons, opens one without a model call, shares by link and deletes after confirming", async () => {
     const cover = "https://x.public.blob.vercel-storage.com/images/a/b.webp";
     getJson.mockImplementation(async (path: string) =>

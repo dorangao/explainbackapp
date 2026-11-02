@@ -11,7 +11,9 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 
 ## Sharing
 
-- **Edit and delete from where the lesson is shown (added November 1, 2026 Pacific).** On a shared lesson's page and on its library card, the signed-in creator who owns it sees **Edit this lesson** and **Delete**; nobody else does. Edit opens `#edit:<id>`, which loads the saved copy into the review view on the Create page, so a save updates the same shared link. Delete asks twice, removes the lesson and its link for everyone, and the library list refreshes at once.
+- **Edit and delete from where the lesson is shown (added November 1, 2026 Pacific).** On a shared lesson's page and on its library card, the signed-in creator who owns it sees **Edit this lesson** and **Delete**. The password-authenticated tester administrator also sees these controls, labelled **Administrator actions** rather than **Your lesson**. Edit opens `#edit:<id>`, which loads the saved copy into the review view on the Create page, so a save updates the same shared link. Delete asks twice, removes the lesson and its link for everyone, and the library list refreshes at once.
+
+- **Administrator access.** The username/password tester account can read, edit and delete all saved lessons; its Create shelf is **Manage all saved lessons**, including private and historical records, with **Load more lessons** pagination. Access-code sign-ins retain creator-only rights. Admin edits keep the creator's ownership, image namespace and share flag, and clear that creator's review mark. Sharing remains owner-only, and built-in gallery lessons remain source controlled. Keep the password account private; no frontend flag grants these rights.
 
 - The **Private / Shared by link** switch on a saved lesson turns a public link on or off: `https://explainback.app/#shared:<id>`. Ids are 16 random hex characters.
 - A shared lesson opens for anyone without signing in, straight into the player, with its show when one was saved, and a provenance note saying it was shared by its creator from Lesson Studio rather than reviewed by the library's author.
@@ -27,12 +29,12 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 
 | Route | Who | Purpose |
 |---|---|---|
-| `GET /api/lessons` | signed in | List the creator's shelf (summaries) and the cap. |
-| `GET /api/lessons/:id` | owner | Full saved lesson with its show script. |
-| `POST /api/lessons` | owner | Save (`{lesson, show?, model?}`) or update (`{id, …}`). Validated by the lesson schema and a show-script check. |
+| `GET /api/lessons` | signed in | Creator shelf and cap; for the tester administrator, all saved records with `scope: "all"`, `limit: null` and a nullable next `cursor` (`?cursor=…`). |
+| `GET /api/lessons/:id` | owner or administrator | Full saved lesson with its show script. |
+| `POST /api/lessons` | signed in; updates require owner or administrator | Save (`{lesson, show?, model?}`) or update (`{id, …}`). Validated by the lesson schema and a show-script check. |
 | `POST /api/lessons/share` | owner | `{id, shared}` toggles the public link. |
-| `POST /api/lessons/delete` | owner | `{id}` removes the lesson and its link. |
-| `GET /api/shared` | public | Newest shared lessons (summaries); the signed-in owner's own entries carry `mine: true`, never the owner. |
+| `POST /api/lessons/delete` | owner or administrator | `{id}` removes the lesson and its link. |
+| `GET /api/shared` | public | Newest shared lessons (summaries); the signed-in owner's own entries carry `mine: true`; administrator responses carry `canManage: true`. Owner identities are never returned. |
 | `GET /api/shared/:id` | public | One shared lesson with its show script; 404 when private or missing. |
 
 Storage: `src/lessons.mjs` builds and validates records; `src/state.mjs` (local memory) and `src/redis-state.mjs` (Upstash) keep one JSON record per lesson with a per-owner index and a shared index, no TTL. Mutations in Redis run as single scripts so ownership checks and index updates cannot drift.

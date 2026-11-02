@@ -76,3 +76,22 @@ describe("OwnerActions", () => {
     expect(screen.getByRole("button", { name: "删除" })).toBeTruthy();
   });
 });
+
+it("labels admin actions honestly and confirms before deleting", async () => {
+  const post = vi.fn().mockResolvedValue({ deleted: true });
+  render(
+    <OwnerActions language="en" id="0123456789abcdef" post={post} admin />,
+  );
+  expect(
+    screen.getByRole("group", { name: "Administrator actions" }),
+  ).toBeTruthy();
+  expect(screen.queryByText(/^Yours/)).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
+  await waitFor(() =>
+    expect(post).toHaveBeenCalledWith("/api/lessons/delete", {
+      id: "0123456789abcdef",
+    }),
+  );
+});

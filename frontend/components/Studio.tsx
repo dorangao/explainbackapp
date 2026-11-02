@@ -1782,14 +1782,20 @@ export function Studio({
                 <span className="saved-flag">
                   ✓ {t(language, "Library.savedCopy")}
                 </span>
-                <ShareControls
-                  language={language}
-                  post={post}
-                  item={savedItem}
-                  busy={busy || saving}
-                  onChange={setSavedItem}
-                  onNotice={setMessage}
-                />
+                {savedItem.canManage && !savedItem.mine ? (
+                  <p className="fine">
+                    {t(language, "Library.adminLessonNote")}
+                  </p>
+                ) : (
+                  <ShareControls
+                    language={language}
+                    post={post}
+                    item={savedItem}
+                    busy={busy || saving}
+                    onChange={setSavedItem}
+                    onNotice={setMessage}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -2396,18 +2402,21 @@ export function Studio({
                 </a>
               </p>
             )}
-            {source === "shared" && external?.mine && authenticated && (
-              <OwnerActions
-                language={language}
-                id={external.id}
-                post={post}
-                busy={busy}
-                onNotice={setMessage}
-                onDeleted={() => {
-                  location.hash = "#studio";
-                }}
-              />
-            )}
+            {source === "shared" &&
+              (external?.mine || external?.canManage) &&
+              authenticated && (
+                <OwnerActions
+                  language={language}
+                  id={external.id}
+                  post={post}
+                  busy={busy}
+                  admin={!external.mine}
+                  onNotice={setMessage}
+                  onDeleted={() => {
+                    location.hash = "#studio";
+                  }}
+                />
+              )}
             <LessonPlayer
               key={attemptVersion}
               player={player}

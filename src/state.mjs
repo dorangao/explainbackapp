@@ -31,6 +31,7 @@ export function createMemoryState({now=Date.now}={}){
   async putLesson(record,cap=50){const mine=[...lessons.values()].filter(r=>r.owner===record.owner&&r.id!==record.id);if(mine.length>=cap)return false;lessons.set(record.id,structuredClone(record));return true;},
   async getLesson(id){return lessons.has(id)?structuredClone(lessons.get(id)):null;},
   async listLessons(owner){return [...lessons.values()].filter(r=>r.owner===owner).sort((a,b)=>b.updatedAt-a.updatedAt).map(r=>structuredClone(r));},
+  async listAllLessons(cursor='0'){const rows=[...lessons.values()].sort((a,b)=>b.updatedAt-a.updatedAt||a.id.localeCompare(b.id)),offset=Number(cursor);return {lessons:rows.slice(offset,offset+50).map(r=>structuredClone(r)),cursor:offset+50<rows.length?String(offset+50):null};},
   async deleteLesson(owner,id){const r=lessons.get(id);if(!r||r.owner!==owner)return false;lessons.delete(id);return true;},
   async listSharedLessons(limit=48){return [...lessons.values()].filter(r=>r.shared===true).sort((a,b)=>b.updatedAt-a.updatedAt).slice(0,limit).map(r=>structuredClone(r));},
  };
