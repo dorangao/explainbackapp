@@ -2000,6 +2000,84 @@ describe("Workspace replacement safety", () => {
 });
 
 describe("Workspace revision isolation", () => {
+  it.each(["text", "control", "ambiguous"] as const)(
+    "handles confirmed canvas during a %s revision without skipping review",
+    async (change) => {
+      const { saveStudio } = await import("../lib/studio-store");
+      const draft = coolingLesson() as Lesson;
+      draft.chapters[0].canvas = {
+        concept: "cup",
+        input: "rate",
+        box: { x: 0.1, y: 0.2, width: 0.5, height: 0.4 },
+      };
+      saveStudio({
+        draft,
+        topic: "Cooling",
+        creation: "generated",
+        reviewed: true,
+        revisionPrompt: "",
+        compose: null,
+        revise: null,
+        tryout: null,
+        show: null,
+        guide: {},
+        explanations: {},
+        player: null,
+        presenting: false,
+        pace: "off",
+        sourceImage: "/gallery/pendulum-sketch.png",
+      });
+      const reply = coolingLesson() as Lesson;
+      reply.chapters[0].explanation.en =
+        "A revised explanation of the same model.";
+      if (change === "control" && reply.chapters[0].demo?.kind === "model")
+        reply.chapters[0].demo.inputs[2].max = 0.3;
+      if (change === "ambiguous")
+        reply.chapters.push(structuredClone(reply.chapters[0]));
+      const post: Post = async (path) => {
+        if (path === "/api/studio/session")
+          return { sessionId: "s1", attemptsRemaining: 8 } as never;
+        if (path === "/api/studio/compose")
+          return {
+            status: "ready",
+            lesson: reply,
+            message: { en: "Ready", zh: "已就绪" },
+            attemptsRemaining: 7,
+          } as never;
+        return { records: [] } as never;
+      };
+      mount({ authenticated: true, status, view: "create" }, post);
+      await screen.findByRole("button", { name: "Remove connection" });
+      fireEvent.change(screen.getByLabelText(/Ask Muse to revise/), {
+        target: { value: "Clarify the explanation" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Revise lesson/ }));
+      await screen.findByText(/Revision ready/);
+      expect(
+        screen.getByRole("checkbox", { name: /I reviewed/ }),
+      ).toHaveProperty("checked", false);
+      if (change === "text") {
+        expect(
+          screen.getByRole("button", { name: "Remove connection" }),
+        ).toBeTruthy();
+        expect(screen.queryByText("Picture connection")).toBeNull();
+      } else {
+        expect(
+          screen.queryByRole("button", { name: "Remove connection" }),
+        ).toBeNull();
+        expect(screen.getByText("Picture connection")).toBeTruthy();
+        expect(
+          screen.getByText(/Some picture connections were removed/),
+        ).toBeTruthy();
+      }
+      const { loadStudio } = await import("../lib/studio-store");
+      await waitFor(() =>
+        expect(Boolean(loadStudio()?.draft.chapters[0].canvas)).toBe(
+          change === "text",
+        ),
+      );
+    },
+  );
   it("revises the working lesson using its own topic after a different home question is entered", async () => {
     const posted: Record<string, unknown>[] = [];
     const post: Post = async (path, body) => {

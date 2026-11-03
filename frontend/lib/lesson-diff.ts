@@ -1,4 +1,6 @@
-import type { Bilingual, Language, Lesson, Demo } from "./types";
+import type { Bilingual, Language, Lesson, Demo, Chapter } from "./types";
+import { stableJson } from "./studio-cache";
+import { formatDemoNumber } from "./shared";
 
 export type Change = {
   path: string;
@@ -16,6 +18,37 @@ const show = (value: unknown): string =>
       : typeof value === "number"
         ? String(value)
         : JSON.stringify(value);
+const percent = (v: number) => `${formatDemoNumber(v * 100)}%`;
+function pictureConnection(chapter: Chapter | undefined, language: Language) {
+  const binding = chapter?.canvas;
+  if (!binding) return "";
+  const control =
+    chapter.demo?.kind === "model"
+      ? chapter.demo.inputs.find((i) => i.id === binding.input)
+      : undefined;
+  const b = binding.box;
+  const region =
+    language === "zh"
+      ? `选区 (x ${percent(b.x)}, y ${percent(b.y)}, 宽 ${percent(b.width)}, 高 ${percent(b.height)})`
+      : `Region (x ${percent(b.x)}, y ${percent(b.y)}, width ${percent(b.width)}, height ${percent(b.height)})`;
+  return `${binding.concept} → ${control?.label[language] ?? binding.input} [${binding.input}] · ${region}`;
+}
+function canvasChanges(
+  out: Change[],
+  index: number,
+  before: Chapter | undefined,
+  after: Chapter | undefined,
+  language: Language,
+) {
+  if (stableJson(before?.canvas) === stableJson(after?.canvas)) return;
+  out.push({
+    path: `chapters[${index}].canvas`,
+    label: bi("Picture connection", "图片关联"),
+    before: pictureConnection(before, language),
+    after: pictureConnection(after, language),
+    kind: !before?.canvas ? "added" : !after?.canvas ? "removed" : "text",
+  });
+}
 function text(
   out: Change[],
   path: string,
@@ -319,6 +352,7 @@ export function lessonChanges(
   for (let i = 0; i < n; i++) {
     const b = before.chapters[i],
       a = after.chapters[i];
+    canvasChanges(out, i, b, a, language);
     if (!b || !a) {
       out.push({
         path: `chapters[${i}]`,
