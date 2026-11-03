@@ -27,6 +27,9 @@ export type SavedSummary = {
   hasTryout: boolean;
   graded: number;
   model: string | null;
+  // Independent attribution; null/absent means the role is not known.
+  lessonModel?: string | null;
+  showModel?: string | null;
   // Image URLs kept in Blob storage; null when none was saved.
   cover: string | null;
   // Which model drew the cover: Muse Image, or null for a show cover of the shipped style.
@@ -71,6 +74,21 @@ export type SavedLesson = SavedSummary & {
   tryout: SavedTryout | null;
   grades: Record<string, SavedGrade>;
 };
+// Older saved `model` values could refer to either role. Keep the label honest.
+export function lessonModelLabel(
+  item: Pick<SavedSummary, "model" | "lessonModel">,
+  language: Language,
+): string | null {
+  if (item.lessonModel)
+    return language === "zh"
+      ? `最近课程模型：${item.lessonModel}`
+      : `Latest lesson model: ${item.lessonModel}`;
+  if (item.model)
+    return language === "zh"
+      ? `已记录模型（角色未知）：${item.model}`
+      : `Recorded model (role unknown): ${item.model}`;
+  return null;
+}
 // A saved tryout report and grades in the shapes the Studio caches use. Keys are the ones
 // the caches were made with, so each result shows as fresh or stale against the live
 // lesson state exactly as before; nothing here makes a request.
@@ -166,6 +184,8 @@ export const saveLesson = (
     lesson: Lesson;
     show?: Show | null;
     model?: string | null;
+    lessonModel?: string | null;
+    showModel?: string | null;
     cover?: string | null;
     coverModel?: string | null;
     illustrations?: Record<string, string> | null;

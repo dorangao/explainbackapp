@@ -18,7 +18,7 @@ import type {
   Language,
   Post,
 } from "../lib/types";
-import { listShared, onSharedChanged } from "../lib/library";
+import { lessonModelLabel, listShared, onSharedChanged } from "../lib/library";
 import { OwnerActions } from "./OwnerActions";
 import type { CoverRecord } from "../lib/library";
 import { useCovers } from "../lib/covers";
@@ -363,7 +363,7 @@ function metaLine(entry: Entry, language: Language): string {
     ).format(item.updatedAt);
     return [
       date,
-      item.model,
+      lessonModelLabel(item, language),
       item.hasShow ? t(language, "Library.withShow") : null,
       item.currency?.status === "dated"
         ? t(language, "Gallery.figuresAsOf").replace(

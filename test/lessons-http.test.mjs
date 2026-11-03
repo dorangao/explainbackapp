@@ -15,6 +15,26 @@ async function setup(t,extra={}){
  const get=(path,cookie)=>fetch(origin+path,{headers:cookie?{Cookie:cookie}:{}});
  return {origin,post,get,codeCookie};
 }
+test('lesson and show model provenance survive saving and sharing without guessing legacy records',async t=>{
+ const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');
+ const body={lesson:coolingLesson(),show:show(),model:'legacy-label',lessonModel:'muse-spark-1.3',showModel:'muse-wonder-1.0'};
+ const saved=await(await post('/api/lessons',body,judge)).json();
+ assert.equal(saved.lessonModel,'muse-spark-1.3');assert.equal(saved.showModel,'muse-wonder-1.0');
+ await post('/api/lessons/share',{id:saved.id,shared:true},judge);
+ const publicRecord=await(await get('/api/shared/'+saved.id)).json();
+ assert.equal(publicRecord.lessonModel,'muse-spark-1.3');assert.equal(publicRecord.showModel,'muse-wonder-1.0');
+ const unchanged=await(await post('/api/lessons',{id:saved.id,lesson:body.lesson,show:body.show},judge)).json();
+ assert.equal(unchanged.lessonModel,'muse-spark-1.3');assert.equal(unchanged.showModel,'muse-wonder-1.0');
+ const differentShow=show();differentShow.slides[0].narration.en='A different narration.';
+ const changed=await(await post('/api/lessons',{id:saved.id,lesson:body.lesson,show:differentShow},judge)).json();
+ assert.equal(changed.lessonModel,'muse-spark-1.3');assert.equal(changed.showModel,null);
+ const changedLesson=coolingLesson();changedLesson.title.en='Different lesson';
+ const changedAgain=await(await post('/api/lessons',{id:saved.id,lesson:changedLesson,show:differentShow},judge)).json();
+ assert.equal(changedAgain.lessonModel,null);assert.equal(changedAgain.showModel,null);
+ const legacy=await(await post('/api/lessons',{lesson:coolingLesson(),show:show(),model:'ambiguous-legacy'},judge)).json();
+ assert.equal(legacy.model,'ambiguous-legacy');assert.equal(legacy.lessonModel,null);assert.equal(legacy.showModel,null);
+ assert.equal((await post('/api/lessons',{lesson:coolingLesson(),show:show(),showModel:'x'.repeat(81)},judge)).status,400);
+});
 test('a reviewer saves, lists, updates, shares and deletes lessons; another invite cannot see them',async t=>{
  const {post,get,codeCookie}=await setup(t);
  const judge=await codeCookie('JUDGE-INVITE-1'),other=await codeCookie('OTHER-INVITE-2');

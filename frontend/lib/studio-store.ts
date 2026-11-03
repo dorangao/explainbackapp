@@ -12,7 +12,7 @@ import type {
   TryoutReply,
 } from "./types";
 import type { Cached, Pace } from "./studio-cache";
-import { paces } from "./studio-cache";
+import { fingerprint, paces } from "./studio-cache";
 import { createLessonPlayer, validateLesson } from "./shared";
 import { validateDrawing } from "../../public/lesson-canvas.mjs";
 
@@ -74,6 +74,7 @@ export type StoredStudio = {
   newTopic?: string;
   savedAt: number;
   draft: Lesson;
+  draftModel?: string | null;
   topic: string;
   creation: string;
   reviewed: boolean;
@@ -169,6 +170,19 @@ export function loadStudio(): StoredStudio | null {
     )
       return null;
     const draft = validateLesson(value.draft);
+    const legacyContent = {
+      draft: value.draft,
+      reviewed: value.reviewed,
+      show: value.show,
+      tryout: value.tryout,
+      guide: value.guide,
+      explanations: value.explanations,
+      sourceImage: value.sourceImage,
+    };
+    const legacyWasClean =
+      !Object.hasOwn(value, "draftModel") &&
+      typeof value.savedFingerprint === "string" &&
+      value.savedFingerprint === fingerprint(legacyContent);
     const cached = <T>(c: unknown): Cached<T> | null =>
       c &&
       typeof c === "object" &&
@@ -178,6 +192,13 @@ export function loadStudio(): StoredStudio | null {
         ? (c as Cached<T>)
         : null;
     const guide: Record<string, Cached<Feedback>> = {};
+    const show = cached<ShowReply>(value.show);
+    // Before role attribution was recorded, a reopened saved show could inherit
+    // the ambiguous legacy lesson model. Do not promote it into a show credit.
+    if (!Object.hasOwn(value, "draftModel") && show?.reply) {
+      const { model: _ambiguousModel, ...reply } = show.reply;
+      show.reply = reply;
+    }
     const drawings: Record<string, Drawing> = {};
     for (const [key, item] of Object.entries(value.drawings ?? {}).slice(-24)) {
       try {
@@ -199,7 +220,7 @@ export function loadStudio(): StoredStudio | null {
       /* Drop corrupt attempts, never the working draft. */
     }
     const ui = value.tryoutUI;
-    return {
+    const result: StoredStudio = {
       recoveryScope: value.recoveryScope,
       workspace: ["home", "create", "tryout"].includes(String(value.workspace))
         ? value.workspace
@@ -241,6 +262,10 @@ export function loadStudio(): StoredStudio | null {
       version: 1,
       savedAt: typeof value.savedAt === "number" ? value.savedAt : Date.now(),
       draft,
+      draftModel:
+        typeof value.draftModel === "string" && value.draftModel.length <= 80
+          ? value.draftModel
+          : null,
       topic: typeof value.topic === "string" ? value.topic : "",
       creation: value.creation === "catalog" ? "catalog" : "generated",
       reviewed: value.reviewed === true,
@@ -253,7 +278,7 @@ export function loadStudio(): StoredStudio | null {
         ? { at: value.revise!.at, key: value.revise!.key }
         : null,
       tryout: cached<TryoutReply>(value.tryout),
-      show: cached<ShowReply>(value.show),
+      show,
       guide,
       drawings,
       sourceImage:
@@ -284,6 +309,18 @@ export function loadStudio(): StoredStudio | null {
           ? (value.references as References)
           : null,
     };
+    if (legacyWasClean)
+      result.savedFingerprint = fingerprint({
+        draft: result.draft,
+        draftModel: result.draftModel,
+        reviewed: result.reviewed,
+        show: result.show,
+        tryout: result.tryout,
+        guide: result.guide,
+        explanations: result.explanations,
+        sourceImage: result.sourceImage,
+      });
+    return result;
   } catch {
     return null;
   }
