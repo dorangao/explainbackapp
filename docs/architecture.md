@@ -64,6 +64,8 @@ Changes to learner-facing content invalidate review and mark the prior attempt o
 
 A model revision carries a creator-confirmed image/control connection only when the entire numeric demo has one exact match in each lesson. Canonical JSON comparison ignores object-key order, while matching independently of chapter position permits unambiguous reordering. Changed or ambiguous demos lose confirmation; a revision notice reports removals and the bilingual diff describes connection additions, removals and edits. Model-supplied connection fields cannot replace the creator's confirmation. Source-image retention, earlier learner attempts and renewed review continue through the existing workspace flow.
 
+Shared-link reading starts a new personal learner attempt for every reader, including an owner or administrator. It loads the lesson, source image and show without restoring the creator's saved explanation or feedback caches. Explicit authoring through the saved shelf or edit route restores those results; ownership/management permission alone does not identify a continuation of the creator's attempt. Stored grades and server access rules are unchanged.
+
 ## Technology stack
 
 | Layer | Technology and role | Source of truth |
