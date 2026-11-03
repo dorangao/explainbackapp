@@ -180,6 +180,7 @@ test("both retained labs mount, switch language, navigate and remount without er
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Library", exact: true })
     .click();
+  await page.getByLabel("Lessons per page").selectOption("24");
   await page.getByRole("link", { name: /Open the bench: Quantum/ }).click();
   await expect(
     page.getByRole("heading", { name: "Quantum computing", exact: true }),
