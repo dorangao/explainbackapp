@@ -4,5 +4,6 @@ import type { GalleryItem, Language } from "../frontend/lib/types";
 export const galleryLessons: readonly GalleryItem[];
 export const galleryIds: readonly string[];
 export function galleryLesson(id: string): GalleryItem | null;
+export function firstExperimentLesson(): GalleryItem | null;
 export function galleryIdFromHash(hash: string | undefined): string | null;
 export function gallerySourceNote(source: string, language?: Language): string;

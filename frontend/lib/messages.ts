@@ -419,8 +419,8 @@ export const messages = {
     zh: "未获得麦克风权限。",
   },
   "LessonPlayer.museFeedbackOnYourExplanation": {
-    en: "Muse feedback on your explanation needs creation access. The reviewed explanation below is always available.",
-    zh: "让 Muse 评估你的解释需要创建权限；下方经审阅的解释始终可见。",
+    en: "You can write this explanation and try the fresh case without signing in. Muse feedback needs creation access. Sign in opens the creator workspace, so finish this lesson first or return to it afterward.",
+    zh: "不登录也可以写下这段解释，并尝试新情境。让 Muse 评估需要创建权限。登录会进入创作区，请先完成这节课，或之后再回来。",
   },
   "LessonPlayer.museIsWorking": {
     en: "Muse is working…",
@@ -1229,7 +1229,8 @@ export const messages = {
   "Gallery.any": { en: "Any", zh: "不限" },
   "Gallery.reviewed": { en: "Reviewed", zh: "已审阅" },
   "Gallery.shared": { en: "Shared", zh: "创作者分享" },
-  "Gallery.startHere": { en: "Start here", zh: "从这里开始" },
+  "Gallery.optionalTour": { en: "Optional tour", zh: "可选导览" },
+  "Gallery.openTheTour": { en: "Open the tour", zh: "打开导览" },
   "Gallery.theSixStepTour": { en: "The 6-step tour", zh: "六步导览" },
   "Gallery.playTheTour": { en: "Play the tour", zh: "播放导览" },
   "Gallery.figuresAsOf": { en: "figures as of {date}", zh: "数据截至 {date}" },
@@ -1356,6 +1357,7 @@ export const messages = {
     zh: "来自评估和来自创作者的课程与已审阅课程在同一网格中；徽章和每张卡片下的说明注明其来源。",
   },
   "Studio.browseTheLibrary": { en: "Browse the library", zh: "浏览课程库" },
+  "Studio.tryAnExperiment": { en: "Try an experiment", zh: "试试一个实验" },
   "RevisionSummary.comparedTwoModels": {
     en: "drafted this question with both models",
     zh: "用两个模型起草了这个问题",

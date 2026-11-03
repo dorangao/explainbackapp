@@ -9,6 +9,7 @@ export {
   gallerySourceNote,
   galleryIdFromHash,
   galleryLesson,
+  firstExperimentLesson,
 } from "../../public/gallery-lessons.mjs";
 export {
   evaluationLessons,

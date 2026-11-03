@@ -19,10 +19,11 @@ describe("FeaturedLesson", () => {
         })
         .getAttribute("href"),
     ).toBe("#show:explainback/play");
+    expect(screen.getByText("Optional tour")).toBeTruthy();
     expect(
       screen
         .getByRole("link", {
-          name: "Start here: How ExplainBack makes a lesson",
+          name: "Open the tour: How ExplainBack makes a lesson",
         })
         .getAttribute("href"),
     ).toBe("#lesson:explainback");
@@ -33,6 +34,8 @@ describe("FeaturedLesson", () => {
     cleanup();
     render(<FeaturedLesson language="zh" id="explainback" />);
     expect(screen.getByText("六步导览")).toBeTruthy();
+    expect(screen.getByText("可选导览")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /打开导览/ })).toBeTruthy();
     expect(screen.getByRole("link", { name: /播放导览/ })).toBeTruthy();
   });
   it("renders nothing for an unknown lesson", () => {

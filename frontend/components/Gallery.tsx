@@ -545,8 +545,8 @@ function LibraryCard({
   );
 }
 
-// The hero's card: the how-to lesson as the 6-step tour, with its narrated show played
-// through from a Play link, and the lesson itself as the second action.
+// The hero's secondary card: the how-to lesson as an optional tour. The filled
+// homepage action is the first numeric lesson, chosen from the gallery list.
 export function FeaturedLesson({
   language,
   id,
@@ -583,7 +583,7 @@ export function FeaturedLesson({
       <div className="lesson-card-body">
         <span className="lesson-kind">
           <span className="lesson-badge lesson-badge-start">
-            {t(language, "Gallery.startHere")}
+            {t(language, "Gallery.optionalTour")}
           </span>
           {t(language, "Gallery.theSixStepTour")}
         </span>
@@ -603,9 +603,10 @@ export function FeaturedLesson({
           <a
             className="lesson-link"
             href={entry.href}
-            aria-label={`${t(language, "Gallery.startHere")}: ${title}`}
+            aria-label={`${t(language, "Gallery.openTheTour")}: ${title}`}
           >
-            {t(language, "Gallery.startHere")} <span aria-hidden="true">↗</span>
+            {t(language, "Gallery.openTheTour")}{" "}
+            <span aria-hidden="true">↗</span>
           </a>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {galleryLessons,galleryIds,galleryLesson,galleryIdFromHash,gallerySourceNote} from '../public/gallery-lessons.mjs';
+import {galleryLessons,galleryIds,galleryLesson,galleryIdFromHash,gallerySourceNote,firstExperimentLesson} from '../public/gallery-lessons.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {createLessonPlayer} from '../public/lesson-player.mjs';
 import {createApp} from '../src/server.mjs';
@@ -23,6 +23,14 @@ test('every gallery lesson validates, states its provenance and completes locall
   assert.notEqual(gallerySourceNote(item.source,'en'),gallerySourceNote(item.source,'zh'));
  }
  assert.match(gallerySourceNote('muse','en'),/muse-spark-1\.3/);
+});
+test('the homepage entry is the first numeric gallery lesson, not a fixed id',()=>{
+ const entry=firstExperimentLesson();
+ assert.equal(entry,galleryLessons.find(lesson=>lesson.kind==='model'));
+ assert.equal(entry.kind,'model');
+ assert.equal(entry.id,galleryLessons.find(lesson=>lesson.kind==='model').id);
+ const withoutModels=galleryLessons.filter(lesson=>lesson.kind!=='model');
+ assert.ok(withoutModels.every(lesson=>lesson.id!==entry.id));
 });
 test('gallery deep links accept only known lesson ids',()=>{
  assert.equal(galleryIdFromHash('#lesson:cooling'),'cooling');assert.equal(galleryIdFromHash('#lesson:nope'),null);
