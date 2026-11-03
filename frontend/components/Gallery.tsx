@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { t } from "../lib/messages";
 import type { MessageKey } from "../lib/messages";
 import {
@@ -624,6 +624,7 @@ export function Gallery({
 }) {
   const headingId = useId(),
     searchId = useId();
+  const resultsRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState(""),
     [type, setType] = useState<TypeFilter>("all"),
     [source, setSource] = useState<SourceFilter>("any"),
@@ -632,33 +633,55 @@ export function Gallery({
     [moreFilters, setMoreFilters] = useState(false),
     [withShow, setWithShow] = useState(false),
     [fromSketch, setFromSketch] = useState(false),
-    [shared, setShared] = useState<SavedSummary[]>([]);
+    [shared, setShared] = useState<SavedSummary[]>([]),
+    [page, setPage] = useState(0),
+    [sharedLoading, setSharedLoading] = useState(true),
+    [sharedError, setSharedError] = useState(false),
+    [retry, setRetry] = useState(0);
   // Creator-drawn covers for reviewed lessons, from the shared store; they win over the
   // shipped manifest and update in place when a creator draws one.
   const overrides = useCovers();
-  // Shared lessons are public; a failed fetch simply leaves them out of the grid.
+  // Load the complete public index in bounded pages so search includes older lessons.
   useEffect(() => {
     let live = true;
-    const load = () =>
-      void listShared()
-        .then((result) => {
-          if (live) setShared(result.lessons);
-        })
-        .catch(() => {});
-    load();
+    let generation = 0;
+    const load = async () => {
+      const current = ++generation;
+      const rows = new Map<string, SavedSummary>();
+      const cursors = new Set<string>();
+      let cursor: string | null = null;
+      setSharedLoading(true);
+      setSharedError(false);
+      try {
+        do {
+          const result = await listShared(cursor);
+          if (!live || current !== generation) return;
+          for (const lesson of result.lessons) rows.set(lesson.id, lesson);
+          setShared([...rows.values()]);
+          cursor = result.cursor ?? null;
+          if (cursor && cursors.has(cursor)) throw new Error("Repeated cursor");
+          if (cursor) cursors.add(cursor);
+        } while (cursor);
+      } catch {
+        if (live && current === generation) setSharedError(true);
+      } finally {
+        if (live && current === generation) setSharedLoading(false);
+      }
+    };
+    void load();
     // A share switched or a lesson deleted elsewhere on the page: list again.
-    const stop = onSharedChanged(load);
+    const stop = onSharedChanged(() => void load());
     return () => {
       live = false;
       stop();
     };
-  }, [post]);
+  }, [post, retry]);
   const entries = useMemo(
     () => [
       ...galleryLessons.map(fromReviewed),
       ...benches,
-      ...evaluationLessons.map(fromEvaluation),
       ...shared.map(fromShared),
+      ...evaluationLessons.map(fromEvaluation),
     ],
     [shared],
   );
@@ -675,6 +698,24 @@ export function Gallery({
       ),
     [entries, type, source, depth, withShow, fromSketch, query],
   );
+  useEffect(
+    () => setPage(0),
+    [query, type, source, depth, withShow, fromSketch],
+  );
+  const pageSize = 24;
+  const pages = Math.max(1, Math.ceil(shown.length / pageSize));
+  const currentPage = Math.min(page, pages - 1);
+  const visible = shown.slice(
+    currentPage * pageSize,
+    (currentPage + 1) * pageSize,
+  );
+  function changePage(next: number) {
+    setPage(next);
+    requestAnimationFrame(() => {
+      resultsRef.current?.focus({ preventScroll: true });
+      resultsRef.current?.scrollIntoView?.({ block: "start" });
+    });
+  }
   const counts = {
     shows: entries.filter((entry) => entry.show || entry.shared?.hasShow)
       .length,
@@ -806,11 +847,38 @@ export function Gallery({
           {shown.length} {t(language, "Gallery.lessonCount")}
         </span>
       </div>
+      {sharedLoading && (
+        <p className="fine" role="status">
+          {language === "zh"
+            ? "正在加载创作者分享的课程…"
+            : "Loading shared lessons…"}
+        </p>
+      )}
+      {sharedError && (
+        <p className="fine" role="status">
+          {language === "zh"
+            ? "部分分享课程加载失败。"
+            : "Some shared lessons could not be loaded."}{" "}
+          <button
+            type="button"
+            className="chip"
+            onClick={() => setRetry((n) => n + 1)}
+          >
+            {language === "zh" ? "重试" : "Retry"}
+          </button>
+        </p>
+      )}
       {shown.length === 0 ? (
         <p className="catalog-empty">{t(language, "Gallery.noMatches")}</p>
       ) : (
-        <div className="gallery-grid">
-          {shown.map((entry) => (
+        <div
+          className="gallery-grid"
+          ref={resultsRef}
+          tabIndex={-1}
+          role="region"
+          aria-label={language === "zh" ? "课程结果" : "Lesson results"}
+        >
+          {visible.map((entry) => (
             <LibraryCard
               key={entry.id}
               language={language}
@@ -823,6 +891,34 @@ export function Gallery({
             />
           ))}
         </div>
+      )}
+      {pages > 1 && (
+        <nav
+          className="catalog-pagination"
+          aria-label={language === "zh" ? "课程分页" : "Lesson pages"}
+        >
+          <button
+            type="button"
+            className="chip"
+            disabled={currentPage === 0}
+            onClick={() => changePage(currentPage - 1)}
+          >
+            {language === "zh" ? "上一页" : "Previous page"}
+          </button>
+          <span aria-live="polite">
+            {language === "zh"
+              ? `第 ${currentPage + 1} 页，共 ${pages} 页`
+              : `Page ${currentPage + 1} of ${pages}`}
+          </span>
+          <button
+            type="button"
+            className="chip"
+            disabled={currentPage === pages - 1}
+            onClick={() => changePage(currentPage + 1)}
+          >
+            {language === "zh" ? "下一页" : "Next page"}
+          </button>
+        </nav>
       )}
       <p className="gallery-footnote">
         {t(language, "Gallery.predictChangeAnInputExplain")}{" "}

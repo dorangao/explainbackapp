@@ -3,6 +3,7 @@ import {createApp} from '../src/server.mjs';import {testerCredentials} from '../
 import {coolingLesson,processLesson} from '../test-support/generated-lessons.mjs';
 import {buildSavedLesson,validateShowScript,lessonKind} from '../src/lessons.mjs';
 import {createRedisServices} from '../src/redis-state.mjs';
+import {createMemoryState} from '../src/state.mjs';
 import {fakeBlob} from './blob.test.mjs';
 const bi=(en,zh)=>({en,zh});
 const show=()=>({version:1,slides:[{kind:'cover',chapter:0,heading:bi('Hook','开场'),narration:bi('Why does coffee cool?','咖啡为什么会凉？')},{kind:'claim',chapter:0,heading:bi('Claim','观点'),narration:bi('Is it linear?','是线性的吗？')},{kind:'experiment',chapter:0,heading:bi('Watch','观察'),narration:bi('Sweep the settings.','调整设置。')},{kind:'takeaway',chapter:0,heading:bi('Takeaway','要点'),narration:bi('The gap drives the rate.','温差决定速率。')}],coverPrompt:'A cup of coffee by a window'});
@@ -15,6 +16,19 @@ async function setup(t,extra={}){
  const get=(path,cookie)=>fetch(origin+path,{headers:cookie?{Cookie:cookie}:{}});
  return {origin,post,get,codeCookie};
 }
+test('public shared listing pages beyond 48 without exposing private lessons',async t=>{
+ const state=createMemoryState();
+ for(let i=0;i<55;i++){
+  const record=buildSavedLesson({lesson:coolingLesson()},{owner:'creator',now:i});
+  await state.putLesson({...record,shared:true},100);
+ }
+ const hidden=buildSavedLesson({lesson:coolingLesson()},{owner:'creator',now:100});await state.putLesson(hidden,100);
+ const {get}=await setup(t,{state});
+ const first=await(await get('/api/shared')).json();assert.equal(first.lessons.length,48);assert.equal(first.cursor,'48');
+ const next=await(await get('/api/shared?cursor='+first.cursor)).json();assert.equal(next.lessons.length,7);assert.equal(next.cursor,null);
+ const ids=[...first.lessons,...next.lessons].map(r=>r.id);assert.equal(new Set(ids).size,55);assert.equal(ids.includes(hidden.id),false);
+ assert.equal((await get('/api/shared?cursor=-1')).status,400);assert.equal((await get('/api/shared?cursor=1.5')).status,400);
+});
 test('lesson and show model provenance survive saving and sharing without guessing legacy records',async t=>{
  const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');
  const body={lesson:coolingLesson(),show:show(),model:'legacy-label',lessonModel:'muse-spark-1.3',showModel:'muse-wonder-1.0'};
@@ -129,7 +143,7 @@ function fakeRedis(){
   if(command[0]!=='EVAL')return call(...command);
   const [,script,n,...rest]=command;const KEYS=rest.slice(0,n),ARGV=rest.slice(n).map(String);
   // Interpret the handful of lesson scripts by shape rather than running Lua.
-  if(script.includes("ZREVRANGE"))return call('ZREVRANGE',KEYS[0],0,ARGV[0]!==undefined?Number(ARGV[0])-1:99);
+  if(script.includes("ZREVRANGE")){const start=script.includes('ARGV[2]')?Number(ARGV[1]):0;return call('ZREVRANGE',KEYS[0],start,ARGV[0]!==undefined?start+Number(ARGV[0])-1:99);}
   if(script.includes("redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2]")){const v=call('GET',KEYS[0]);if(!v||JSON.parse(v).owner!==ARGV[0])return 0;call('DEL',KEYS[0]);call('ZREM',KEYS[1],ARGV[1]);call('ZREM',KEYS[2],ARGV[1]);return 1;}
   if(script.includes("local existing=redis.call('GET',KEYS[1])")){const v=call('GET',KEYS[0]);if(script.includes("(existing or 'null')~=ARGV[7]")&&ARGV[6]&&String(v||'null')!==ARGV[6])return 0;if(v){if(JSON.parse(v).owner!==ARGV[0])return 0;}else if(call('ZCARD',KEYS[1])>=Number(ARGV[2]))return 0;call('SET',KEYS[0],ARGV[1]);call('ZADD',KEYS[1],ARGV[3],ARGV[4]);if(ARGV[5]==='1')call('ZADD',KEYS[2],ARGV[3],ARGV[4]);else call('ZREM',KEYS[2],ARGV[4]);return 1;}
   if(script.trim()==="return redis.call('GET',KEYS[1])")return call('GET',KEYS[0]);
@@ -157,6 +171,14 @@ test('redis adapter keeps per-owner and shared indexes consistent',async()=>{
  assert.equal(await state.deleteLesson('code:judges',a.id),true);
  assert.deepEqual((await state.listLessons('code:judges')).map(r=>r.id),[b.id]);
  assert.equal(await state.getLesson(a.id),null);
+});
+test('redis shared-list paging uses the same stable tie order as memory',async()=>{
+ const memory=createMemoryState();const {state:redis}=createRedisServices({command:fakeRedis(),username:'u',password:'password-long-enough'});
+ for(let i=0;i<55;i++){
+  const r={...buildSavedLesson({lesson:coolingLesson()},{owner:'creator',now:10}),shared:true};
+  await memory.putLesson(r,100);await redis.putLesson(r,100);
+ }
+ for(const offset of [0,48])assert.deepEqual((await redis.listSharedLessons(49,offset)).map(r=>r.id),(await memory.listSharedLessons(49,offset)).map(r=>r.id));
 });
 
 const webpBytes=()=>{const b=Buffer.alloc(40);b.write('RIFF',0,'latin1');b.write('WEBP',8,'latin1');return b;};
