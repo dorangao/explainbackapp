@@ -45,6 +45,22 @@ describe("About page and the shared page header", () => {
       screen.getByRole("heading", { level: 2, name: "限制与隐私" }),
     ).toBeTruthy();
   });
+  it("step three says code checks the transfer answer and a model assesses the explanation only with creation access", () => {
+    const stepThree = () =>
+      document.querySelectorAll(".about-steps li")[2]?.textContent ?? "";
+    render(<About language="en" />);
+    expect(stepThree()).toMatch(/Code checks the transfer answer/);
+    expect(stepThree()).toMatch(
+      /With creation access, a model assesses your explanation against the computed result and asks one follow-up question/,
+    );
+    expect(stepThree()).not.toMatch(/only comments on the wording|verif/);
+    cleanup();
+    render(<About language="zh" />);
+    expect(stepThree()).toMatch(/迁移题的答案由代码检查/);
+    expect(stepThree()).toMatch(
+      /拥有创作权限时，模型会对照计算结果评价你的解释，并提出一个追问/,
+    );
+  });
   it("page header shows eyebrow, meta and actions when given", () => {
     render(
       <PageHeader

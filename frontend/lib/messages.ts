@@ -96,8 +96,8 @@ export const messages = {
     zh: "你先预测、再检验，然后讲回来。",
   },
   "About.step3Body": {
-    en: "Every lesson runs through Predict, Experiment, Explain and Transfer. A learner's answer is marked by code; a model only comments on the wording.",
-    zh: "每节课都经过预测、实验、解释和迁移四步。学习者的答案由代码判定；模型只对表述给出评语。",
+    en: "Predict, experiment, explain the result, then transfer the idea to a fresh case. Code checks the transfer answer. With creation access, a model assesses your explanation against the computed result and asks one follow-up question.",
+    zh: "先预测、做实验、解释结果，再把这个想法迁移到新情境。迁移题的答案由代码检查。拥有创作权限时，模型会对照计算结果评价你的解释，并提出一个追问。",
   },
   "About.whatHasBeenMeasured": {
     en: "How evaluation works",
