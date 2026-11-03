@@ -63,6 +63,7 @@ import { FeaturedLesson, Gallery } from "./Gallery";
 import { LessonShelf, ShareControls } from "./Library";
 import {
   cachesFromSaved,
+  lessonModelLabel,
   readMine,
   saveLesson as saveToShelf,
   shareLesson,
@@ -100,7 +101,7 @@ const ProviderConsole = lazy(() =>
   import("./ProviderConsole").then((m) => ({ default: m.ProviderConsole })),
 );
 
-type Revision = { before: Lesson; after: Lesson };
+type Revision = { before: Lesson; after: Lesson; beforeModel: string | null };
 type Stamp = { at: number; key: string };
 const cacheState = (stamp: Stamp | null, key: string): CacheState =>
   stamp ? { at: stamp.at, stale: stamp.key !== key } : null;
@@ -160,6 +161,7 @@ export function Studio({
     [references, setReferences] = useState<References | null>(null),
     [modelId, setModelId] = useState(""),
     [draft, setDraft] = useState<Lesson | null>(null),
+    [draftModel, setDraftModel] = useState<string | null>(null),
     [revisionKey, setRevisionKey] = useState(0),
     [reviewed, setReviewed] = useState(false),
     [player, setPlayer] = useState<Player | null>(null),
@@ -221,6 +223,7 @@ export function Studio({
     () =>
       fingerprint({
         draft,
+        draftModel,
         reviewed,
         show,
         tryout,
@@ -228,7 +231,16 @@ export function Studio({
         explanations,
         sourceImage,
       }),
-    [draft, reviewed, show, tryout, guide, explanations, sourceImage],
+    [
+      draft,
+      draftModel,
+      reviewed,
+      show,
+      tryout,
+      guide,
+      explanations,
+      sourceImage,
+    ],
   );
   const hasPending = Object.keys(pendingDefinitions).length > 0;
   const dirty = Boolean(
@@ -307,6 +319,7 @@ export function Studio({
       const valid = validateLesson(input);
       setDraft(valid);
       if (!keepAttempt) {
+        setDraftModel(null);
         draftIdentity.current++;
         setPlayer(null);
         playerState.current = null;
@@ -350,6 +363,7 @@ export function Studio({
     setTryoutUI(emptyTryoutUI);
     setSavedFingerprint(null);
     setDraft(null);
+    setDraftModel(null);
     setSourceImage(null);
     setDetection(null);
     setPlayer(null);
@@ -383,6 +397,7 @@ export function Studio({
     const saved = loadStudio();
     if (!saved) return;
     setDraft(saved.draft);
+    setDraftModel(saved.draftModel ?? null);
     setDraftTopic(saved.topic);
     setTopic(saved.newTopic ?? "");
     setWorkspaceHome(saved.workspace === "home");
@@ -426,6 +441,7 @@ export function Studio({
       ? {
           recoveryScope: currentStudioScope(),
           draft,
+          draftModel,
           topic: draftTopic,
           newTopic: topic,
           workspace: workspaceHome ? "home" : presenting ? "tryout" : "create",
@@ -475,6 +491,7 @@ export function Studio({
     authenticated,
     lessonId,
     draft,
+    draftModel,
     topic,
     draftTopic,
     workspaceHome,
@@ -595,7 +612,7 @@ export function Studio({
           cover: external.cover,
           coverModel: external.coverModel,
           illustrations: external.illustrations,
-          model: external.model ?? undefined,
+          ...(external.showModel ? { model: external.showModel } : {}),
         } as ShowReply,
         at: external.updatedAt,
         key: fingerprint({ lesson: withoutUnits(lesson) }),
@@ -872,7 +889,10 @@ export function Studio({
             : carried.lesson,
           Boolean(before),
         );
-        setRevision(before ? { before, after: next } : null);
+        setRevision(
+          before ? { before, after: next, beforeModel: draftModel } : null,
+        );
+        setDraftModel(composed.model ?? target.model ?? null);
         if (before && sourceImage) {
           setSourceImage(sourceImage);
           setSource("studio-sketch");
@@ -989,6 +1009,7 @@ export function Studio({
     if (!chosen.lesson) return;
     try {
       loadLesson(structuredClone(chosen.lesson));
+      setDraftModel(chosen.model);
       setDraftTopic(topic);
     } catch {
       setMessage(t(language, "Studio.completeBothLanguagesAndValidate"));
@@ -1431,14 +1452,10 @@ export function Studio({
         ...(savedId ? { id: savedId } : {}),
         lesson: valid,
         show: current?.show ?? null,
-        // The drafting model, never the image or voice model of a later request.
-        model:
-          (metrics && !["illustrate", "transcribe"].includes(metrics.mode)
-            ? metrics.model
-            : null) ??
-          show?.reply.model ??
-          target?.model ??
-          null,
+        // Legacy model is kept for older clients; roles are recorded separately.
+        model: draftModel ?? savedItem?.model ?? null,
+        lessonModel: draftModel,
+        showModel: current?.model ?? null,
         cover: current?.cover ?? null,
         coverModel: current?.coverModel ?? null,
         illustrations: current?.illustrations ?? null,
@@ -1489,6 +1506,7 @@ export function Studio({
       setSavedFingerprint(
         fingerprint({
           draft: valid,
+          draftModel,
           reviewed,
           show:
             current && summary.cover && show
@@ -1522,6 +1540,7 @@ export function Studio({
   function openSaved(record: SavedLesson) {
     const { lesson: body, show: script, ...summary } = record;
     const lesson = loadLesson(body);
+    setDraftModel(summary.lessonModel ?? null);
     setReviewed(Boolean(summary.reviewedAt));
     setRevision(null);
     restoreResults(lesson, record, summary.updatedAt);
@@ -1541,7 +1560,7 @@ export function Studio({
               cover: summary.cover,
               coverModel: summary.coverModel,
               illustrations: summary.illustrations,
-              model: summary.model ?? undefined,
+              ...(summary.showModel ? { model: summary.showModel } : {}),
             } as ShowReply,
             at: summary.updatedAt,
             key: fingerprint({ lesson: withoutUnits(lesson) }),
@@ -2230,7 +2249,8 @@ export function Studio({
               cover={show.reply.cover}
               illustrations={show.reply.illustrations ?? null}
               language={language}
-              scriptModel={show.reply.model ?? target?.model ?? null}
+              scriptModel={show.reply.model ?? null}
+              scriptModelUnknown={!show.reply.model}
               coverModel={show.reply.coverModel}
               onClose={() => setShowing(false)}
               pace={pace}
@@ -2267,6 +2287,7 @@ export function Studio({
                   onRestore={() => {
                     const previous = revision.before;
                     loadLesson(previous, true);
+                    setDraftModel(revision.beforeModel);
                     setRevision(null);
                     setMessage(
                       t(language, "Studio.restoredThePreviousDraftThe"),
@@ -2535,9 +2556,10 @@ export function Studio({
                       : source === "evaluation" && evaluationItem
                         ? evaluationNote(evaluationItem, language)
                         : gallerySourceNote(source, language)}
-                  {external?.model &&
+                  {external &&
                     source === "shared" &&
-                    ` · ${external.model}`}
+                    lessonModelLabel(external, language) &&
+                    ` · ${lessonModelLabel(external, language)}`}
                 </p>
                 {source === "evaluation" && evaluationItem && (
                   <p className="evaluation-links fine">

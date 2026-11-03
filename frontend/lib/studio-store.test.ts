@@ -94,6 +94,63 @@ describe("fingerprint", () => {
 });
 
 describe("studio store", () => {
+  it("keeps the lesson model with a recovered draft", () => {
+    expect(saveStudio({ ...base(), draftModel: "muse-spark-1.3" })).toBe(true);
+    expect(loadStudio()?.draftModel).toBe("muse-spark-1.3");
+  });
+  it("does not promote an ambiguous old cached show model into show attribution", () => {
+    saveStudio(base());
+    const old = JSON.parse(localStorage.getItem(storageKey)!);
+    old.show = { at: 2000, key: "show", reply: { model: "ambiguous-legacy" } };
+    localStorage.setItem(storageKey, JSON.stringify(old));
+    expect(loadStudio()?.show?.reply.model).toBeUndefined();
+    old.draftModel = "muse-spark-1.3";
+    old.show.reply.model = "muse-wonder-1.0";
+    localStorage.setItem(storageKey, JSON.stringify(old));
+    expect(loadStudio()?.show?.reply.model).toBe("muse-wonder-1.0");
+  });
+  it("migrates only a clean legacy saved fingerprint", () => {
+    saveStudio({ ...base(), sourceImage: null });
+    const old = JSON.parse(localStorage.getItem(storageKey)!);
+    old.show = { at: 2000, key: "show", reply: { model: "ambiguous-legacy" } };
+    const legacyContent = {
+      draft: old.draft,
+      reviewed: old.reviewed,
+      show: old.show,
+      tryout: old.tryout,
+      guide: old.guide,
+      explanations: old.explanations,
+      sourceImage: old.sourceImage,
+    };
+    old.savedFingerprint = fingerprint(legacyContent);
+    localStorage.setItem(storageKey, JSON.stringify(old));
+    const loaded = loadStudio()!;
+    expect(loaded.savedFingerprint).toBe(
+      fingerprint({
+        ...legacyContent,
+        show: loaded.show,
+        draftModel: null,
+      }),
+    );
+    const { version: _version, savedAt: _savedAt, ...snapshot } = loaded;
+    saveStudio(snapshot);
+    const reloaded = loadStudio()!;
+    expect(reloaded.savedFingerprint).toBe(
+      fingerprint({
+        draft: reloaded.draft,
+        draftModel: reloaded.draftModel,
+        reviewed: reloaded.reviewed,
+        show: reloaded.show,
+        tryout: reloaded.tryout,
+        guide: reloaded.guide,
+        explanations: reloaded.explanations,
+        sourceImage: reloaded.sourceImage,
+      }),
+    );
+    old.savedFingerprint = "different-dirty-fingerprint";
+    localStorage.setItem(storageKey, JSON.stringify(old));
+    expect(loadStudio()!.savedFingerprint).toBe("different-dirty-fingerprint");
+  });
   it("restores canvas source and valid predictions, discarding malformed predictions", () => {
     const drawing = {
       points: [

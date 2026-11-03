@@ -86,6 +86,40 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ShowPlayer", () => {
+  it("does not invent a narration model for an older shared show", () => {
+    const { rerender } = render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        coverModel={null}
+        language="en"
+        scriptModel={null}
+        scriptModelUnknown
+        onClose={() => {}}
+      />,
+    );
+    expect(document.querySelector(".show-credits")?.textContent).toContain(
+      "Show narration source not recorded",
+    );
+    rerender(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        coverModel={null}
+        language="en"
+        scriptModel="local-model"
+        onClose={() => {}}
+      />,
+    );
+    expect(document.querySelector(".show-credits")?.textContent).toContain(
+      "Show narration model: local-model",
+    );
+    expect(document.querySelector(".show-credits")?.textContent).not.toContain(
+      "Meta local-model",
+    );
+  });
   it("renders the cover, steps through slides, animates the experiment and credits the models", () => {
     const onClose = vi.fn();
     render(

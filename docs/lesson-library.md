@@ -4,7 +4,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 
 ## Saving
 
-- **Save to my lessons** sits next to Export in the review bar. It stores the checked lesson and, when the draft has a current narrated show, the show script (narration and cover prompt, never the cover image bytes). The model that drafted the lesson is recorded as a label.
+- **Save to my lessons** sits next to Export in the review bar. It stores the checked lesson and, when the draft has a current narrated show, the show script (narration and cover prompt, never the cover image bytes). Separate labels record the model reported for the latest lesson generation or revision and for the show script. Creators may edit the results afterward; these labels do not verify authorship or scientific accuracy. Older records' single model label has an unknown role, and an unlabelled show does not acquire a model by inference.
 - Saving again from the same draft updates the same copy (**Save changes**); the remembered draft in this browser keeps the saved copy's id so a reload still updates rather than duplicates.
 - If a lesson changes or is deleted while an image-backed save is in progress, the update is refused with a conflict instead of overwriting the newer record. The local draft remains available. Reopen the current saved copy before applying another update; a failed save never republishes an unshared lesson or recreates a deleted copy.
 - Browser recovery belongs to the current login. Refreshing during that login preserves work; signing out or signing in again clears its recovery scope. Other tabs stop showing private work after sign-out, and old tabs cannot rewrite the cleared recovery record. Older local recovery records without a login binding are not reopened automatically; saved server copies are accessed from the shelf.
@@ -34,7 +34,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 |---|---|---|
 | `GET /api/lessons` | signed in | Creator shelf and cap; for the tester administrator, all saved records with `scope: "all"`, `limit: null` and a nullable next `cursor` (`?cursor=…`). |
 | `GET /api/lessons/:id` | owner or administrator | Full saved lesson with its show script. |
-| `POST /api/lessons` | signed in; updates require owner or administrator | Save (`{lesson, show?, model?}`) or update (`{id, …}`). Validated by the lesson schema and a show-script check. |
+| `POST /api/lessons` | signed in; updates require owner or administrator | Save (`{lesson, show?, model?, lessonModel?, showModel?}`) or update (`{id, …}`). Validated by the lesson schema and a show-script check. `model` is a legacy, role-ambiguous label. For clients omitting the role labels on update, each known label is preserved only while its corresponding content is unchanged. |
 | `POST /api/lessons/share` | owner | `{id, shared}` toggles the public link. |
 | `POST /api/lessons/delete` | owner or administrator | `{id}` removes the lesson and its link. |
 | `GET /api/shared` | public | Newest shared lessons (summaries); the signed-in owner's own entries carry `mine: true`; administrator responses carry `canManage: true`. Owner identities are never returned. |

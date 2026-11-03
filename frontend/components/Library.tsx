@@ -6,6 +6,7 @@ import {
   canSystemShare,
   copyText,
   deleteLesson,
+  lessonModelLabel,
   listMine,
   notifySharedChanged,
   readMine,
@@ -297,7 +298,8 @@ export function LessonShelf({
                 <p className="fine">
                   {t(language, "Library.updated")}{" "}
                   {whenLabel(language, item.updatedAt)}
-                  {item.model && ` · ${item.model}`}
+                  {lessonModelLabel(item, language) &&
+                    ` · ${lessonModelLabel(item, language)}`}
                 </p>
                 {admin && !item.mine ? (
                   <p className="fine">

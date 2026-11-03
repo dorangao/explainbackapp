@@ -53,6 +53,7 @@ export function ShowPlayer({
   illustrations = null,
   language,
   scriptModel,
+  scriptModelUnknown = false,
   coverModel,
   onClose,
   pace: paceProp,
@@ -70,6 +71,7 @@ export function ShowPlayer({
   illustrations?: Record<string, string> | null;
   language: Language;
   scriptModel: string | null;
+  scriptModelUnknown?: boolean;
   coverModel: string | null;
   onClose: () => void;
   // Replay pace shared with the lesson player; "off" plays at the normal pace.
@@ -444,10 +446,16 @@ export function ShowPlayer({
         {scriptModel
           ? say(
               language,
-              `Narration written by Meta ${scriptModel}`,
-              `旁白由 Meta ${scriptModel} 撰写`,
+              `Show narration model: ${scriptModel}`,
+              `讲解秀旁白模型：${scriptModel}`,
             )
-          : t(language, "ShowPlayer.narrationByTheAuthor")}
+          : scriptModelUnknown
+            ? say(
+                language,
+                "Show narration source not recorded",
+                "未记录讲解秀旁白来源",
+              )
+            : t(language, "ShowPlayer.narrationByTheAuthor")}
         {coverModel
           ? say(
               language,

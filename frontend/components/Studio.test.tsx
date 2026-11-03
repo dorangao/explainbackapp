@@ -1182,7 +1182,7 @@ describe("Judge path", () => {
           lesson: coolingLesson(),
           message: { en: "", zh: "" },
           attemptsRemaining: 7,
-          model: "test",
+          model: "muse-spark-1.3",
           elapsedMs: 900,
           usage: null,
         } as never;
@@ -1223,7 +1223,7 @@ describe("Judge path", () => {
           illustrationsSkipped: 1,
           llm: status.models[0],
           attemptsRemaining: 5,
-          model: "test",
+          model: "muse-wonder-1.0",
           elapsedMs: 3000,
           usage: null,
         } as never;
@@ -1300,6 +1300,10 @@ describe("Judge path", () => {
       3,
     );
     expect(calls.filter((c) => c === "/api/lessons")).toHaveLength(1);
+    expect(bodies.find((b) => b.path === "/api/lessons")).toMatchObject({
+      lessonModel: "muse-spark-1.3",
+      showModel: "muse-wonder-1.0",
+    });
     expect(calls.filter((c) => c === "/api/lessons/share")).toHaveLength(1);
     expect(
       document.querySelectorAll('.judge-steps li[data-state="done"]'),
