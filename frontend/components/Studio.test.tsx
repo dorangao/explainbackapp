@@ -9,6 +9,7 @@ import {
   within,
 } from "@testing-library/react";
 import { Studio } from "./Studio";
+import { firstExperimentLesson } from "../lib/shared";
 import { activateStudioRecovery } from "../lib/studio-store";
 beforeEach(() => activateStudioRecovery("synthetic-recovery"));
 const shelf = vi.hoisted(() => ({ record: null as unknown }));
@@ -90,6 +91,24 @@ function mount(
       view.rerender(<Studio {...props} {...next} />),
   };
 }
+
+describe("Studio homepage entry", () => {
+  it("links the filled action to the first numeric gallery lesson", () => {
+    mount();
+    const entry = firstExperimentLesson();
+    expect(entry?.kind).toBe("model");
+    expect(
+      screen
+        .getByRole("link", { name: /^Try an experiment:/ })
+        .getAttribute("href"),
+    ).toBe(`#lesson:${entry?.id}`);
+    expect(
+      screen
+        .getAllByRole("link", { name: "Create a lesson" })
+        .some((link) => link.getAttribute("href") === "#create"),
+    ).toBe(true);
+  });
+});
 
 describe("Studio gallery playback", () => {
   it("opens a reviewed lesson signed out, completes it locally and keeps progress across a language change", async () => {
@@ -552,6 +571,8 @@ describe("Explain it back", () => {
       screen.queryByRole("button", { name: /Check my explanation with Muse/ }),
     ).toBeNull();
     expect(screen.getByText(/needs creation access/)).toBeTruthy();
+    expect(screen.getByText(/without signing in/)).toBeTruthy();
+    expect(screen.getByText(/creator workspace/)).toBeTruthy();
   });
 });
 

@@ -97,6 +97,11 @@ export const galleryLessons=Object.freeze([
      rationale:bi('Grades are made against the result the app computed from the checked contract. The model judges whether the explanation fits that evidence, not what it believes should have happened.','评判对照的是应用根据核验过的契约计算出的结果。模型判断的是解释是否符合这一证据，而不是它认为应当发生什么。')}}}]}}
 ]);
 export const galleryIds=Object.freeze(galleryLessons.map(l=>l.id));
+// Homepage entry: the first reviewed numeric lesson, whatever it currently is.
+// Process and catalog lessons stay in the library. Callers must not special-case an id.
+export function firstExperimentLesson(){
+ return galleryLessons.find(lesson=>lesson.kind==='model')??null;
+}
 // Evaluation showcase lessons open through the same links; their provenance is `evaluation`.
 export function galleryLesson(id){const item=galleryLessons.find(l=>l.id===id);if(item)return item;const e=evaluationLesson(id);return e?{id:e.id,kind:e.kind,source:'evaluation',summary:e.lesson.intro,lesson:e.lesson}:null;}
 // Deep link: /#lesson:cooling opens a gallery lesson directly.

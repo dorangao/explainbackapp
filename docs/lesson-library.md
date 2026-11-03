@@ -83,7 +83,7 @@ Numeric fresh-case answers show a rounding increment beside the field, linked as
 
 ## The 6-step tour in the hero (added October 31, 2026 Pacific)
 
-The library's hero features the how-to lesson, **How ExplainBack makes a lesson**, as the 6-step tour: its narrated show opens and starts playing from **Play the tour** (`/#show:explainback/play`), and **Start here** opens the lesson. The same six steps are the flow at the top of the Create page, which a signed-in reviewer runs live.
+The library hero's filled action is **Try an experiment**. It opens the first reviewed numeric lesson in the bundled gallery (`kind: "model"`), whichever lesson that is, at its prediction step (`/#lesson:<id>`). The choice follows gallery order, so it is not a special case for one lesson, and playback stays local. **Create a lesson** remains the second action. The card beside the hero is still the how-to lesson, **How ExplainBack makes a lesson**, marked **Optional tour**: **Play the tour** opens and starts `/#show:explainback/play`, and **Open the tour** opens the lesson. The same six steps are the flow at the top of the Create page, which a signed-in reviewer runs live.
 
 ## Evaluation showcase (added October 31, 2026 Pacific)
 

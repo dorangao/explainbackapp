@@ -40,6 +40,7 @@ import {
   evaluationComparison,
   evaluationModelLabel,
   evaluationNote,
+  firstExperimentLesson,
   studioWalkthrough,
   validateLesson,
 } from "../lib/shared";
@@ -1655,6 +1656,7 @@ export function Studio({
     ? t(language, "Studio.languageChangedThePendingResult")
     : message || image.notice;
   const loadingNote = <p role="status">{t(language, "Studio.loading")}</p>;
+  const entryLesson = firstExperimentLesson();
   return (
     <div ref={workspaceTop} className="studio" hidden={!visible}>
       {!lessonId && view === "create" && draft && !workspaceHome && (
@@ -1825,9 +1827,19 @@ export function Studio({
               </h1>
               <p>{t(language, "Studio.exploreAnIdeaSeeWhat")}</p>
               <div className="hero-actions">
-                <a className="button" href="#library">
-                  {t(language, "Studio.browseTheLibrary")}
-                </a>
+                {entryLesson ? (
+                  <a
+                    className="button"
+                    href={`#lesson:${entryLesson.id}`}
+                    aria-label={`${t(language, "Studio.tryAnExperiment")}: ${entryLesson.lesson.title[language]}`}
+                  >
+                    {t(language, "Studio.tryAnExperiment")}
+                  </a>
+                ) : (
+                  <a className="button" href="#library">
+                    {t(language, "Studio.browseTheLibrary")}
+                  </a>
+                )}
                 <a className="button secondary-button" href="#create">
                   {t(language, "Studio.createALesson")}
                 </a>
