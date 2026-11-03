@@ -41,5 +41,6 @@ export function createMemoryState({now=Date.now}={}){
   async listAllLessons(cursor='0'){const rows=[...lessons.values()].sort((a,b)=>b.updatedAt-a.updatedAt||a.id.localeCompare(b.id)),offset=Number(cursor);return {lessons:rows.slice(offset,offset+50).map(r=>structuredClone(r)),cursor:offset+50<rows.length?String(offset+50):null};},
   async deleteLesson(owner,id){const r=lessons.get(id);if(!r||r.owner!==owner)return false;lessons.delete(id);return true;},
   async listSharedLessons(limit=48,offset=0){return [...lessons.values()].filter(r=>r.shared===true).sort((a,b)=>b.updatedAt-a.updatedAt||(a.id<b.id?1:-1)).slice(offset,offset+limit).map(r=>structuredClone(r));},
+  async listSharedPage(limit=48,offset=0){const rows=await this.listSharedLessons(limit+1,offset);return {lessons:rows.slice(0,limit),hasMore:rows.length>limit};},
  };
 }

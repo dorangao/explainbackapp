@@ -14,8 +14,8 @@ export function registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin=()
   app.get('/api/shared', tracked(async (req,res) => {
     const cursor=req.query.cursor??'0';
     if(typeof cursor!=='string'||!/^(0|[1-9]\d{0,8})$/.test(cursor))throw new RequestError(400,'Use a valid shared lesson cursor.');
-    const offset=Number(cursor), rows=await state.listSharedLessons(MAX_SHARED_LISTED+1,offset);
-    reply(res,200,{lessons:rows.slice(0,MAX_SHARED_LISTED).map(r=>withMine(res,r,lessonSummary(r))),cursor:rows.length>MAX_SHARED_LISTED?String(offset+MAX_SHARED_LISTED):null});
+    const offset=Number(cursor), page=await state.listSharedPage(MAX_SHARED_LISTED,offset);
+    reply(res,200,{lessons:page.lessons.map(r=>withMine(res,r,lessonSummary(r))),cursor:page.hasMore?String(offset+MAX_SHARED_LISTED):null});
   }));
   app.get('/api/shared/:id', tracked(async (req,res) => {
     const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;

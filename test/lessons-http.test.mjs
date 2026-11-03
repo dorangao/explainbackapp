@@ -150,6 +150,23 @@ function fakeRedis(){
   throw new Error('unexpected script');
  };
 }
+test('redis shared listing continues when a fetched record disappears or is unshared',async t=>{
+ const base=fakeRedis();let changeDuringRead=null;
+ const command=async args=>{
+  const result=await base(args);
+  if(changeDuringRead&&args[0]==='MGET'&&result.length){const change=changeDuringRead;changeDuringRead=null;return [change==='missing'?null:JSON.stringify({...JSON.parse(result[0]),shared:false}),...result.slice(1)];}
+  return result;
+ };
+ const {state}=createRedisServices({command,username:'u',password:'password-long-enough'});
+ for(let i=0;i<100;i++)await state.putLesson({...buildSavedLesson({lesson:coolingLesson()},{owner:'creator',now:i}),shared:true},150);
+ const {get}=await setup(t,{state});
+ for(const change of ['missing','unshared']){
+  changeDuringRead=change;
+  const first=await(await get('/api/shared')).json();assert.equal(first.lessons.length,47);assert.equal(first.cursor,'48');
+  const second=await(await get('/api/shared?cursor='+first.cursor)).json();assert.equal(second.lessons.length,48);assert.equal(second.cursor,'96');
+  const third=await(await get('/api/shared?cursor='+second.cursor)).json();assert.equal(third.lessons.length,4);assert.equal(third.cursor,null);
+ }
+});
 test('redis adapter keeps per-owner and shared indexes consistent',async()=>{
  const {state}=createRedisServices({command:fakeRedis(),username:'u',password:'password-long-enough'});
  const a=buildSavedLesson({lesson:coolingLesson()},{owner:'code:judges',now:1}),b=buildSavedLesson({lesson:processLesson()},{owner:'code:judges',now:2});
