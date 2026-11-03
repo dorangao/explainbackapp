@@ -251,9 +251,12 @@ export function LessonPlayer({
   const chapter = player.lesson.chapters[state.chapter],
     ownText = own[state.chapter] ?? "";
   const canvas = chapter.canvas;
+  const hasPredictionCanvas = base.kind === "model";
   const predictionKey = drawingKey(player);
   const allDrawings = drawings ?? localDrawings;
-  const drawing = canvas ? (allDrawings[predictionKey] ?? null) : null;
+  const drawing = hasPredictionCanvas
+    ? (allDrawings[predictionKey] ?? null)
+    : null;
   const changeDrawing = (value: Drawing | null) => {
     manual();
     const next = { ...allDrawings };
@@ -686,7 +689,7 @@ export function LessonPlayer({
               </>
             )}
           </div>
-          {canvas &&
+          {hasPredictionCanvas &&
             ["predict", "experiment", "explain"].includes(state.stage) && (
               <PredictionCanvas
                 key={predictionKey}
@@ -699,27 +702,29 @@ export function LessonPlayer({
                 busy={busy}
               />
             )}
-          {state.stage === "predict" && e.kind !== "process" && !canvas && (
-            <div className="experiment-surface experiment-preview">
-              <div className="preview-head">
-                <span className="eyebrow">
-                  {t(language, "LessonPlayer.whatYouWillTest")}
-                </span>
-                <span className="fine">{e.caption(0)}</span>
+          {state.stage === "predict" &&
+            e.kind !== "process" &&
+            !hasPredictionCanvas && (
+              <div className="experiment-surface experiment-preview">
+                <div className="preview-head">
+                  <span className="eyebrow">
+                    {t(language, "LessonPlayer.whatYouWillTest")}
+                  </span>
+                  <span className="fine">{e.caption(0)}</span>
+                </div>
+                <ExperimentView
+                  experiment={e}
+                  progress={0}
+                  language={language}
+                  interactive={false}
+                  preview
+                  onScrub={() => {}}
+                />
               </div>
-              <ExperimentView
-                experiment={e}
-                progress={0}
-                language={language}
-                interactive={false}
-                preview
-                onScrub={() => {}}
-              />
-            </div>
-          )}
+            )}
           {["experiment", "explain"].includes(state.stage) && (
             <div className="experiment-surface">
-              {!canvas && (
+              {!hasPredictionCanvas && (
                 <ExperimentView
                   experiment={e}
                   progress={state.progress}
@@ -1155,51 +1160,67 @@ export function LessonPlayer({
         </div>
         {state.stage !== "complete" && (
           <aside className="player-inspector">
-            {canvas && state.stage !== "transfer" && (
+            {(canvas || sourceImage) && state.stage !== "transfer" && (
               <div className="canvas-object">
                 <p className="eyebrow">
-                  {say(language, "From your picture", "来自你的图片")}
+                  {say(language, "Source sketch or photo", "原始草图或照片")}
                 </p>
                 {sourceImage && (
                   <div className="canvas-image">
-                    <img src={sourceImage} alt={canvas.concept} />
-                    <svg
-                      className="canvas-regions"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <rect
-                        x={canvas.box.x * 100}
-                        y={canvas.box.y * 100}
-                        width={canvas.box.width * 100}
-                        height={canvas.box.height * 100}
-                        className="canvas-selection"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    </svg>
+                    <img
+                      src={sourceImage}
+                      alt={
+                        canvas?.concept ??
+                        say(
+                          language,
+                          "Source sketch or photo",
+                          "原始草图或照片",
+                        )
+                      }
+                    />
+                    {canvas && (
+                      <svg
+                        className="canvas-regions"
+                        viewBox="0 0 100 100"
+                        preserveAspectRatio="none"
+                        aria-hidden="true"
+                      >
+                        <rect
+                          x={canvas.box.x * 100}
+                          y={canvas.box.y * 100}
+                          width={canvas.box.width * 100}
+                          height={canvas.box.height * 100}
+                          className="canvas-selection"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                    )}
                   </div>
                 )}
-                <button
-                  type="button"
-                  className="secondary"
-                  disabled={busy}
-                  onClick={() =>
-                    document
-                      .getElementById(`${formId}-parameter-${canvas.input}`)
-                      ?.focus()
-                  }
-                >
-                  {canvas.concept} →{" "}
-                  {e.inputs?.find((i) => i.id === canvas.input)?.label}
-                </button>
-                <p className="fine">
-                  {say(
-                    language,
-                    "Creator-confirmed connection. Image size does not set the parameter value.",
-                    "创作者确认的关联。图片尺寸不决定参数值。",
-                  )}
-                </p>
+                {canvas && (
+                  <>
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() =>
+                        document
+                          .getElementById(`${formId}-parameter-${canvas.input}`)
+                          ?.focus()
+                      }
+                    >
+                      {canvas.concept} →{" "}
+                      {e.inputs?.find((i) => i.id === canvas.input)?.label}
+                    </button>
+                    <p className="fine">
+                      {say(
+                        language,
+                        "Creator-confirmed connection. Image size does not set the parameter value.",
+                        "创作者确认的关联。图片尺寸不决定参数值。",
+                      )}
+                    </p>
+                  </>
+                )}
               </div>
             )}
             <p className="eyebrow">
@@ -1342,16 +1363,7 @@ export function LessonPlayer({
                   value={state.metric}
                   disabled={busy}
                   onChange={(event) => {
-                    act(() => {
-                      player.output(Number(event.target.value));
-                      // A new quantity needs its own prediction before revealing it.
-                      if (canvas) {
-                        const control = base.inputs?.find(
-                          (i) => i.id === canvas.input,
-                        );
-                        if (control) player.input(control.id, control.value);
-                      }
-                    });
+                    act(() => player.output(Number(event.target.value)));
                   }}
                 >
                   {e.formulas?.map((f, i) => (

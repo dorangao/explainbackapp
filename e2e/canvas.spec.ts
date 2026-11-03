@@ -2,6 +2,73 @@ import { test, expect, type Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 test.use({ serviceWorkers: "block" });
 
+test("public canvas example opens from the library and compares a drawing without model requests", async ({
+  page,
+}) => {
+  const modelRequests: string[] = [];
+  const errors: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("/api/studio/"))
+      modelRequests.push(request.url());
+  });
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/#studio");
+  await page.getByRole("link", { name: "Try the canvas", exact: true }).click();
+  await expect(page).toHaveURL(/#lesson:sketch-pendulum$/);
+  const canvas = page.getByRole("region", { name: "Prediction canvas" });
+  await expect(canvas).toBeVisible();
+  await expect(
+    page.locator("aside").getByAltText("Source sketch or photo"),
+  ).toBeVisible();
+  const input = canvas.locator(".prediction-input");
+  await input.scrollIntoViewIfNeeded();
+  const bounds = (await input.boundingBox())!;
+  await page.mouse.move(bounds.x + 2, bounds.y + bounds.height * 0.8);
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds.x + bounds.width / 2,
+    bounds.y + bounds.height * 0.5,
+    { steps: 8 },
+  );
+  await page.mouse.move(
+    bounds.x + bounds.width - 2,
+    bounds.y + bounds.height * 0.1,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  const prediction = canvas.locator(".prediction-path");
+  await expect(prediction).toBeVisible();
+  const path = await prediction.getAttribute("d");
+  await expect(canvas.locator(".calculated-curve")).toHaveCount(0);
+  await page.getByRole("button", { name: "Not sure", exact: true }).click();
+  await page.getByRole("button", { name: /Test this claim/ }).click();
+  await page
+    .getByRole("button", { name: "Show final state", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Explain the result/ }).click();
+  await expect(canvas.locator(".calculated-curve")).toBeVisible();
+  await expect(prediction).toHaveAttribute("d", path!);
+  await expect(
+    page.getByRole("button", { name: /Check my explanation with Muse/ }),
+  ).toHaveCount(0);
+  await page.screenshot({
+    path: "output/playwright/canvas-pendulum-comparison.png",
+    fullPage: true,
+  });
+  await page.getByLabel("Gravitational acceleration slider").fill("1.6");
+  await expect(
+    page.getByRole("heading", { name: "Sketch your prediction" }),
+  ).toBeVisible();
+  await expect(prediction).toHaveCount(0);
+  await expect(canvas.locator(".calculated-curve")).toHaveCount(0);
+  await page
+    .getByRole("combobox", { name: "Language / 语言" })
+    .selectOption("zh");
+  await expect(page.getByRole("region", { name: "预测画布" })).toBeVisible();
+  expect(modelRequests).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 async function createCanvas(page: Page, manual = false) {
   await page.goto("/#invite:BROWSER-TEST-CODE");
   await page

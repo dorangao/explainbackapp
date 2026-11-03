@@ -46,7 +46,6 @@ export function PredictionCanvas({
             preview ? "画出你的预测" : "对比预测与模型",
           )}
         </h3>
-        <span className="canvas-step">{preview ? "03" : "04"}</span>
       </div>
       <p className="fine">
         {say(
