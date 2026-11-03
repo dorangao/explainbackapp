@@ -28,7 +28,14 @@ export function createMemoryState({now=Date.now}={}){
   // Saved lessons persist for the process lifetime; a creator keeps at most `cap` of them.
   async putCover(id,record){covers.set(id,structuredClone(record));return true;},
   async getCovers(){return Object.fromEntries([...covers].map(([id,c])=>[id,structuredClone(c)]));},
-  async putLesson(record,cap=50){const mine=[...lessons.values()].filter(r=>r.owner===record.owner&&r.id!==record.id);if(mine.length>=cap)return false;lessons.set(record.id,structuredClone(record));return true;},
+  // `expected` is the snapshot read before an update; null means insert only.
+  async putLesson(record,cap=50,expected){
+   const existing=lessons.get(record.id)??null;
+   if(expected!==undefined&&JSON.stringify(existing)!==JSON.stringify(expected))return false;
+   if(existing&&existing.owner!==record.owner)return false;
+   if(!existing&&[...lessons.values()].filter(r=>r.owner===record.owner).length>=cap)return false;
+   lessons.set(record.id,structuredClone(record));return true;
+  },
   async getLesson(id){return lessons.has(id)?structuredClone(lessons.get(id)):null;},
   async listLessons(owner){return [...lessons.values()].filter(r=>r.owner===owner).sort((a,b)=>b.updatedAt-a.updatedAt).map(r=>structuredClone(r));},
   async listAllLessons(cursor='0'){const rows=[...lessons.values()].sort((a,b)=>b.updatedAt-a.updatedAt||a.id.localeCompare(b.id)),offset=Number(cursor);return {lessons:rows.slice(offset,offset+50).map(r=>structuredClone(r)),cursor:offset+50<rows.length?String(offset+50):null};},

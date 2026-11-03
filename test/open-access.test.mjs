@@ -19,7 +19,9 @@ test('sign-in stays required by default',async t=>{
 });
 test('open access serves the full local workflow without a cookie while real logins keep working',async t=>{
  const {origin,post}=await running(t,{openAccess:true});
- assert.deepEqual(await(await fetch(origin+'/api/auth')).json(),{configured:true,codes:false,open:true,authenticated:true});
+ const {recoveryScope,...auth}=await(await fetch(origin+'/api/auth')).json();
+ assert.match(recoveryScope,/^[a-f0-9]{64}$/);
+ assert.deepEqual(auth,{configured:true,codes:false,open:true,authenticated:true});
  const status=await(await fetch(origin+'/api/status')).json();assert.equal(status.access,null);assert.equal(status.defaultModel,'meta:muse-spark-1.3');
  const s=await(await post('/api/session',start)).json();assert.ok(s.sessionId);
  const turn=await post('/api/turn',{sessionId:s.sessionId,explanation:'never touches'});assert.equal(turn.status,200);

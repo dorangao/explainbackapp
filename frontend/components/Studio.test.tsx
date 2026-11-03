@@ -9,6 +9,8 @@ import {
   within,
 } from "@testing-library/react";
 import { Studio } from "./Studio";
+import { activateStudioRecovery } from "../lib/studio-store";
+beforeEach(() => activateStudioRecovery("synthetic-recovery"));
 const shelf = vi.hoisted(() => ({ record: null as unknown }));
 vi.mock("../lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/api")>()),

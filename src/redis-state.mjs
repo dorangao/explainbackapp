@@ -110,14 +110,15 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   async remainingTurns(bucket='global',limit=60){return Math.max(0,limit-Number(await get(key('turns',bucket))??0));},
   // Saved lessons have no TTL. One JSON record per lesson; per-owner and shared indexes are
   // sorted sets scored by update time. Writes and their checks share one script.
-  async putLesson(record,cap=50){return await run(`
+  async putLesson(record,cap=50,expected){return await run(`
    local existing=redis.call('GET',KEYS[1])
+   if ARGV[7]~='' and (existing or 'null')~=ARGV[7] then return 0 end
    if existing then local old=cjson.decode(existing);if old.owner~=ARGV[1] then return 0 end
    elseif redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[3]) then return 0 end
    redis.call('SET',KEYS[1],ARGV[2]);redis.call('ZADD',KEYS[2],ARGV[4],ARGV[5])
    if ARGV[6]=='1' then redis.call('ZADD',KEYS[3],ARGV[4],ARGV[5]) else redis.call('ZREM',KEYS[3],ARGV[5]) end
    return 1
-  `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0'])===1;},
+  `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0',expected===undefined?'':JSON.stringify(expected)])===1;},
   async getLesson(id){const value=await get(lessonKey(id));return value?JSON.parse(value):null;},
   async listLessons(owner){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,99)",[ownerLessonsKey(owner)]);return (await readLessons(ids)).filter(r=>r.owner===owner);},
   // Admin-only bounded scan includes old/private records, even if their invite was

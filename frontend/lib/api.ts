@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AuthInfo, Status, Post } from "./types";
+import {
+  activateStudioRecovery,
+  currentStudioScope,
+  recoveryScopeKey,
+  storedStudioScope,
+  revokeStudioRecovery,
+} from "./studio-store";
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -59,16 +66,32 @@ export function useAuth() {
     [identity, setIdentity] = useState(0);
   const version = useRef(0),
     mounted = useRef(true),
-    authenticated = useRef(false);
+    authenticated = useRef(false),
+    recoveryScope = useRef<string | null>(null);
   const loseAccess = useCallback((message = "") => {
     version.current++;
     authenticated.current = false;
-    setInfo((i) => ({ ...i, authenticated: false }));
+    if (recoveryScope.current) revokeStudioRecovery(recoveryScope.current);
+    recoveryScope.current = null;
+    setInfo((i) => ({ ...i, authenticated: false, recoveryScope: undefined }));
     setStatus(null);
     setError(message);
     setIdentity((i) => i + 1);
     setWorking(false);
+    setLoading(false);
   }, []);
+  useEffect(() => {
+    const changed = (event: StorageEvent) => {
+      if (
+        (event.key === recoveryScopeKey || event.key === null) &&
+        authenticated.current &&
+        currentStudioScope() !== recoveryScope.current
+      )
+        loseAccess("TESTER_REQUIRED");
+    };
+    window.addEventListener("storage", changed);
+    return () => window.removeEventListener("storage", changed);
+  }, [loseAccess]);
   const refresh = useCallback(async () => {
     const token = version.current;
     try {
@@ -89,18 +112,28 @@ export function useAuth() {
       versionRef = version;
     mountedRef.current = true;
     const token = ++versionRef.current;
+    const initialScope = storedStudioScope();
     void (async () => {
       try {
         const auth = await request<AuthInfo>("/api/auth");
         if (!mounted.current || token !== version.current) return;
+        // A newer login/sign-out in another tab supersedes this pending reply.
+        if (storedStudioScope() !== initialScope) return;
+        if (auth.authenticated) activateStudioRecovery(auth.recoveryScope);
+        else revokeStudioRecovery();
+        recoveryScope.current = auth.recoveryScope ?? null;
         setInfo(auth);
         authenticated.current = auth.authenticated;
         if (auth.authenticated) {
           const next = await request<Status>("/api/status");
           if (mounted.current && token === version.current) setStatus(next);
         }
-      } catch {
-        if (mounted.current && token === version.current) setError("NETWORK");
+      } catch (failure) {
+        if (mounted.current && token === version.current) {
+          if (failure instanceof ApiError && failure.status === 401)
+            loseAccess("TESTER_REQUIRED");
+          else setError("NETWORK");
+        }
       } finally {
         if (mounted.current && token === version.current) setLoading(false);
       }
@@ -109,17 +142,25 @@ export function useAuth() {
       mountedRef.current = false;
       versionRef.current++;
     };
-  }, []);
+  }, [loseAccess]);
   const login = useCallback(async (body: unknown) => {
     const token = ++version.current;
+    const initialScope = storedStudioScope();
     setWorking(true);
     setError("");
     try {
-      await request("/api/login", body);
+      const auth = await request<AuthInfo>("/api/login", body);
       const next = await request<Status>("/api/status");
       if (!mounted.current || token !== version.current) return false;
+      if (storedStudioScope() !== initialScope) return false;
+      activateStudioRecovery(auth.recoveryScope);
+      recoveryScope.current = auth.recoveryScope ?? null;
       authenticated.current = true;
-      setInfo((i) => ({ ...i, authenticated: true }));
+      setInfo((i) => ({
+        ...i,
+        authenticated: true,
+        recoveryScope: auth.recoveryScope,
+      }));
       setStatus(next);
       return true;
     } catch (e) {
@@ -135,14 +176,16 @@ export function useAuth() {
     }
   }, []);
   const logout = useCallback(async () => {
-    version.current++;
+    const token = ++version.current;
     setWorking(true);
     try {
       await request("/api/logout", {});
-      loseAccess();
+      if (mounted.current && token === version.current) loseAccess();
     } catch {
-      setError("NETWORK");
-      setWorking(false);
+      if (mounted.current && token === version.current) {
+        setError("NETWORK");
+        setWorking(false);
+      }
     }
   }, [loseAccess]);
   const post: Post = useCallback(

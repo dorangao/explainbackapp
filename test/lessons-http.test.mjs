@@ -111,7 +111,7 @@ function fakeRedis(){
   // Interpret the handful of lesson scripts by shape rather than running Lua.
   if(script.includes("ZREVRANGE"))return call('ZREVRANGE',KEYS[0],0,ARGV[0]!==undefined?Number(ARGV[0])-1:99);
   if(script.includes("redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2]")){const v=call('GET',KEYS[0]);if(!v||JSON.parse(v).owner!==ARGV[0])return 0;call('DEL',KEYS[0]);call('ZREM',KEYS[1],ARGV[1]);call('ZREM',KEYS[2],ARGV[1]);return 1;}
-  if(script.includes("local existing=redis.call('GET',KEYS[1])")){const v=call('GET',KEYS[0]);if(v){if(JSON.parse(v).owner!==ARGV[0])return 0;}else if(call('ZCARD',KEYS[1])>=Number(ARGV[2]))return 0;call('SET',KEYS[0],ARGV[1]);call('ZADD',KEYS[1],ARGV[3],ARGV[4]);if(ARGV[5]==='1')call('ZADD',KEYS[2],ARGV[3],ARGV[4]);else call('ZREM',KEYS[2],ARGV[4]);return 1;}
+  if(script.includes("local existing=redis.call('GET',KEYS[1])")){const v=call('GET',KEYS[0]);if(script.includes("(existing or 'null')~=ARGV[7]")&&ARGV[6]&&String(v||'null')!==ARGV[6])return 0;if(v){if(JSON.parse(v).owner!==ARGV[0])return 0;}else if(call('ZCARD',KEYS[1])>=Number(ARGV[2]))return 0;call('SET',KEYS[0],ARGV[1]);call('ZADD',KEYS[1],ARGV[3],ARGV[4]);if(ARGV[5]==='1')call('ZADD',KEYS[2],ARGV[3],ARGV[4]);else call('ZREM',KEYS[2],ARGV[4]);return 1;}
   if(script.trim()==="return redis.call('GET',KEYS[1])")return call('GET',KEYS[0]);
   throw new Error('unexpected script');
  };
@@ -267,4 +267,33 @@ test('the show request draws the slides the writer flagged after the cover, with
  const saved=await(await post('/api/lessons',{lesson:made.lesson,show:shown.show,cover:shown.cover,coverModel:shown.coverModel,illustrations:shown.illustrations},judge)).json();
  const full=await(await get('/api/lessons/'+saved.id,judge)).json();
  assert.equal(full.show.slides[1].illustrate,true);assert.match(full.illustrations['1'],/r002\.webp$/);
+});
+
+test('guide feedback accepted at the response limit survives saving and reopening',async t=>{
+ let length=700;
+ const {post,get,codeCookie}=await setup(t,{modelCall:async()=>({structured:{name:'guide_lesson',value:{verdict:'partly',explanation:'a'.repeat(length),followUp:'Why does the gap matter?',nextAction:'replay'}}})});
+ const cookie=await codeCookie('JUDGE-INVITE-1');
+ const session=await(await post('/api/studio/session',{synthetic:true,language:'en'},cookie)).json();
+ for(length of [700,701,1000]){
+  const response=await post('/api/studio/guide',{sessionId:session.sessionId,lesson:coolingLesson(),chapter:0,language:'en',prediction:'disagree',explanation:'The temperature gap controls cooling.'},cookie);
+  assert.equal(response.status,200);const feedback=await response.json();
+  const saved=await post('/api/lessons',{lesson:coolingLesson(),grades:{0:{...grades()[0],feedback:feedback.explanation}}},cookie);
+  assert.equal(saved.status,200);
+  const record=await saved.json();const reopened=await(await get('/api/lessons/'+record.id,cookie)).json();
+  assert.equal(reopened.grades['0'].feedback.length,length);
+ }
+ assert.equal((await post('/api/lessons',{lesson:coolingLesson(),grades:{0:{...grades()[0],feedback:'a'.repeat(1001)}}},cookie)).status,400);
+});
+
+test('Redis lesson writes reject stale snapshots and deleted updates',async()=>{
+ const {state}=createRedisServices({command:fakeRedis(),username:'u',password:'synthetic-password'});
+ const original=buildSavedLesson({lesson:coolingLesson()},{owner:'fixture',now:1});
+ assert.equal(await state.putLesson(original,50,null),true);
+ const changed={...original,shared:true,updatedAt:2};
+ assert.equal(await state.putLesson(changed,50,original),true);
+ assert.equal(await state.putLesson({...original,updatedAt:3},50,original),false);
+ assert.equal((await state.getLesson(original.id)).shared,true);
+ await state.deleteLesson(original.owner,original.id);
+ assert.equal(await state.putLesson({...changed,updatedAt:4},50,changed),false);
+ assert.equal(await state.getLesson(original.id),null);
 });

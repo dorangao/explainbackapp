@@ -1,7 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { drawingKey, fingerprint, guideKey, isStale } from "./studio-cache";
 import {
   clearStudio,
+  activateStudioRecovery,
+  currentStudioScope,
+  revokeStudioRecovery,
+  recoveryScopeKey,
   loadStudio,
   restorePlayer,
   saveStudio,
@@ -14,6 +18,7 @@ import {
   tinyPng,
 } from "../../test-support/generated-lessons.mjs";
 
+beforeEach(() => activateStudioRecovery("synthetic-recovery"));
 afterEach(() => localStorage.clear());
 const lesson = () => coolingLesson() as unknown as Lesson;
 const tryout = (): TryoutReply => ({
@@ -30,6 +35,7 @@ const tryout = (): TryoutReply => ({
   attemptsRemaining: 6,
 });
 const base = () => ({
+  recoveryScope: "synthetic-recovery",
   draft: lesson(),
   topic: "Cooling coffee",
   creation: "generated",
@@ -243,4 +249,29 @@ it("reports unavailable recovery storage without erasing the previous record", (
   } finally {
     write.mockRestore();
   }
+});
+
+it("revocation rejects an old snapshot even after another login activates recovery", () => {
+  const old = { ...base(), recoveryScope: currentStudioScope() };
+  saveStudio(old);
+  revokeStudioRecovery();
+  expect(saveStudio(old)).toBe(false);
+  expect(loadStudio()).toBeNull();
+  activateStudioRecovery("another-login");
+  expect(saveStudio(old)).toBe(false);
+  expect(loadStudio()).toBeNull();
+});
+it("a stale tab cannot overwrite or clear another login's recovery", () => {
+  const old = { ...base(), recoveryScope: currentStudioScope() };
+  localStorage.setItem(recoveryScopeKey, "another-login");
+  localStorage.setItem(storageKey, "new login data");
+  expect(saveStudio(old)).toBe(false);
+  revokeStudioRecovery(old.recoveryScope);
+  expect(localStorage.getItem(storageKey)).toBe("new login data");
+});
+it("legacy recovery without a login binding is not restored", () => {
+  const { recoveryScope, ...legacy } = base();
+  void recoveryScope;
+  localStorage.setItem(storageKey, JSON.stringify({ ...legacy, version: 1 }));
+  expect(loadStudio()).toBeNull();
 });

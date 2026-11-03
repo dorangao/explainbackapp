@@ -19,8 +19,53 @@ import { validateDrawing } from "../../public/lesson-canvas.mjs";
 import type { WorkspaceArea, TryoutUI } from "./workspace";
 
 export const storageKey = "explainback-studio-draft";
+export const recoveryScopeKey = "explainback-studio-recovery-scope";
+let activeRecoveryScope: string | null = null;
+// A recovery scope cannot authenticate a request. It only binds browser data to
+// the current login, so expired or signed-out tabs cannot flush a private draft.
+export function storedStudioScope(): string | null {
+  try {
+    return storage()?.getItem(recoveryScopeKey) ?? null;
+  } catch {
+    return null;
+  }
+}
+export function currentStudioScope(): string | null {
+  return activeRecoveryScope && storedStudioScope() === activeRecoveryScope
+    ? activeRecoveryScope
+    : null;
+}
+export function activateStudioRecovery(scope?: string) {
+  if (!scope) {
+    revokeStudioRecovery();
+    return;
+  }
+  const store = storage();
+  try {
+    if (store?.getItem(recoveryScopeKey) !== scope)
+      store?.removeItem(storageKey);
+    store?.setItem(recoveryScopeKey, scope);
+  } catch {
+    /* Unavailable storage disables recovery, not the editor. */
+  }
+  activeRecoveryScope = scope;
+}
+export function revokeStudioRecovery(expected = activeRecoveryScope) {
+  if (activeRecoveryScope === expected) activeRecoveryScope = null;
+  try {
+    const store = storage();
+    // A stale tab must not erase a newer login's recovery record.
+    if (!expected || store?.getItem(recoveryScopeKey) === expected) {
+      store?.removeItem(recoveryScopeKey);
+      store?.removeItem(storageKey);
+    }
+  } catch {
+    /* Writes are also disabled when storage is unavailable. */
+  }
+}
 export type StoredStudio = {
   version: 1;
+  recoveryScope?: string | null;
   workspace?: WorkspaceArea;
   attemptLesson?: Lesson | null;
   tryoutUI?: TryoutUI;
@@ -74,10 +119,15 @@ export function saveStudio(
   },
 ) {
   const store = storage();
-  if (!store) return false;
+  const scope =
+    value.recoveryScope === undefined
+      ? currentStudioScope()
+      : value.recoveryScope;
+  if (!store || !scope || scope !== currentStudioScope()) return false;
   const record = scrub({
     savedId: null,
     ...value,
+    recoveryScope: scope,
     version: 1,
     savedAt: Date.now(),
   });
@@ -111,7 +161,13 @@ export function loadStudio(): StoredStudio | null {
     const raw = storage()?.getItem(storageKey);
     if (!raw) return null;
     const value = JSON.parse(raw) as Partial<StoredStudio>;
-    if (value.version !== 1 || !value.draft) return null;
+    if (
+      value.version !== 1 ||
+      !value.draft ||
+      !currentStudioScope() ||
+      value.recoveryScope !== currentStudioScope()
+    )
+      return null;
     const draft = validateLesson(value.draft);
     const cached = <T>(c: unknown): Cached<T> | null =>
       c &&
@@ -144,6 +200,7 @@ export function loadStudio(): StoredStudio | null {
     }
     const ui = value.tryoutUI;
     return {
+      recoveryScope: value.recoveryScope,
       workspace: ["home", "create", "tryout"].includes(String(value.workspace))
         ? value.workspace
         : value.presenting

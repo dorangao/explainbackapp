@@ -20,6 +20,8 @@ export type AuthInfo = {
   codes: boolean;
   open: boolean;
   authenticated: boolean;
+  // Non-authorizing identifier for browser recovery during this login.
+  recoveryScope?: string;
 };
 export type Status = {
   configured: boolean;

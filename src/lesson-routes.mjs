@@ -40,8 +40,9 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id))throw new RequestError(404,'Saved lesson not found.');await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
     if(req.path==='/api/lessons/share'){
       if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
-      const record={...await editable({ownerOnly:true}),shared:body.shared,updatedAt:Date.now()};
-      if(!await state.putLesson(record,MAX_SAVED_PER_OWNER))throw new RequestError(409,'Could not update this lesson.');
+      const previous=await editable({ownerOnly:true});
+      const record={...previous,shared:body.shared,updatedAt:Date.now()};
+      if(!await state.putLesson(record,MAX_SAVED_PER_OWNER,previous))throw new RequestError(409,'Could not update this lesson.');
       return reply(res,200,lessonSummary(record));
     }
     const previous=body.id!==undefined?await editable():null;
@@ -52,8 +53,12 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     // Images: kept when already stored under this creator, uploaded from data URLs when
     // Blob storage exists, dropped otherwise. Uploads happen before the cap check, so a
     // refused save removes what it uploaded.
-    let stale;try{stale=await attachImages(record,body,{store:imageStore,owner:recordOwner,previous});}catch{throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
-    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER)){await imageStore?.remove(recordImageUrls(record).filter(url=>!recordImageUrls(previous).includes(url)));throw new RequestError(409,`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);}
+    const uploaded=[];
+    let stale;try{stale=await attachImages(record,body,{store:imageStore,owner:recordOwner,previous,uploaded});}catch{await imageStore?.remove(uploaded);throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
+    if(!await state.putLesson(record,MAX_SAVED_PER_OWNER,previous)){
+      await imageStore?.remove(uploaded);
+      throw new RequestError(409,previous?'This lesson changed or was deleted while saving. Your draft is still available; reopen the saved lesson before updating it.':`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
+    }
     await imageStore?.remove(stale);
     reply(res,200,permissions(res.locals.tester,record));
   }));
