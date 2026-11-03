@@ -63,3 +63,20 @@ test('every gallery lesson has a generated show whose cover is packaged with the
  assert.equal(Object.keys(galleryShows).length,galleryLessons.length);
  assert.equal(showIdFromHash('#show:cooling'),'cooling');assert.equal(showIdFromHash('#show:nope'),null);assert.equal(showIdFromHash('#lesson:cooling'),null);
 });
+test('the cooling claim is a proposition to test: neither it nor the slides before the experiment state the result, the explanation does, and the show reads the same proposition',async()=>{
+ const {galleryShow}=await import('../public/gallery-shows.mjs');
+ const chapter=galleryLesson('cooling').lesson.chapters[0],{slides}=galleryShow('cooling').show;
+ const result={en:/not linear|slows|falls fast|smaller drops/i,zh:/不是线性|变慢|降温快|越来越小/u};
+ const proposition={en:/same number of degrees/,zh:/相同的度数/u};
+ const before=slides.filter(s=>['cover','claim'].includes(s.kind)),claimSlide=slides.find(s=>s.kind==='claim');
+ assert.equal(before.length,2);
+ for(const lang of ['en','zh']){
+  const claim=chapter.demo.claim[lang];
+  assert.doesNotMatch(claim,/[?？]/u,`${lang} claim is a statement, not a question`);
+  assert.doesNotMatch(claim,result[lang],`${lang} claim leaves the result to the experiment`);
+  assert.match(claim,proposition[lang]);
+  for(const s of before)assert.doesNotMatch(s.narration[lang],result[lang],`${lang} ${s.kind} narration leaves the result to the experiment`);
+  assert.match(claimSlide.narration[lang],proposition[lang],`${lang} claim slide reads the lesson's proposition`);
+  assert.match(chapter.explanation[lang],lang==='en'?/straight line/:/直线/u,`${lang} explanation after the experiment states the result`);
+ }
+});

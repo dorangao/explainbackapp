@@ -6,13 +6,15 @@
 import {evaluationLesson,evaluationIds} from './evaluation-lessons.mjs';
 const bi=(en,zh)=>({en,zh});
 export const galleryLessons=Object.freeze([
+ // The cooling claim was rewritten on November 2, 2026 as a proposition for the learner to test;
+ // the result stays in the explanation shown after the experiment. Formulas and settings unchanged.
  {id:'cooling',kind:'model',source:'muse',
   summary:bi('Adjust initial temperature, room temperature and the cooling coefficient; test whether a hot drink loses the same degrees each minute.','调整初始温度、室温和冷却系数，检验热饮是否每分钟降低相同的度数。'),
   lesson:{version:2,title:bi('Newton cooling: how hot objects cool','牛顿冷却：热物体如何降温'),intro:bi('Explore how temperature moves toward its surroundings using an ideal cooling model.','用理想冷却模型探索温度如何向环境温度靠近。'),chapters:[{experiment:'generated',
    framing:bi('A cup of coffee sits in a room. Before looking at the graph, decide whether it loses the same number of degrees every minute.','一杯咖啡放在房间里。在看图之前，先判断它是否每分钟降低相同的度数。'),
    explanation:bi('Move the sliders to change the initial temperature, room temperature and cooling coefficient. Watch the curve bend: equal time steps give smaller drops later, unlike a straight line.','移动滑块改变初始温度、室温和冷却系数。观察曲线弯曲：相同时间内的降温越来越小，与直线不同。'),
    demo:{kind:'model',title:bi('Newton cooling explorer','牛顿冷却探索器'),
-    claim:bi('Cooling is not linear: temperature falls fast at first, then slows as it nears room temperature.','冷却不是线性的：开始时降温快，接近室温时逐渐变慢。'),
+    claim:bi('A hot drink loses the same number of degrees every minute.','热饮在每一分钟里降低相同的度数。'),
     assumptions:bi('Constant room temperature; uniform object temperature with no internal gradients; heat loss proportional to the temperature difference; no evaporation, radiation change or heating; units are °C, min and 1/min.','室温恒定；物体温度均匀、无内部梯度；散热速率与温差成正比；无蒸发、辐射变化或额外加热；单位为摄氏度、分钟和 1/分钟。'),
     inputs:[{id:'initial',label:bi('Initial temperature','初始温度'),unit:'°C',min:60,max:100,step:1,value:80},{id:'ambient',label:bi('Room temperature','室温'),unit:'°C',min:10,max:30,step:1,value:20},{id:'rate',label:bi('Cooling coefficient','冷却系数'),unit:'1/min',min:.01,max:.2,step:.01,value:.1}],
     axis:{label:bi('Time','时间'),unit:'min',min:0,max:30},
