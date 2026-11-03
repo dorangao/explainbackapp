@@ -11,21 +11,21 @@ export const paceFactor = (pace: Pace) =>
   pace === "slow" ? 1.6 : pace === "fast" ? 0.5 : 1;
 
 // Stable JSON: object keys sorted so equal inputs always fingerprint the same.
-function stable(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+export function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object")
     return `{${Object.keys(value as Record<string, unknown>)
       .sort()
       .map(
         (k) =>
-          `${JSON.stringify(k)}:${stable((value as Record<string, unknown>)[k])}`,
+          `${JSON.stringify(k)}:${stableJson((value as Record<string, unknown>)[k])}`,
       )
       .join(",")}}`;
   return JSON.stringify(value) ?? "null";
 }
 // FNV-1a over the stable JSON; short enough to store, specific enough for equality.
 export function fingerprint(value: unknown): string {
-  const text = stable(value);
+  const text = stableJson(value);
   let hash = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
     hash ^= text.charCodeAt(i);

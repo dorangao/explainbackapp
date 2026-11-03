@@ -10,6 +10,51 @@ const cooling = () => coolingLesson() as unknown as Lesson,
   process = () => processLesson() as unknown as Lesson;
 
 describe("lessonChanges", () => {
+  it.each(["en", "zh"] as const)(
+    "shows canvas additions, removals and edits in %s",
+    (language) => {
+      const before = cooling(),
+        after = cooling();
+      after.chapters[0].canvas = {
+        concept: "cup",
+        input: "rate",
+        box: { x: 0.1, y: 0.2, width: 0.5, height: 0.4 },
+      };
+      const added = lessonChanges(before, after, language).find(
+        (c) => c.path === "chapters[0].canvas",
+      );
+      expect(added).toMatchObject({
+        kind: "added",
+        before: "",
+        label: { en: "Picture connection", zh: "图片关联" },
+      });
+      expect(added?.after).toContain("cup");
+      expect(added?.after).toContain(
+        language === "en" ? "Cooling coefficient" : "冷却系数",
+      );
+      expect(added?.after).toContain("10%");
+      expect(
+        lessonChanges(after, before, language).find(
+          (c) => c.path === "chapters[0].canvas",
+        ),
+      ).toMatchObject({ kind: "removed", after: "" });
+      const changed = structuredClone(after);
+      changed.chapters[0].canvas!.concept = "mug";
+      changed.chapters[0].canvas!.input = "ambient";
+      changed.chapters[0].canvas!.box.x = 0.2;
+      const edited = lessonChanges(after, changed, language).find(
+        (c) => c.path === "chapters[0].canvas",
+      );
+      expect(edited).toMatchObject({ kind: "text" });
+      expect(edited?.after).toContain("mug");
+      expect(edited?.after).toContain(
+        language === "en" ? "Room temperature" : "室温",
+      );
+      expect(lessonChanges(after, structuredClone(after), language)).toEqual(
+        [],
+      );
+    },
+  );
   it("reports nothing for identical lessons in either language", () => {
     expect(lessonChanges(cooling(), cooling(), "en")).toEqual([]);
     expect(lessonChanges(process(), process(), "zh")).toEqual([]);
