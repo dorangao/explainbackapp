@@ -12,13 +12,16 @@ import { Studio } from "./Studio";
 import { firstExperimentLesson } from "../lib/shared";
 import { activateStudioRecovery } from "../lib/studio-store";
 beforeEach(() => activateStudioRecovery("synthetic-recovery"));
-const shelf = vi.hoisted(() => ({ record: null as unknown }));
+const shelf = vi.hoisted(() => ({ record: null as unknown, readError: false }));
 vi.mock("../lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../lib/api")>()),
-  getJson: async (path: string) =>
-    path === "/api/lessons"
+  getJson: async (path: string) => {
+    if (path.startsWith("/api/lessons/") && shelf.readError)
+      throw new Error("offline");
+    return path === "/api/lessons"
       ? { lessons: shelf.record ? [shelf.record] : [], limit: 50 }
-      : shelf.record,
+      : shelf.record;
+  },
 }));
 vi.mock("../lib/recorder", () => ({
   MicrophoneError: class extends Error {},
@@ -35,8 +38,85 @@ import {
   processLesson,
 } from "../../test-support/generated-lessons.mjs";
 
+it("reuses stored slide illustrations when saving the same lesson again", async () => {
+  const { saveStudio } = await import("../lib/studio-store");
+  const { fingerprint } = await import("../lib/studio-cache");
+  const { withoutUnits } = await import("../lib/units");
+  const draft = coolingLesson() as Lesson;
+  const image = "data:image/webp;base64,QUJE";
+  const stored =
+    "https://example.public.blob.vercel-storage.com/images/owner/slide.webp";
+  saveStudio({
+    draft,
+    topic: "Cooling",
+    creation: "generated",
+    reviewed: true,
+    revisionPrompt: "",
+    compose: null,
+    revise: null,
+    tryout: null,
+    show: {
+      reply: {
+        show: {
+          version: 1,
+          slides: [
+            {
+              kind: "cover",
+              chapter: 0,
+              heading: { en: "Cover", zh: "封面" },
+              narration: { en: "Cover", zh: "封面" },
+            },
+          ],
+          coverPrompt: "A mug",
+        },
+        cover: null,
+        coverModel: null,
+        illustrations: { "0": image },
+        llm: status.models[0],
+        attemptsRemaining: 5,
+      },
+      at: 1,
+      key: fingerprint({ lesson: withoutUnits(draft) }),
+    },
+    guide: {},
+    explanations: {},
+    player: null,
+    presenting: false,
+    pace: "off",
+  });
+  const saves: Record<string, unknown>[] = [];
+  const post: Post = async (path, body) => {
+    if (path === "/api/lessons") {
+      saves.push(body as Record<string, unknown>);
+      return {
+        id: "0123456789abcdef",
+        title: draft.title,
+        intro: draft.intro,
+        cover: null,
+        sketch: null,
+        illustrations: { "0": stored },
+        shared: false,
+        updatedAt: 2,
+      } as never;
+    }
+    return { records: [] } as never;
+  };
+  mount({ authenticated: true, status, view: "create" }, post);
+  fireEvent.click(await screen.findByRole("button", { name: "Save lesson" }));
+  await screen.findByRole("switch", { name: "Private" });
+  fireEvent.click(
+    screen
+      .getAllByRole("button", { name: "Save changes" })
+      .find((button) => !(button as HTMLButtonElement).disabled)!,
+  );
+  await waitFor(() => expect(saves).toHaveLength(2));
+  expect(saves[0].illustrations).toEqual({ "0": image });
+  expect(saves[1].illustrations).toEqual({ "0": stored });
+});
+
 afterEach(() => {
   cleanup();
+  shelf.readError = false;
   // The remembered draft is per browser; each test starts from an empty one.
   localStorage.clear();
 });
@@ -2031,6 +2111,34 @@ describe("Workspace replacement safety", () => {
       savedId: "0123456789abcdef",
     });
   }
+  it("keeps the saved identity after a transient recovery lookup failure", async () => {
+    await seed();
+    shelf.readError = true;
+    const saves: Record<string, unknown>[] = [];
+    const post: Post = async (path, body) => {
+      if (path === "/api/lessons") {
+        saves.push(body as Record<string, unknown>);
+        return {
+          id: "0123456789abcdef",
+          title: coolingLesson().title,
+          intro: coolingLesson().intro,
+          cover: null,
+          sketch: null,
+          shared: false,
+          updatedAt: 2,
+        } as never;
+      }
+      return { records: [] } as never;
+    };
+    mount({ authenticated: true, status, view: "create" }, post);
+    await screen.findByText(/Could not load the saved lesson details/);
+    const save = screen
+      .getAllByRole("button", { name: "Save changes" })
+      .find((button) => !(button as HTMLButtonElement).disabled)!;
+    fireEvent.click(save);
+    await waitFor(() => expect(saves).toHaveLength(1));
+    expect(saves[0].id).toBe("0123456789abcdef");
+  });
   it("leaves unsaved work available when Save and continue fails", async () => {
     await seed();
     const posted: string[] = [];

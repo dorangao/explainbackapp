@@ -153,11 +153,12 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    const ids=keys.map(k=>k.slice(lessonKey('').length)).filter(id=>/^[a-f0-9]{16}$/.test(id));
    return {lessons:await readLessons(ids),cursor:String(next)==='0'?null:String(next)};
   },
-  async deleteLesson(owner,id){return await run(`
+  async deleteLesson(owner,id,expected){return await run(`
    local existing=redis.call('GET',KEYS[1]);if not existing then return 0 end
    if cjson.decode(existing).owner~=ARGV[1] then return 0 end
+   if ARGV[3]~='' and existing~=ARGV[3] then return 0 end
    redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2],ARGV[2]);redis.call('ZREM',KEYS[3],ARGV[2]);return 1
-  `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons')],[owner,id])===1;},
+  `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons')],[owner,id,expected===undefined?'':JSON.stringify(expected)])===1;},
   async listSharedLessons(limit=48,offset=0){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],tonumber(ARGV[2]),tonumber(ARGV[2])+tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit,offset]);return (await readLessons(ids)).filter(r=>r.shared===true);},
   async listSharedPage(limit=48,offset=0){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],tonumber(ARGV[2]),tonumber(ARGV[2])+tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit+1,offset]);return {lessons:(await readLessons(ids.slice(0,limit))).filter(r=>r.shared===true),hasMore:ids.length>limit};},
   // Creator-drawn library covers for reviewed lessons: one hash, lesson id to JSON record.

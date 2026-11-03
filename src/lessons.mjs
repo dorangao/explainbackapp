@@ -123,3 +123,6 @@ export async function attachImages(record,body,{store=null,owner,previous=null,u
 // What lists and public readers see. The owner id never leaves the server.
 export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,lessonModel:r.lessonModel??null,showModel:r.showModel??null,cover:r.cover??null,coverModel:r.coverModel??null,sketch:r.sketch??null,shared:r.shared===true,reviewedAt:r.reviewedAt??null,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});
 export const publicLesson=r=>({...lessonSummary(r),lesson:r.lesson,show:r.show,illustrations:r.illustrations??{},tryout:r.tryout??null,grades:r.grades??{}});
+// A shared lesson starts a fresh attempt; a creator's saved tryout and explain-back
+// answers are available only through the authenticated owner/administrator route.
+export const sharedLesson=r=>({...publicLesson(r),tryout:null,grades:{}});

@@ -144,7 +144,7 @@ function fakeRedis(){
   const [,script,n,...rest]=command;const KEYS=rest.slice(0,n),ARGV=rest.slice(n).map(String);
   // Interpret the handful of lesson scripts by shape rather than running Lua.
   if(script.includes("ZREVRANGE")){const start=script.includes('ARGV[2]')?Number(ARGV[1]):0;return call('ZREVRANGE',KEYS[0],start,ARGV[0]!==undefined?start+Number(ARGV[0])-1:99);}
-  if(script.includes("redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2]")){const v=call('GET',KEYS[0]);if(!v||JSON.parse(v).owner!==ARGV[0])return 0;call('DEL',KEYS[0]);call('ZREM',KEYS[1],ARGV[1]);call('ZREM',KEYS[2],ARGV[1]);return 1;}
+  if(script.includes("redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2]")){const v=call('GET',KEYS[0]);if(!v||JSON.parse(v).owner!==ARGV[0]||(ARGV[2]&&v!==ARGV[2]))return 0;call('DEL',KEYS[0]);call('ZREM',KEYS[1],ARGV[1]);call('ZREM',KEYS[2],ARGV[1]);return 1;}
   if(script.includes("local existing=redis.call('GET',KEYS[1])")){const v=call('GET',KEYS[0]);if(script.includes("(existing or 'null')~=ARGV[7]")&&ARGV[6]&&String(v||'null')!==ARGV[6])return 0;if(v){if(JSON.parse(v).owner!==ARGV[0])return 0;}else if(call('ZCARD',KEYS[1])>=Number(ARGV[2]))return 0;call('SET',KEYS[0],ARGV[1]);call('ZADD',KEYS[1],ARGV[3],ARGV[4]);if(ARGV[5]==='1')call('ZADD',KEYS[2],ARGV[3],ARGV[4]);else call('ZREM',KEYS[2],ARGV[4]);return 1;}
   if(script.trim()==="return redis.call('GET',KEYS[1])")return call('GET',KEYS[0]);
   throw new Error('unexpected script');
@@ -208,7 +208,7 @@ test('with Blob storage a saved lesson keeps its cover, illustrations and sketch
  assert.match(saved.cover,/^https:\/\/store\.public\.blob\.vercel-storage\.com\/images\/[a-f0-9]{24}\/r001\.webp$/);
  assert.match(saved.sketch,/r002\.webp$/);assert.equal(puts.length,3);assert.equal(puts[0].options.contentType,'image/webp');
  const full=await(await get('/api/lessons/'+saved.id,judge)).json();
- assert.equal(full.coverModel,'muse-image-1.0');assert.match(full.illustrations['1'],/r003\.webp$/);assert.equal(full.cover,saved.cover);
+ assert.equal(full.coverModel,'muse-image-1.0');assert.match(full.illustrations['1'],/r003\.webp$/);assert.equal(full.cover,saved.cover);assert.deepEqual(saved.illustrations,full.illustrations);
  // The record never holds bytes; the list and the public reader carry the URLs.
  assert.ok(!JSON.stringify(full).includes(image(1).slice(30,60)));
  await post('/api/lessons/share',{id:saved.id,shared:true},judge);
@@ -216,7 +216,7 @@ test('with Blob storage a saved lesson keeps its cover, illustrations and sketch
  assert.equal((await(await get('/api/shared')).json()).lessons[0].cover,saved.cover);
  // Re-saving with the same URLs uploads nothing; a new cover replaces the old blob.
  const same=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:saved.cover,coverModel:'muse-image-1.0',illustrations:full.illustrations,sketch:saved.sketch},judge)).json();
- assert.equal(same.cover,saved.cover);assert.equal(puts.length,3);assert.deepEqual(deleted,[]);
+ assert.equal(same.cover,saved.cover);assert.deepEqual(same.illustrations,saved.illustrations);assert.equal(puts.length,3);assert.deepEqual(deleted,[]);
  const redrawn=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:image(4),coverModel:'muse-image-1.0',sketch:saved.sketch},judge)).json();
  assert.match(redrawn.cover,/r004\.webp$/);assert.deepEqual(deleted.sort(),[saved.cover,full.illustrations['1']].sort());
  // A URL under another creator's prefix, or off our host, is refused.
@@ -288,14 +288,21 @@ test('detection needs the segmentation model',async t=>{
 });
 const tryoutReport=()=>({chapters:[{prediction:'disagree',reason:'The gap shrinks.',explanation:'Cooling follows the gap.',transfer:{given:'18',correct:true,type:'number',unit:'°C'},confusions:['Axis unit'],suggestions:['Label the axis.']}],overall:'Clear.',rating:4,model:'muse-spark-1.3',language:'en'});
 const grades=()=>({0:{explanation:'It cools faster when hotter.',feedback:'Right: the rate follows the gap.',verdict:'supported',followUp:'What happens near room temperature?',model:'muse-spark-1.3',language:'en',key:'abc123'}});
-test('a saved lesson keeps the learner tryout and explain-back grades, and the public reader returns them',async t=>{
- const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');
+test('saved tryout and explain-back grades stay on the owner and administrator paths, not the shared link',async t=>{
+ const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1'),other=await codeCookie('OTHER-INVITE-2');
+ const adminResponse=await post('/api/login',testerCredentials);assert.equal(adminResponse.status,200);const admin=adminResponse.headers.get('set-cookie').split(';')[0];
  const saved=await(await post('/api/lessons',{lesson:coolingLesson(),tryout:tryoutReport(),grades:grades()},judge)).json();
  assert.equal(saved.hasTryout,true);assert.equal(saved.graded,1);
  const full=await(await get('/api/lessons/'+saved.id,judge)).json();
  assert.equal(full.tryout.rating,4);assert.equal(full.tryout.chapters[0].transfer.unit,'°C');assert.equal(full.grades['0'].verdict,'supported');assert.equal(full.grades['0'].key,'abc123');
  await post('/api/lessons/share',{id:saved.id,shared:true},judge);
- const open=await(await get('/api/shared/'+saved.id)).json();assert.equal(open.tryout.overall,'Clear.');assert.equal(open.grades['0'].explanation,'It cools faster when hotter.');
+ for(const cookie of [undefined,other,judge,admin]){
+  const open=await(await get('/api/shared/'+saved.id,cookie)).json();
+  assert.equal(open.tryout,null);assert.deepEqual(open.grades,{});
+  assert.ok(open.lesson); // The lesson remains available to everyone.
+ }
+ const managed=await(await get('/api/lessons/'+saved.id,admin)).json();
+ assert.equal(managed.tryout.overall,'Clear.');assert.equal(managed.grades['0'].explanation,'It cools faster when hotter.');
  // Updating without them clears them; malformed ones are refused.
  const cleared=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson()},judge)).json();assert.equal(cleared.hasTryout,false);assert.equal(cleared.graded,0);
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),tryout:{...tryoutReport(),rating:9}},judge)).status,400);
@@ -355,4 +362,20 @@ test('Redis lesson writes reject stale snapshots and deleted updates',async()=>{
  await state.deleteLesson(original.owner,original.id);
  assert.equal(await state.putLesson({...changed,updatedAt:4},50,changed),false);
  assert.equal(await state.getLesson(original.id),null);
+});
+
+test('Redis lesson deletion rejects stale snapshots without changing indexes',async()=>{
+ const {state}=createRedisServices({command:fakeRedis(),username:'u',password:'synthetic-password'});
+ const original={id:'0123456789abcdef',owner:'fixture',updatedAt:1,shared:true};
+ assert.equal(await state.putLesson(original,50,null),true);
+ const changed={...original,updatedAt:2};
+ assert.equal(await state.putLesson(changed,50,original),true);
+ assert.equal(await state.deleteLesson(original.owner,original.id,original),false);
+ assert.deepEqual(await state.getLesson(original.id),changed);
+ assert.equal((await state.listSharedLessons()).length,1);
+ assert.equal((await state.listLessons(original.owner)).length,1);
+ assert.equal(await state.deleteLesson(changed.owner,changed.id,changed),true);
+ assert.equal(await state.getLesson(original.id),null);
+ assert.equal((await state.listSharedLessons()).length,0);
+ assert.equal((await state.listLessons(original.owner)).length,0);
 });

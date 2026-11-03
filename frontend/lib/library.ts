@@ -199,7 +199,12 @@ export const saveLesson = (
   },
   // A save may carry a sketch and images of a few megabytes and the server uploads
   // them one by one, so it gets longer than the default request timeout.
-) => post<SavedSummary>("/api/lessons", body, { timeoutMs: 60_000 });
+) =>
+  post<SavedSummary & { illustrations?: Record<string, string> }>(
+    "/api/lessons",
+    body,
+    { timeoutMs: 60_000 },
+  );
 export const shareLesson = (post: Post, id: string, shared: boolean) =>
   post<SavedSummary>(
     "/api/lessons/share",

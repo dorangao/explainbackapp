@@ -80,3 +80,52 @@ test('a cover redraw compares the lesson snapshot from before image generation',
  assert.equal((await state.getLesson(original.id)).cover,winner);
  assert.deepEqual(removed,[pending]);
 });
+
+test('deleting with a stale snapshot does not remove a newer lesson',async()=>{
+ const state=createMemoryState();const original={id:'0123456789abcdef',owner:'fixture',updatedAt:1,shared:true};
+ assert.equal(await state.putLesson(original,50,null),true);
+ const changed={...original,updatedAt:2,shared:false};
+ assert.equal(await state.putLesson(changed,50,original),true);
+ assert.equal(await state.deleteLesson(original.owner,original.id,original),false);
+ assert.deepEqual(await state.getLesson(original.id),changed);
+ assert.equal(await state.deleteLesson(changed.owner,changed.id,changed),true);
+ assert.equal(await state.getLesson(original.id),null);
+});
+
+test('a slow delete reports a conflict and keeps images after a concurrent update',async t=>{
+ const state=createMemoryState(),removed=[];
+ let entered,release;
+ const reached=new Promise(r=>entered=r),gate=new Promise(r=>release=r),remove=state.deleteLesson;
+ state.deleteLesson=async(...args)=>{entered();await gate;return remove(...args);};
+ const server=createApp({state,testerCredentials,imageStore:{configured:true,remove:async urls=>removed.push(...urls)}});
+ await new Promise(r=>server.listen(0,'127.0.0.1',r));
+ t.after(()=>{release();return new Promise(r=>{server.close(r);server.closeAllConnections();});});
+ const origin=`http://127.0.0.1:${server.address().port}`;
+ const post=(path,body,cookie)=>fetch(origin+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
+ const login=await post('/api/login',testerCredentials),cookie=login.headers.get('set-cookie').split(';')[0];
+ const saved=await(await post('/api/lessons',{lesson:coolingLesson()},cookie)).json();
+ const pending=post('/api/lessons/delete',{id:saved.id},cookie);
+ await reached;
+ assert.equal((await post('/api/lessons/share',{id:saved.id,shared:true},cookie)).status,200);
+ release();assert.equal((await pending).status,409);
+ assert.equal((await state.getLesson(saved.id)).shared,true);
+ assert.deepEqual(removed,[]);
+});
+
+test('a cover redraw retains an old cover still used by the same lesson',async()=>{
+ const {drawCover}=await import('../src/studio-images.mjs');
+ const {buildSavedLesson}=await import('../src/lessons.mjs');
+ const state=createMemoryState(),removed=[];
+ const old='https://fixture.public.blob.vercel-storage.com/images/old.png';
+ const next='https://fixture.public.blob.vercel-storage.com/images/next.png';
+ const original={...buildSavedLesson({lesson:coolingLesson()},{owner:'fixture',now:1}),cover:old,sketch:old};
+ await state.putLesson(original,50,null);
+ await state.create('fixture-session',{owner:'login',createdAt:Date.now()});
+ let response;
+ const ctx={body:{savedId:original.id,sessionId:'fixture-session'},s:{attempts:0,llm:{}},owner:'fixture',tester:{id:'login'},state,sessionLimit:8,bucket:'fixture',limit:10,save:async()=>true,access:{active:async()=>true},traceEnabled:false,imageBudgetMs:()=>1000,
+  imageCall:async()=>({dataUrl:tinyPng,model:'fixture'}),storeImage:async()=>next,imageStore:{remove:async urls=>removed.push(...urls)},json:(status,body)=>{response={status,body};}};
+ await drawCover(ctx);
+ assert.equal(response.status,200);
+ assert.equal((await state.getLesson(original.id)).sketch,old);
+ assert.ok(!removed.includes(old),'the old cover still belongs to the sketch');
+});
