@@ -50,6 +50,7 @@ import { fingerprint, guideKey } from "../lib/studio-cache";
 import type { Cached, Pace } from "../lib/studio-cache";
 import {
   clearStudio,
+  currentStudioScope,
   hasStoredStudio,
   loadStudio,
   restorePlayer,
@@ -421,6 +422,7 @@ export function Studio({
   recoverySnapshot.current =
     authenticated && !lessonId && draft
       ? {
+          recoveryScope: currentStudioScope(),
           draft,
           topic: draftTopic,
           newTopic: topic,

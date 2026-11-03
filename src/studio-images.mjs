@@ -63,10 +63,8 @@ export async function drawCover(ctx){
     const createdAt=new Date().toISOString().slice(0,10);
     let previous=null;
     if(savedId){
-      const current=await ctx.state.getLesson(savedId);
-      if(!current||current.owner!==ctx.owner)throw new RequestError(404,'Saved lesson not found.');
-      previous=current.cover??null;
-      if(!await ctx.state.putLesson({...current,cover:src,coverModel:image.model,coverDrawn:true,updatedAt:Date.now()},MAX_SAVED_PER_OWNER))throw new RequestError(409,'Could not update this lesson.');
+      previous=owned.cover??null;
+      if(!await ctx.state.putLesson({...owned,cover:src,coverModel:image.model,coverDrawn:true,updatedAt:Date.now()},MAX_SAVED_PER_OWNER,owned)){if(src!==owned.cover)await ctx.imageStore?.remove([src]);throw new RequestError(409,'This lesson changed while saving its cover. Reopen it before trying again.');}
     }else{
       previous=(await ctx.state.getCovers())[lessonId]?.src??null;
       await ctx.state.putCover(lessonId,{src,model:image.model,createdAt,promptVersion:coverPromptVersion,owner:ctx.owner});

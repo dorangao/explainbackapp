@@ -21,7 +21,7 @@ import {compareDrafts} from './studio-compare.mjs';
 import { createServer } from 'node:http';
 import {serveFrontend} from './static.mjs';
 import {readWavBase64} from './wav.mjs';
-import { randomBytes } from 'node:crypto';
+import { createHash,randomBytes } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import {createProviderRouter} from './llm/index.mjs';
 import { createSession, assess, advance, view, TURN_LIMIT } from './learning.mjs';
@@ -42,6 +42,8 @@ export const safeHeaders = Object.fromEntries([
 ]);
 // Session ids are 48 hex characters from the CSPRNG; the routes below check that shape.
 const newSessionId = () => randomBytes(24).toString('hex');
+// Non-authorizing recovery identity, distinct from the cookie and model-session ids.
+const recoveryScope = tester => tester?createHash('sha256').update('studio-recovery:'+tester.id).digest('hex'):undefined;
 
 function localOrigin(req){
   const port=req.socket.localPort;
@@ -160,10 +162,10 @@ export function createHandler({
   // Liveness for uptime monitors: no sign-in, no state access, nothing about configuration
   // beyond the deployed commit, which the public repository shows anyway.
   app.get('/api/health', (req,res) => reply(res,200,{status:'ok',build:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)??null}));
-  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
+  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester),...(res.locals.tester?{recoveryScope:recoveryScope(res.locals.tester)}:{}),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
-    try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true},{'Set-Cookie':result.cookie}); }
+    try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true,recoveryScope:recoveryScope(result)},{'Set-Cookie':result.cookie}); }
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
   // A creator's identity for ownership. Reviewer invites own their lessons by label, so

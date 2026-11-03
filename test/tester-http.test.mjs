@@ -53,3 +53,17 @@ test('expired login requires authentication again and removes owned learning dat
  assert.equal((await post('/api/trace',{sessionId:s.sessionId},a)).status,401);
  const b=await login();assert.equal((await post('/api/trace',{sessionId:s.sessionId},b)).status,404);
 });
+
+test('browser recovery scope is stable for a login and changes on reauthentication',async t=>{
+ const {origin,post,login}=await running(t);
+ const cookie=await login();
+ const read=async c=>(await fetch(origin+'/api/auth',{headers:{Cookie:c}})).json();
+ const first=await read(cookie);assert.match(first.recoveryScope,/^[a-f0-9]{64}$/);
+ assert.equal((await read(cookie)).recoveryScope,first.recoveryScope);
+ assert.ok(!cookie.includes(first.recoveryScope));
+ const next=await post('/api/login',testerCredentials,cookie);const body=await next.json();
+ assert.match(body.recoveryScope,/^[a-f0-9]{64}$/);assert.notEqual(body.recoveryScope,first.recoveryScope);
+ const nextCookie=next.headers.get('set-cookie').split(';')[0];
+ assert.equal((await read(nextCookie)).recoveryScope,body.recoveryScope);
+ await post('/api/logout',{},nextCookie);assert.equal((await read(nextCookie)).recoveryScope,undefined);
+});

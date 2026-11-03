@@ -43,6 +43,7 @@ const server = createApp({
         quota: mode.quota,
         expiresAt: Date.now() + 86400000,
       },
+      { code: "BROWSER-OTHER-CODE", label: "other browser fixture", quota: 40, expiresAt: Date.now() + 86400000 },
     ],
     warnings: [],
   },

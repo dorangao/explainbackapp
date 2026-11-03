@@ -54,7 +54,7 @@ export function validateGrades(value,lesson){
  const out={};
  for(const [index,g] of entries){
   if(!/^[0-9]$/.test(index)||Number(index)>=lesson.chapters.length||!g||typeof g!=='object')throw new Error('Invalid grade.');
-  if(!text(g.explanation,700)||!text(g.feedback,700)||!['supported','partly','unsupported'].includes(g.verdict)||!['en','zh'].includes(g.language)||typeof g.key!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(g.key))throw new Error('Invalid grade.');
+  if(!text(g.explanation,700)||!text(g.feedback,1000)||!['supported','partly','unsupported'].includes(g.verdict)||!['en','zh'].includes(g.language)||typeof g.key!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(g.key))throw new Error('Invalid grade.');
   const followUp=optional(g.followUp,300),model=optional(g.model,80);if(followUp===undefined||model===undefined)throw new Error('Invalid grade.');
   out[index]={explanation:g.explanation.trim(),feedback:g.feedback.trim(),verdict:g.verdict,followUp,model,language:g.language,key:g.key};
  }
@@ -78,12 +78,12 @@ export function buildSavedLesson(body,{owner,now=Date.now(),previous=null}={}){
 // Resolves the images a save request references. A value is kept when it is already a
 // blob URL under this owner, uploaded when it is an image data URL and a store exists,
 // and dropped otherwise. Returns the URLs of the previous record that are no longer used.
-export async function attachImages(record,body,{store=null,owner,previous=null}={}){
+export async function attachImages(record,body,{store=null,owner,previous=null,uploaded=[]}={}){
  const resolve=async value=>{
   if(value===null||value===undefined||!store)return null;
   if(typeof value!=='string')throw new Error('Invalid image.');
   if(store.owns(value,owner))return value;
-  if(value.startsWith('data:'))return store.putImage({owner,...decodeImageDataUrl(value)});
+  if(value.startsWith('data:')){const url=await store.putImage({owner,...decodeImageDataUrl(value)});uploaded.push(url);return url;}
   throw new Error('Invalid image.');
  };
  // A cover drawn for this saved lesson (Draw a cover on the Create page) outlives saves
