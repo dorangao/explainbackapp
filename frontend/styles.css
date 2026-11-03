@@ -3007,10 +3007,26 @@ body {
   margin: 0;
   accent-color: var(--accent);
 }
-.catalog-search input {
+.catalog-search-field {
+  position: relative;
+  display: block;
+}
+.catalog-search-field svg {
+  position: absolute;
+  z-index: 1;
+  left: 15px;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+.app-shell .catalog-search .catalog-search-field input[type="search"] {
   box-sizing: border-box;
   width: 100%;
-  padding: 0.6rem 0.9rem;
+  min-height: 44px;
+  padding: 0.6rem 0.9rem 0.6rem 42px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--surface);
@@ -3024,22 +3040,134 @@ body {
 }
 .catalog-sort {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
+  gap: 4px;
   min-width: 0;
 }
-.catalog-sort label {
+.catalog-select {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.app-shell .catalog-sort select {
-  width: auto;
-  max-width: 100%;
+  align-items: center;
+  position: relative;
+  min-width: 0;
   min-height: 44px;
+  border: 1px solid var(--theme-border, #d4e1d8);
+  border-radius: 999px;
+  background: var(--theme-soft, #f5f8f2);
+  color: var(--ink);
+  transition:
+    border-color 0.18s,
+    background-color 0.18s;
 }
-.catalog-sort-note {
-  margin: -8px 0 16px;
+.catalog-select:hover {
+  border-color: var(--accent);
+}
+.catalog-sort-select {
+  flex: 1 1 130px;
+}
+.catalog-size-select {
+  flex: 0 0 68px;
+}
+.catalog-control-icon {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  margin-left: 9px;
+  color: var(--accent);
+  pointer-events: none;
+}
+.app-shell .catalog-select select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 18px 0 5px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.catalog-chevron {
+  position: absolute;
+  right: 6px;
+  width: 13px;
+  height: 13px;
+  pointer-events: none;
+}
+.catalog-select:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.app-shell .catalog-direction,
+.catalog-help summary {
+  display: grid;
+  place-items: center;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--theme-border, #d4e1d8);
+  border-radius: 50%;
+  background: var(--theme-soft, #f5f8f2);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color 0.18s,
+    background-color 0.18s;
+}
+.app-shell .catalog-direction:hover:not(:disabled),
+.catalog-help summary:hover {
+  border-color: var(--accent);
+}
+.app-shell .catalog-direction:focus-visible,
+.catalog-help summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.catalog-direction svg,
+.catalog-help summary svg {
+  width: 19px;
+  height: 19px;
+}
+.app-shell .catalog-help {
+  position: relative;
+  flex: 0 0 44px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.catalog-help summary {
+  list-style: none;
+  color: var(--accent);
+}
+.catalog-help summary::-webkit-details-marker {
+  display: none;
+}
+.catalog-help[open] summary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent, #fff);
+}
+.catalog-help-panel {
+  position: absolute;
+  z-index: 20;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(290px, calc(100vw - 48px));
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.14);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.catalog-help-panel p {
+  margin: 8px 0 0;
 }
 .catalog-filters {
   display: flex;
