@@ -487,9 +487,9 @@ export function LessonPlayer({
     return false;
   }
   function changeUnits(system: UnitSystem) {
+    rememberUnitSystem(system);
     if (system === units) return;
     setUnits(system);
-    rememberUnitSystem(system);
     // A numeric entry/result belongs to the unit in which it was supplied.
     if (state.stage === "transfer") {
       setAnswer("");

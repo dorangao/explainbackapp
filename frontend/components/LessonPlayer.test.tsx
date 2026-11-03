@@ -106,6 +106,21 @@ it("uses the displayed unit's precision and clears entries/results when units ch
   expect(screen.getByRole("status").textContent).toBe("");
 });
 
+it("remembers an explicitly selected default unit without clearing the same-unit answer", () => {
+  const player = mount();
+  submit("63.6");
+  fireEvent.click(screen.getByRole("button", { name: /^Metric/ }));
+  expect(localStorage.getItem("explainback.units")).toBe("metric");
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: "Your answer (°C)",
+      }) as HTMLInputElement
+    ).value,
+  ).toBe("63.6");
+  expect(player.state.transfer).toBe(true);
+});
+
 it("provides the precision and fixed-case retry guidance in Chinese", () => {
   const player = mount(coffee(), "zh");
   const answer = screen.getByRole("textbox", { name: "你的答案 (°C)" });
