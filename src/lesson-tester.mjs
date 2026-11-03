@@ -51,7 +51,7 @@ export function readLearnerTryout(result,lesson,language){
  const a=result.structured?.name==='try_lesson'?result.structured.value:JSON.parse(result.toolCall.arguments);
  if(!a||typeof a!=='object'||!Array.isArray(a.chapters)||a.chapters.length!==lesson.chapters.length||!text(a.overall,400)||!Number.isInteger(a.rating)||a.rating<1||a.rating>5)throw new Error('Invalid tryout report.');
  const chapters=a.chapters.map((c,i)=>{
-  if(!c||typeof c!=='object'||!['agree','disagree','unsure'].includes(c.prediction)||!text(c.reason,300)||!text(c.explanation,600)||typeof c.transferAnswer!=='string'||!list(c.confusions,3,200)||!list(c.suggestions,3,200))throw new Error('Invalid tryout chapter.');
+  if(!c||typeof c!=='object'||!['agree','disagree','unsure'].includes(c.prediction)||!text(c.reason,300)||!text(c.explanation,600)||typeof c.transferAnswer!=='string'||!c.transferAnswer.trim()||!list(c.confusions,3,200)||!list(c.suggestions,3,200))throw new Error('Invalid tryout chapter.');
   const t=chapterExperiment(lesson.chapters[i],0,language).transfer,given=c.transferAnswer.trim();
   let correct=false;
   if(t.type==='choice'){const index=Number(given);correct=Number.isInteger(index)&&index===t.answer;}
