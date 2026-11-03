@@ -131,6 +131,7 @@ test("quantum navigation stops diagnostic polling while a provider response is p
     .getByRole("navigation", { name: "Main navigation" })
     .getByRole("link", { name: "Library", exact: true })
     .click();
+  await page.getByLabel("Lessons per page").selectOption("24");
   await page.getByRole("link", { name: /Open the bench: Quantum/ }).click();
   await page.locator("#q-showcase").click();
   await page.locator("#q-next").click();

@@ -313,6 +313,8 @@ const depthKey: Record<DepthFilter, MessageKey> = {
   coached: "Gallery.coachedByMuse",
 };
 type SourceFilter = "any" | Source;
+type SortBy = "default" | "created" | "updated" | "title";
+type SortOrder = "asc" | "desc";
 const typeFilters: TypeFilter[] = ["all", "model", "process", "catalog"];
 const sourceFilters: SourceFilter[] = [
   "any",
@@ -345,7 +347,7 @@ const matches = (query: string, fields: string[]) => {
 };
 
 // The meta line names who made the lesson and what checked it, in a few words.
-function metaLine(entry: Entry, language: Language): string {
+function metaLine(entry: Entry, language: Language, sortBy: SortBy): string {
   if (entry.depth === "coached") return t(language, "Gallery.metaBench");
   if (entry.evaluation) {
     const item = entry.evaluation;
@@ -357,10 +359,25 @@ function metaLine(entry: Entry, language: Language): string {
   }
   if (entry.shared) {
     const item = entry.shared;
-    const date = new Intl.DateTimeFormat(
-      language === "zh" ? "zh-CN" : "en-US",
-      { dateStyle: "medium" },
-    ).format(item.updatedAt);
+    const time = sortBy === "created" ? item.createdAt : item.updatedAt;
+    const formatted =
+      typeof time === "number" &&
+      Number.isFinite(time) &&
+      Math.abs(time) <= 8.64e15
+        ? new Intl.DateTimeFormat(language === "zh" ? "zh-CN" : "en-US", {
+            dateStyle: "medium",
+          }).format(time)
+        : null;
+    const date =
+      formatted && sortBy === "created"
+        ? language === "zh"
+          ? `创建于 ${formatted}`
+          : `Created ${formatted}`
+        : formatted && sortBy === "updated"
+          ? language === "zh"
+            ? `更新于 ${formatted}`
+            : `Updated ${formatted}`
+          : formatted;
     return [
       date,
       lessonModelLabel(item, language),
@@ -400,6 +417,7 @@ function LibraryCard({
   override = null,
   post = null,
   onDeleted,
+  sortBy = "default",
 }: {
   language: Language;
   entry: Entry;
@@ -407,6 +425,7 @@ function LibraryCard({
   // Present when a creator is signed in: their own shared cards offer Edit and Delete.
   post?: Post | null;
   onDeleted?: (id: string) => void;
+  sortBy?: SortBy;
 }) {
   const title = entry.title[language];
   const cover = override ?? lessonCover(entry.id);
@@ -504,7 +523,7 @@ function LibraryCard({
             onDeleted={onDeleted}
           />
         )}
-        <p className="lesson-meta fine">{metaLine(entry, language)}</p>
+        <p className="lesson-meta fine">{metaLine(entry, language, sortBy)}</p>
         {entry.evaluation && (
           <p className="lesson-review-note fine">
             {t(language, "Gallery.humanReviewRequired")}
@@ -634,6 +653,9 @@ export function Gallery({
     [withShow, setWithShow] = useState(false),
     [fromSketch, setFromSketch] = useState(false),
     [shared, setShared] = useState<SavedSummary[]>([]),
+    [sortBy, setSortBy] = useState<SortBy>("default"),
+    [order, setOrder] = useState<SortOrder>("desc"),
+    [pageSize, setPageSize] = useState<8 | 24 | 48>(8),
     [page, setPage] = useState(0),
     [sharedLoading, setSharedLoading] = useState(true),
     [sharedError, setSharedError] = useState(false),
@@ -685,24 +707,67 @@ export function Gallery({
     ],
     [shared],
   );
-  const shown = useMemo(
-    () =>
-      entries.filter(
-        (entry) =>
-          (type === "all" || entry.kind === type) &&
-          (source === "any" || entry.source === source) &&
-          (depth === "any" || entry.depth === depth) &&
-          (!withShow || Boolean(entry.show || entry.shared?.hasShow)) &&
-          (!fromSketch || entry.sketch) &&
-          matches(query, entry.search),
-      ),
-    [entries, type, source, depth, withShow, fromSketch, query],
-  );
+  const shown = useMemo(() => {
+    const filtered = entries.filter(
+      (entry) =>
+        (type === "all" || entry.kind === type) &&
+        (source === "any" || entry.source === source) &&
+        (depth === "any" || entry.depth === depth) &&
+        (!withShow || Boolean(entry.show || entry.shared?.hasShow)) &&
+        (!fromSketch || entry.sketch) &&
+        matches(query, entry.search),
+    );
+    if (sortBy === "default") return filtered;
+    const sign = order === "asc" ? 1 : -1;
+    const collator = new Intl.Collator(language === "zh" ? "zh-CN" : "en-US", {
+      numeric: true,
+      sensitivity: "base",
+    });
+    return filtered.sort((a, b) => {
+      if (sortBy === "title")
+        return sign * collator.compare(a.title[language], b.title[language]);
+      const aDate =
+        sortBy === "created" ? a.shared?.createdAt : a.shared?.updatedAt;
+      const bDate =
+        sortBy === "created" ? b.shared?.createdAt : b.shared?.updatedAt;
+      const aValid =
+        typeof aDate === "number" &&
+        Number.isFinite(aDate) &&
+        Math.abs(aDate) <= 8.64e15;
+      const bValid =
+        typeof bDate === "number" &&
+        Number.isFinite(bDate) &&
+        Math.abs(bDate) <= 8.64e15;
+      if (!aValid || !bValid) return aValid ? -1 : bValid ? 1 : 0;
+      return sign * (aDate - bDate);
+    });
+  }, [
+    entries,
+    type,
+    source,
+    depth,
+    withShow,
+    fromSketch,
+    query,
+    sortBy,
+    order,
+    language,
+  ]);
   useEffect(
     () => setPage(0),
-    [query, type, source, depth, withShow, fromSketch],
+    [
+      query,
+      type,
+      source,
+      depth,
+      withShow,
+      fromSketch,
+      sortBy,
+      order,
+      pageSize,
+      language,
+    ],
   );
-  const pageSize = 24;
   const pages = Math.max(1, Math.ceil(shown.length / pageSize));
   const currentPage = Math.min(page, pages - 1);
   const visible = shown.slice(
@@ -753,6 +818,82 @@ export function Gallery({
             aria-label={t(language, "Gallery.searchLessons")}
           />
         </label>
+        <div className="catalog-sort">
+          <label>
+            <span className="facet-legend">
+              {language === "zh" ? "排序依据" : "Sort by"}
+            </span>
+            <select
+              value={sortBy}
+              onChange={(event) => {
+                const next = event.target.value as SortBy;
+                setSortBy(next);
+                setOrder(next === "title" ? "asc" : "desc");
+              }}
+            >
+              <option value="default">
+                {language === "zh" ? "默认顺序" : "Default order"}
+              </option>
+              <option value="created">
+                {language === "zh" ? "创建时间" : "Date created"}
+              </option>
+              <option value="updated">
+                {language === "zh" ? "最近更新" : "Last updated"}
+              </option>
+              <option value="title">
+                {language === "zh" ? "标题" : "Title"}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span className="facet-legend">
+              {language === "zh" ? "顺序" : "Order"}
+            </span>
+            <select
+              value={order}
+              disabled={sortBy === "default"}
+              onChange={(event) => setOrder(event.target.value as SortOrder)}
+            >
+              <option value="asc">
+                {sortBy === "title"
+                  ? language === "zh"
+                    ? "升序"
+                    : "A to Z"
+                  : language === "zh"
+                    ? "从早到晚"
+                    : "Oldest first"}
+              </option>
+              <option value="desc">
+                {sortBy === "default"
+                  ? language === "zh"
+                    ? "不适用"
+                    : "Not applicable"
+                  : sortBy === "title"
+                    ? language === "zh"
+                      ? "降序"
+                      : "Z to A"
+                    : language === "zh"
+                      ? "从晚到早"
+                      : "Newest first"}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span className="facet-legend">
+              {language === "zh" ? "每页课程数" : "Lessons per page"}
+            </span>
+            <select
+              value={pageSize}
+              onChange={(event) =>
+                setPageSize(Number(event.target.value) as 8 | 24 | 48)
+              }
+            >
+              <option value={8}>8</option>
+              <option value={24}>24</option>
+              <option value={48}>48</option>
+            </select>
+          </label>
+        </div>
         <fieldset className="facet">
           <legend className="facet-legend">
             {t(language, "Gallery.type")}
@@ -847,6 +988,13 @@ export function Gallery({
           {shown.length} {t(language, "Gallery.lessonCount")}
         </span>
       </div>
+      {(sortBy === "created" || sortBy === "updated") && (
+        <p className="fine catalog-sort-note">
+          {language === "zh"
+            ? "未记录日期的课程排在最后。更新时间也可能反映分享或封面更改。"
+            : "Lessons without a recorded date appear last. Updates can include sharing or cover changes."}
+        </p>
+      )}
       {sharedLoading && (
         <p className="fine" role="status">
           {language === "zh"
@@ -883,6 +1031,7 @@ export function Gallery({
               key={entry.id}
               language={language}
               entry={entry}
+              sortBy={sortBy}
               override={overrides[entry.id] ?? null}
               post={post}
               onDeleted={(id) =>
