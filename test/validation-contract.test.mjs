@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {lessonAuthorRequest,readLessonAuthor} from '../src/lesson-author.mjs';
+import {learnerTryoutRequest,readLearnerTryout} from '../src/lesson-tester.mjs';
 import {groundRequest,readGround} from '../src/lesson-ground.mjs';
 import {validateDemo} from '../public/demo-model.mjs';
 import {demoSchema} from '../public/demo-model.mjs';
 import {chapterExperiment} from '../public/generated-demo.mjs';
-import {coolingLesson} from '../test-support/generated-lessons.mjs';
+import {coolingLesson,processLesson} from '../test-support/generated-lessons.mjs';
 
 test('author response schemas tell the decoder the same text limits the reader enforces',()=>{
  for(const creation of ['catalog','generated']){
@@ -31,6 +32,37 @@ test('numeric and process demo schemas carry their existing text and collection 
  assert.equal(process.stages.minItems,3);assert.equal(process.stages.maxItems,6);
  assert.equal(process.transfer.properties.choices.minItems,3);assert.equal(process.transfer.properties.choices.maxItems,3);
  assert.equal(model.outputs.items.properties.expression.maxLength,180);
+});
+
+test('tryout response schema bounds fields to the reader limits and fixes the chapter count',()=>{
+ const one=learnerTryoutRequest({lesson:coolingLesson(),language:'en'}).tools[0].parameters.properties;
+ const two=learnerTryoutRequest({lesson:{...coolingLesson(),chapters:[coolingLesson().chapters[0],processLesson().chapters[0]]},language:'en'}).tools[0].parameters.properties;
+ assert.equal(two.chapters.minItems,2);assert.equal(two.chapters.maxItems,2);
+ // Building a later request leaves the earlier schema untouched.
+ assert.equal(one.chapters.minItems,1);assert.equal(one.chapters.maxItems,1);
+ const chapter=one.chapters.items.properties;
+ for(const [field,limit] of [[chapter.reason,300],[chapter.explanation,600],[chapter.confusions.items,200],[chapter.suggestions.items,200],[one.overall,400]]){
+  assert.equal(field.minLength,1);assert.equal(field.maxLength,limit);
+ }
+ assert.equal(chapter.confusions.maxItems,3);assert.equal(chapter.suggestions.maxItems,3);
+ assert.equal(chapter.transferAnswer.minLength,1);assert.equal(chapter.transferAnswer.maxLength,undefined);
+ // The reader still enforces the same limits on decoded replies.
+ const lesson=coolingLesson(),ok={prediction:'agree',reason:'Fine.',explanation:'Fine.',transferAnswer:'1',confusions:[],suggestions:[]};
+ const report=(chapters,overall='Clear enough.')=>({structured:{name:'try_lesson',value:{chapters,overall,rating:4}}});
+ assert.throws(()=>readLearnerTryout(report([ok],'   '),lesson,'en'),/Invalid tryout report/);
+ assert.throws(()=>readLearnerTryout(report([{...ok,confusions:['x'.repeat(201)]}]),lesson,'en'),/Invalid tryout chapter/);
+ assert.throws(()=>readLearnerTryout(report([ok,ok]),lesson,'en'),/Invalid tryout report/);
+});
+
+test('guide response schemas bound explanation and follow-up to the reader limits',()=>{
+ const body={lesson:coolingLesson(),chapter:0,variant:0,language:'en',prediction:'agree',controls:{},metric:0};
+ const plain=lessonAuthorRequest(body,'guide').tools[0].parameters.properties;
+ const assessed=lessonAuthorRequest({...body,explanation:'It cools faster at first.'},'guide').tools[0].parameters.properties;
+ for(const field of [plain.explanation,assessed.explanation]){assert.equal(field.minLength,1);assert.equal(field.maxLength,1000);}
+ assert.equal(assessed.followUp.minLength,1);assert.equal(assessed.followUp.maxLength,300);
+ const reply=value=>({structured:{name:'guide_lesson',value}});
+ assert.throws(()=>readLessonAuthor(reply({verdict:'supported',explanation:'x'.repeat(1001),followUp:'Why?',nextAction:'replay'}),'guide','catalog',true),/Invalid guide action/);
+ assert.throws(()=>readLessonAuthor(reply({verdict:'supported',explanation:'Close.',followUp:'x'.repeat(301),nextAction:'replay'}),'guide','catalog',true),/Invalid assessment/);
 });
 
 const fact=()=>({statement:{en:'A dimensionless ratio.',zh:'无量纲比值。'},value:'1',unit:'1',url:'https://example.org/reference'});

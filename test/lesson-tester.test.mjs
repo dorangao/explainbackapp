@@ -2,6 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {learnerTryoutRequest,readLearnerTryout,learnerView} from '../src/lesson-tester.mjs';
 import {coolingLesson,processLesson} from '../test-support/generated-lessons.mjs';
 import {chapterExperiment} from '../public/generated-demo.mjs';
+import {validateLesson} from '../public/lesson-schema.mjs';
 const reply=(chapters,overall='Clear enough.',rating=4)=>({toolCall:{name:'try_lesson',arguments:JSON.stringify({chapters,overall,rating})}});
 const chapter=(transferAnswer,extra={})=>({prediction:'agree',reason:'Hot things cool.',explanation:'The gap to room temperature shrinks, so cooling slows.',transferAnswer,confusions:[],suggestions:['Name the unit of rate.'],...extra});
 test('the learner view hides the answer, hint and explanation but keeps the question and observations',()=>{
@@ -29,6 +30,30 @@ test('numeric transfer answers are checked within tolerance and choices by index
  const choice=readLearnerTryout(reply([chapter(String(answer))]),process,'en');
  assert.equal(choice.chapters[0].transfer.correct,true);assert.equal(choice.chapters[0].transfer.choice,process.chapters[0].demo.transfer.choices[answer].en);
  assert.equal(readLearnerTryout(reply([chapter(String((answer+1)%3))]),process,'en').chapters[0].transfer.correct,false);
+});
+test('a blank transfer answer is rejected, never graded as a choice or as zero',()=>{
+ const process=processLesson(),choices=process.chapters[0].demo.transfer.choices;
+ for(const blank of ['','   ','\t\n'])assert.throws(()=>readLearnerTryout(reply([chapter(blank)]),process,'en'),/Invalid tryout chapter/);
+ assert.throws(()=>readLearnerTryout({structured:{name:'try_lesson',value:{chapters:[chapter('')],overall:'ok',rating:4}}},process,'en'),/Invalid tryout chapter/);
+ const zero=readLearnerTryout(reply([chapter('0')]),process,'en');
+ assert.equal(zero.chapters[0].transfer.correct,true);assert.equal(zero.chapters[0].transfer.given,'0');assert.equal(zero.chapters[0].transfer.choice,choices[0].en);
+ const spaced=readLearnerTryout(reply([chapter(' 0 ')]),process,'en');
+ assert.equal(spaced.chapters[0].transfer.correct,true);assert.equal(spaced.chapters[0].transfer.given,'0');
+ const one=readLearnerTryout(reply([chapter('1')]),process,'en');
+ assert.equal(one.chapters[0].transfer.correct,false);assert.equal(one.chapters[0].transfer.choice,choices[1].en);
+ const word=readLearnerTryout(reply([chapter('abc')]),process,'en');
+ assert.equal(word.chapters[0].transfer.correct,false);assert.equal(word.chapters[0].transfer.choice,null);
+ // A numeric transfer whose computed answer is exactly 0 is still a real question.
+ const raw=coolingLesson(),demo=raw.chapters[0].demo;
+ demo.inputs[0].min=0;demo.inputs[1].min=0;
+ demo.transfer.values=[{id:'initial',value:0},{id:'ambient',value:0},{id:'rate',value:.1}];
+ const lesson=validateLesson(raw);
+ assert.equal(chapterExperiment(lesson.chapters[0],0,'en').transfer.answer,0);
+ for(const blank of ['','   '])assert.throws(()=>readLearnerTryout(reply([chapter(blank)]),lesson,'en'),/Invalid tryout chapter/);
+ assert.equal(readLearnerTryout(reply([chapter('0')]),lesson,'en').chapters[0].transfer.correct,true);
+ assert.equal(readLearnerTryout(reply([chapter('0.0')]),lesson,'en').chapters[0].transfer.correct,true);
+ assert.equal(readLearnerTryout(reply([chapter('5')]),lesson,'en').chapters[0].transfer.correct,false);
+ assert.equal(readLearnerTryout(reply([chapter('abc')]),lesson,'en').chapters[0].transfer.correct,false);
 });
 test('malformed tryout reports are rejected',()=>{
  const lesson=coolingLesson();

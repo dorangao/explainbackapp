@@ -50,3 +50,11 @@ test('player requires prediction and completed experiment, checks transfer and r
  assert.equal(p.check('18'),true);assert.equal(p.next(),true);assert.equal(p.state.stage,'complete');
  p.restart();p.predict('disagree');p.next();p.scrub(1);p.variant(1);assert.equal(p.state.progress,0);assert.equal(p.state.stage,'predict');assert.equal(p.state.prediction,null);
 });
+test('the human player ignores blank transfer input instead of grading it',async()=>{
+ const {createLessonPlayer}=await import('../public/lesson-player.mjs');
+ const {processLesson}=await import('../test-support/generated-lessons.mjs');
+ const p=createLessonPlayer(processLesson());
+ p.predict('agree');p.next();p.scrub(1);p.next();p.next();assert.equal(p.state.stage,'transfer');
+ assert.equal(p.check(''),null);assert.equal(p.check('   '),null);assert.equal(p.state.transfer,null);
+ assert.equal(p.check('0'),true);
+});

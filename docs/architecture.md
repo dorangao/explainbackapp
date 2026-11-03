@@ -27,7 +27,7 @@ flowchart LR
 ## Creation and learning flow
 
 1. A reviewer enters via an access code or tester session. Public gallery lessons can play without sign-in or a model request.
-2. The author explicitly asks for a lesson. In hosted Studio, Wonder can submit a background response; the browser polls the API while the page remains open. Spark handles learner feedback and the test-learner role. Other configured choices and synchronous paths remain available locally.
+2. The author explicitly asks for a lesson. In hosted Studio, Wonder can submit a background response; the browser polls the API while the page remains open. Spark handles learner feedback and the test-learner role. In a tryout the learner's chapter transfer answers are checked by code; a blank or whitespace-only transfer answer makes the tryout report malformed, so it is rejected rather than graded as a choice or as zero. Other configured choices and synchronous paths remain available locally.
 3. The server validates structured lesson data, including obvious question-shaped generated prediction claims, before returning it. The author reviews and can revise the assumptions, formulas and teaching text before presentation. Validation does not establish scientific correctness or guarantee that a statement is meaningful or testable.
 4. The browser runs bounded model or process demonstrations and checks numeric transfers locally. Numeric answer fields derive a conservative rounding hint from the existing tolerance in the displayed unit, checking that the rounded value survives conversion back to authored units. Exact or unrepresentable increments ask for the full calculated value; precision-losing conversions offer a return to authored units. Unit switches clear the numeric entry/result. This guidance does not change marking tolerances. Optional model feedback is a separate explicit request; the generated equations and authored explanations still need human review.
 5. Background requests and responses, including attached images, are stored by Meta. The app stores temporary session state in Redis in the cloud; it does not resume background work after a page reload or navigation. Browser speech synthesis plays show narration; optional Meta Image draws show covers and, on request, one illustration per slide; optional Meta Voice transcribes the spoken explain-back. With Vercel Blob configured, drawn images and source sketches are stored as public, unguessable URLs and kept with saved lessons.
@@ -35,12 +35,15 @@ flowchart LR
 
 The public evaluation card is built from `docs/evaluation.md` and documents methods and limits. Dated evaluation reports and operational measurements are kept in the separate private repository and are not linked from the public app. Selected lesson fixtures remain public and reviewable.
 
-The author and grounding response schemas carry the same text-length and collection
-bounds as their readers (`public/schema-text.mjs`, `public/lesson-schema.mjs`,
-`public/demo-model.mjs`, `src/lesson-ground.mjs`). These constraints are sent in the
-structured response format; local validation remains authoritative and does not trim
-overlong content into an acceptable response. Grounding errors identify the fact and
-field without echoing rejected values.
+The author, grounding, explain-back guide and test-learner (tryout) response schemas
+carry the same text-length and collection bounds as their readers
+(`public/schema-text.mjs`, `public/lesson-schema.mjs`, `public/demo-model.mjs`,
+`src/lesson-ground.mjs`, `src/lesson-author.mjs`, `src/lesson-tester.mjs`). The tryout
+schema also fixes its chapter array to the lesson's chapter count for each request,
+and the prompts keep shorter text targets than the reader limits. These constraints
+are sent in the structured response format; local validation remains authoritative
+and does not trim overlong content into an acceptable response. Grounding errors
+identify the fact and field without echoing rejected values.
 
 Numeric models are checked over continuous input/axis intervals. When a coarse interval
 cannot establish a valid domain, the checker subdivides the input box and recomputes all
