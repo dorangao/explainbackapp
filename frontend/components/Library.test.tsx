@@ -44,6 +44,7 @@ it("offers administrator actions on another creator's shared card without callin
       : { covers: {} },
   );
   const view = render(<Gallery language="en" />);
+  fireEvent.click(screen.getByRole("button", { name: "Shared" }));
   await screen.findByRole("link", { name: /Open lesson: Cooling coffee/ });
   expect(
     screen.queryByRole("group", { name: "Administrator actions" }),
@@ -213,6 +214,32 @@ describe("ShareControls", () => {
   });
 });
 describe("Gallery catalog", () => {
+  it("defaults to eight lessons and resets to page one when the page size changes", async () => {
+    getJson.mockImplementation(async (path: string) =>
+      path === "/api/shared" ? { lessons: [], cursor: null } : { covers: {} },
+    );
+    render(<Gallery language="en" />);
+    await screen.findByText("23 lessons");
+    const size = screen.getByRole("combobox", { name: "Lessons per page" });
+    expect(screen.getByRole("combobox", { name: "Order" })).toHaveProperty(
+      "disabled",
+      true,
+    );
+    expect(
+      screen.getByRole("option", { name: "Not applicable" }),
+    ).toHaveProperty("selected", true);
+    expect(size).toHaveProperty("value", "8");
+    expect(document.querySelectorAll(".gallery-grid article").length).toBe(8);
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(screen.getByText("Page 2 of 3")).toBeTruthy();
+    fireEvent.change(size, { target: { value: "24" } });
+    expect(document.querySelectorAll(".gallery-grid article").length).toBe(23);
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+    fireEvent.change(size, { target: { value: "48" } });
+    expect(document.querySelectorAll(".gallery-grid article").length).toBe(23);
+    fireEvent.change(size, { target: { value: "8" } });
+    expect(screen.getByText("Page 1 of 3")).toBeTruthy();
+  });
   it("sorts titles, creation dates and update dates in both directions, leaving undated lessons last", async () => {
     getJson.mockImplementation(async (path: string) =>
       path === "/api/shared"
@@ -242,6 +269,10 @@ describe("Gallery catalog", () => {
         : { covers: {} },
     );
     render(<Gallery language="en" />);
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Lessons per page" }),
+      { target: { value: "48" } },
+    );
     await screen.findByRole("heading", { name: "Zulu" });
     const titles = () =>
       Array.from(document.querySelectorAll(".gallery-grid h3")).map(
@@ -303,6 +334,9 @@ describe("Gallery catalog", () => {
         : { covers: {} },
     );
     render(<Gallery language="zh" />);
+    fireEvent.change(screen.getByRole("combobox", { name: "每页课程数" }), {
+      target: { value: "48" },
+    });
     await screen.findByRole("heading", { name: "香蕉" });
     fireEvent.click(screen.getByRole("button", { name: "创作者分享" }));
     fireEvent.change(screen.getByRole("combobox", { name: "排序依据" }), {
@@ -344,6 +378,10 @@ describe("Gallery catalog", () => {
       throw new Error("unexpected request " + path);
     });
     render(<Gallery language="en" />);
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Lessons per page" }),
+      { target: { value: "24" } },
+    );
     await waitFor(() => expect(screen.getByText("48 lessons")).toBeTruthy());
     expect(
       screen.queryByRole("heading", { name: "Older hidden lesson" }),
@@ -413,6 +451,10 @@ describe("Gallery catalog", () => {
       ],
     });
     render(<Gallery language="en" />);
+    fireEvent.change(
+      screen.getByRole("combobox", { name: "Lessons per page" }),
+      { target: { value: "24" } },
+    );
     // One grid: reviewed, evaluation and shared lessons share one card.
     expect(
       await screen.findByRole("link", { name: /Open lesson: Cooling coffee/ }),

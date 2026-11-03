@@ -655,6 +655,7 @@ export function Gallery({
     [shared, setShared] = useState<SavedSummary[]>([]),
     [sortBy, setSortBy] = useState<SortBy>("default"),
     [order, setOrder] = useState<SortOrder>("desc"),
+    [pageSize, setPageSize] = useState<8 | 24 | 48>(8),
     [page, setPage] = useState(0),
     [sharedLoading, setSharedLoading] = useState(true),
     [sharedError, setSharedError] = useState(false),
@@ -754,9 +755,19 @@ export function Gallery({
   ]);
   useEffect(
     () => setPage(0),
-    [query, type, source, depth, withShow, fromSketch, sortBy, order, language],
+    [
+      query,
+      type,
+      source,
+      depth,
+      withShow,
+      fromSketch,
+      sortBy,
+      order,
+      pageSize,
+      language,
+    ],
   );
-  const pageSize = 24;
   const pages = Math.max(1, Math.ceil(shown.length / pageSize));
   const currentPage = Math.min(page, pages - 1);
   const visible = shown.slice(
@@ -853,14 +864,33 @@ export function Gallery({
                     : "Oldest first"}
               </option>
               <option value="desc">
-                {sortBy === "title"
+                {sortBy === "default"
                   ? language === "zh"
-                    ? "降序"
-                    : "Z to A"
-                  : language === "zh"
-                    ? "从晚到早"
-                    : "Newest first"}
+                    ? "不适用"
+                    : "Not applicable"
+                  : sortBy === "title"
+                    ? language === "zh"
+                      ? "降序"
+                      : "Z to A"
+                    : language === "zh"
+                      ? "从晚到早"
+                      : "Newest first"}
               </option>
+            </select>
+          </label>
+          <label>
+            <span className="facet-legend">
+              {language === "zh" ? "每页课程数" : "Lessons per page"}
+            </span>
+            <select
+              value={pageSize}
+              onChange={(event) =>
+                setPageSize(Number(event.target.value) as 8 | 24 | 48)
+              }
+            >
+              <option value={8}>8</option>
+              <option value={24}>24</option>
+              <option value={48}>48</option>
             </select>
           </label>
         </div>
