@@ -213,6 +213,87 @@ describe("ShareControls", () => {
   });
 });
 describe("Gallery catalog", () => {
+  it("pages filtered results and searches older shared lessons across API pages", async () => {
+    getJson.mockImplementation(async (path: string) => {
+      if (path === "/api/covers") return { covers: {} };
+      if (path === "/api/shared")
+        return {
+          lessons: Array.from({ length: 24 }, (_, i) =>
+            summary({
+              id: i.toString(16).padStart(16, "0"),
+              title: { en: `Shared lesson ${i}`, zh: `分享课程 ${i}` },
+            }),
+          ),
+          cursor: "48",
+        };
+      if (path === "/api/shared?cursor=48")
+        return {
+          lessons: [
+            summary({
+              id: "3333333333333333",
+              title: { en: "Older hidden lesson", zh: "旧课程" },
+            }),
+          ],
+          cursor: null,
+        };
+      throw new Error("unexpected request " + path);
+    });
+    render(<Gallery language="en" />);
+    await waitFor(() => expect(screen.getByText("48 lessons")).toBeTruthy());
+    expect(
+      screen.queryByRole("heading", { name: "Older hidden lesson" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
+    expect(
+      screen.getByRole("heading", { name: "Older hidden lesson" }),
+    ).toBeTruthy();
+    await waitFor(() =>
+      expect(document.activeElement?.className).toBe("gallery-grid"),
+    );
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search lessons" }),
+      { target: { value: "旧课程" } },
+    );
+    expect(
+      screen.getByRole("heading", { name: "Older hidden lesson" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
+    fireEvent.change(
+      screen.getByRole("searchbox", { name: "Search lessons" }),
+      { target: { value: "" } },
+    );
+    expect(
+      screen.queryByRole("heading", { name: "Older hidden lesson" }),
+    ).toBeNull();
+  });
+  it("offers a retry when loading shared pages fails", async () => {
+    getJson.mockImplementation(async (path: string) => {
+      if (path === "/api/covers") return { covers: {} };
+      throw new Error("down");
+    });
+    render(<Gallery language="en" />);
+    expect(
+      await screen.findByText(/Some shared lessons could not be loaded/),
+    ).toBeTruthy();
+    getJson.mockImplementation(async (path: string) =>
+      path === "/api/shared"
+        ? {
+            lessons: [
+              summary({
+                id: "3333333333333333",
+                title: { en: "Recovered shared lesson", zh: "课程" },
+              }),
+            ],
+            cursor: null,
+          }
+        : { covers: {} },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("24 lessons");
+    expect(
+      screen.queryByText(/Some shared lessons could not be loaded/),
+    ).toBeNull();
+  });
   it("searches both languages, filters by kind and lists shared lessons from creators", async () => {
     getJson.mockResolvedValue({
       lessons: [

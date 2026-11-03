@@ -164,8 +164,10 @@ export const listMine = (cursor?: string) =>
   }>("/api/lessons" + (cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""));
 export const readMine = (id: string) =>
   getJson<SavedLesson>(`/api/lessons/${id}`);
-export const listShared = () =>
-  getJson<{ lessons: SavedSummary[] }>("/api/shared");
+export const listShared = (cursor?: string | null) =>
+  getJson<{ lessons: SavedSummary[]; cursor?: string | null }>(
+    "/api/shared" + (cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""),
+  );
 // A creator-drawn library cover for a reviewed lesson, as the app serves it.
 export type CoverRecord = {
   src: string;
