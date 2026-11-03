@@ -112,13 +112,17 @@ export function useAuth() {
       versionRef = version;
     mountedRef.current = true;
     const token = ++versionRef.current;
-    const initialScope = storedStudioScope();
     void (async () => {
       try {
-        const auth = await request<AuthInfo>("/api/auth");
-        if (!mounted.current || token !== version.current) return;
-        // A newer login/sign-out in another tab supersedes this pending reply.
-        if (storedStudioScope() !== initialScope) return;
+        let auth: AuthInfo;
+        for (;;) {
+          const initialScope = storedStudioScope();
+          auth = await request<AuthInfo>("/api/auth");
+          if (!mounted.current || token !== version.current) return;
+          // A newer login/sign-out supersedes this reply. Re-read the current
+          // session so initialization still supplies the sign-in configuration.
+          if (storedStudioScope() === initialScope) break;
+        }
         if (auth.authenticated) activateStudioRecovery(auth.recoveryScope);
         else revokeStudioRecovery();
         recoveryScope.current = auth.recoveryScope ?? null;

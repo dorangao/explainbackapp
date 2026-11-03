@@ -1,55 +1,84 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { useAuth } from "./api";
-import { activateStudioRecovery, recoveryScopeKey } from "./studio-store";
+import {
+  activateStudioRecovery,
+  recoveryScopeKey,
+  revokeStudioRecovery,
+} from "./studio-store";
 
 afterEach(() => {
   cleanup();
   localStorage.clear();
   vi.unstubAllGlobals();
 });
-it("a late initial auth reply cannot replace another tab's newer recovery login", async () => {
-  let release!: (value: Response) => void;
-  const pending = new Promise<Response>((resolve) => {
-    release = resolve;
-  });
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string) =>
-      path === "/api/auth"
-        ? pending
-        : new Response(
+it.each(["newer-login", null])(
+  "initial auth follows another tab's current login scope (%s)",
+  async (scope) => {
+    let release!: (value: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    let firstAuth = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        if (path === "/api/auth") {
+          if (firstAuth) {
+            firstAuth = false;
+            return pending;
+          }
+          return new Response(
             JSON.stringify({
+              authenticated: scope !== null,
               configured: true,
-              models: [],
-              problems: [],
-              traceEnabled: false,
-              defaultModel: "test",
-              access: null,
+              codes: true,
+              open: false,
+              ...(scope === null ? {} : { recoveryScope: scope }),
             }),
-          ),
-    ),
-  );
-  activateStudioRecovery("older-login");
-  const { result } = renderHook(() => useAuth());
-  activateStudioRecovery("newer-login");
-  await act(async () => {
-    release(
-      new Response(
-        JSON.stringify({
-          authenticated: true,
-          configured: true,
-          codes: true,
-          open: false,
-          recoveryScope: "older-login",
-        }),
-      ),
+          );
+        }
+        return new Response(
+          JSON.stringify({
+            configured: true,
+            models: [],
+            problems: [],
+            traceEnabled: false,
+            defaultModel: "test",
+            access: null,
+          }),
+        );
+      }),
     );
-  });
-  await waitFor(() => expect(result.current.loading).toBe(false));
-  expect(localStorage.getItem(recoveryScopeKey)).toBe("newer-login");
-  expect(result.current.info.authenticated).toBe(false);
-});
+    activateStudioRecovery("older-login");
+    const { result } = renderHook(() => useAuth());
+    if (scope === null) revokeStudioRecovery();
+    else activateStudioRecovery(scope);
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: recoveryScopeKey, newValue: scope }),
+    );
+    await act(async () => {
+      release(
+        new Response(
+          JSON.stringify({
+            authenticated: true,
+            configured: true,
+            codes: true,
+            open: false,
+            recoveryScope: "older-login",
+          }),
+        ),
+      );
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(localStorage.getItem(recoveryScopeKey)).toBe(scope);
+    expect(result.current.info.configured).toBe(true);
+    expect(result.current.info.codes).toBe(true);
+    expect(result.current.info.authenticated).toBe(scope !== null);
+    expect(result.current.info.recoveryScope).toBe(scope ?? undefined);
+    expect(result.current.status === null).toBe(scope === null);
+  },
+);
 
 it("a pending sign-in cannot replace another tab's newer recovery login", async () => {
   let release!: (value: Response) => void;
