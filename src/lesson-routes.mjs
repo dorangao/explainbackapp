@@ -1,3 +1,4 @@
+import {judgeError,judgeOwner} from './judge-access.mjs';
 import {RequestError} from './request-error.mjs';
 import {publicCover} from './lesson-covers.mjs';
 import {buildSavedLesson,attachImages,lessonSummary,publicLesson,sharedLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
@@ -23,7 +24,7 @@ export function registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin=()
     reply(res,200,withMine(res,record,sharedLesson(record)));
   }));
 }
-export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin=()=>false,reply,tracked,requireOrigin,parseBody}){
+export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin=()=>false,beforeWrite=async()=>{},reply,tracked,requireOrigin,parseBody}){
   const permissions=(tester,record)=>({...lessonSummary(record),...(record.owner===ownerOf(tester)?{mine:true}:{}),...(isAdmin(tester)?{canManage:true}:{})});
   app.get('/api/lessons', tracked(async (req,res) => {
     const tester=res.locals.tester;
@@ -43,6 +44,7 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     const editable=async({ownerOnly=false}={})=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||(record.owner!==owner&&(ownerOnly||!isAdmin(res.locals.tester))))throw new RequestError(404,'Saved lesson not found.');return record;};
     if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id,record))throw new RequestError(409,'This lesson changed or was deleted. Reopen it before deleting.');await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
+    await beforeWrite(res.locals.tester);
     if(req.path==='/api/lessons/share'){
       if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
       const previous=await editable({ownerOnly:true});
@@ -62,6 +64,7 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     let stale;try{stale=await attachImages(record,body,{store:imageStore,owner:recordOwner,previous,uploaded});}catch{await imageStore?.remove(uploaded);throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
     if(!await state.putLesson(record,MAX_SAVED_PER_OWNER,previous)){
       await imageStore?.remove(uploaded);
+      if(!previous&&judgeOwner(recordOwner))throw judgeError('JUDGE_SAVED_LIMIT');
       throw new RequestError(409,previous?'This lesson changed or was deleted while saving. Your draft is still available; reopen the saved lesson before updating it.':`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
     }
     await imageStore?.remove(stale);

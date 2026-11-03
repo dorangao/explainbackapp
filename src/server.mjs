@@ -1,3 +1,5 @@
+import {AsyncLocalStorage} from 'node:async_hooks';
+import {createMemoryJudgeStore,createJudgeAccess,JUDGE_CALLS} from './judge-access.mjs';
 import express from 'express';
 import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
@@ -52,6 +54,7 @@ function localOrigin(req){
 }
 export function createHandler({
   configured, modelCall, router = createProviderRouter(),
+  judgeMode=process.env.EXPLAINBACK_JUDGE_MODE==='1',judgeStore=createMemoryJudgeStore(),
   // Cover illustrations for shows; null disables them. Tests inject a fake.
   imageCall = process.env.MODEL_API_KEY?.trim()?(args=>generateMetaImage({apiKey:process.env.MODEL_API_KEY,...args})):null,
   // Speech to text for the spoken explain-back; null hides the microphone. Tests inject a fake.
@@ -72,9 +75,19 @@ export function createHandler({
   // platform request id): the operator log on Vercel. Never bodies, cookies or query strings.
   requestLog=process.env.EXPLAINBACK_REQUEST_LOG==='1'||(Boolean(process.env.VERCEL)&&process.env.EXPLAINBACK_REQUEST_LOG!=='0'),
 } = {}) {
+  const judgeGate=createJudgeAccess({auth,store:judgeStore,enabled:judgeMode});
+  auth=judgeGate.auth;
+  const judgeContext=new AsyncLocalStorage();
+  const metered=(invoke,model)=>invoke&&((...args)=>{const context=judgeContext.getStore();if(context?.tester?.audience?.kind!=='judge')return invoke(...args);return judgeGate.run(context.tester,{model:model(...args),action:context.action},()=>invoke(...args));});
+  const providerRouter=router;
+  const modelName=id=>providerRouter.list().find(t=>t.id===(id??providerRouter.defaultId))?.model??'unknown';
+  router={...providerRouter,call:metered(providerRouter.call,modelName),startBackground:metered(providerRouter.startBackground,modelName)};
+  modelCall=metered(modelCall,(_args,id)=>modelName(id));
+  imageCall=metered(imageCall,()=> 'muse-image-1.0');
+  transcribeCall=metered(transcribeCall,()=> 'muse-voice-transcribe-1.0');
+  segmentCall=metered(segmentCall,()=> 'sam-3.1');
   const multiplier=Number(quotaMultiplier);
   if(!['string','number'].includes(typeof quotaMultiplier)||!Number.isSafeInteger(multiplier)||multiplier<1||multiplier>10)throw new Error('Configure a quota multiplier from 1 to 10.');
-  const sessionLimit=8*multiplier,coachLimit=TURN_LIMIT*multiplier;
   const hourlyBudget=audience=>{const [bucket,base]=budgetFor(audience);return [bucket,base*multiplier];};
   const codes=accessCodes.codes??accessCodes;
   // Local development only: EXPLAINBACK_OPEN_ACCESS=1 treats every request as one shared
@@ -102,12 +115,11 @@ export function createHandler({
   const imageBudgetMs=elapsedMs=>{const left=REQUEST_BUDGET_MS-elapsedMs;return left>=MIN_IMAGE_MS?Math.min(60_000,Math.round(left)):0;};
   // A drawn image goes to Blob storage under its creator when configured, so the browser
   // gets a short URL that a saved lesson can keep; otherwise the data URL as before.
-  const storeImage=async(image,owner)=>{if(!imageStore)return image.dataUrl;try{return await imageStore.putImage({owner,...decodeImageDataUrl(image.dataUrl)});}catch{return image.dataUrl;}};
+  const storeImage=async(image,owner)=>{const context=judgeContext.getStore();if(context?.tester?.audience?.kind==='judge'&&context.action!=='/api/studio/cover')return image.dataUrl;if(!imageStore)return image.dataUrl;try{return await imageStore.putImage({owner,...decodeImageDataUrl(image.dataUrl)});}catch{return image.dataUrl;}};
   // Roles: the stronger Wonder model drafts and revises; Spark plays the first-time learner
   // who tries a draft and reports back. Each falls back to the default target when absent.
   const roleTarget=prefix=>targets.find(t=>t.configured&&t.provider==='meta'&&t.model.startsWith(prefix))??defaultTarget;
   const roles={creator:roleTarget('muse-wonder').id,tester:roleTarget('muse-spark').id};
-  const sessionView=s=>({...view(s),attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm});
   const app = express();
   app.disable('x-powered-by');
   app.enable('case sensitive routing');
@@ -158,15 +170,15 @@ export function createHandler({
     res.locals.origin = origin;
     if (!req.path.startsWith('/api/') && await serveFrontend(req,res,safeHeaders)) return;
     res.locals.tester = await access.authenticate(req.headers.cookie);
-    next();
+    judgeContext.run({tester:res.locals.tester,action:req.path},next);
   }));
   // Liveness for uptime monitors: no sign-in, no state access, nothing about configuration
   // beyond the deployed commit, which the public repository shows anyway.
   app.get('/api/health', (req,res) => reply(res,200,{status:'ok',build:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)??null}));
-  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,open:openAccess,authenticated:Boolean(res.locals.tester),...(res.locals.tester?{recoveryScope:recoveryScope(res.locals.tester)}:{}),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
+  app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,...(judgeMode?{judgeMode:true}:{}),open:openAccess,authenticated:Boolean(res.locals.tester),...(res.locals.tester?{recoveryScope:recoveryScope(res.locals.tester)}:{}),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
-    try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true,recoveryScope:recoveryScope(result)},{'Set-Cookie':result.cookie}); }
+    try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true,recoveryScope:recoveryScope(result),admin:isAdmin(result)},{'Set-Cookie':result.cookie}); }
     catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
   }));
   // A creator's identity for ownership. Reviewer invites own their lessons by label, so
@@ -181,17 +193,27 @@ export function createHandler({
     next();
   });
   // A creator's saved lessons. Saving makes no model request.
-  registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin,reply,tracked,requireOrigin,parseBody});
+  registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin,beforeWrite:tester=>judgeGate.write(tester),reply,tracked,requireOrigin,parseBody});
+  app.get('/api/admin/judge-usage', tracked(async(req,res)=>{
+    if(!isAdmin(res.locals.tester))throw new RequestError(403,'Administrator access required.');
+    const raw=req.query.cursor??'0';if(typeof raw!=='string'||!/^\d{1,7}$/.test(raw)||Number(raw)>1000000)throw new RequestError(400,'Invalid usage cursor.');
+    reply(res,200,await judgeStore.list(Number(raw)));
+  }));
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=hourlyBudget(tester?.audience);
-    const audience=tester.audience?{...publicAudience(tester.audience),quota:limit,remaining:await state.remainingTurns(bucket,limit)}:null;
+    const audience=tester.audience?.kind==='judge'?await judgeGate.status(tester):tester.audience?{...publicAudience(tester.audience),quota:limit,remaining:await state.remainingTurns(bucket,limit)}:null;
     reply(res,200,{configured:defaultTarget.configured,mode:'live',access:audience,model:defaultTarget.model,models:targets,defaultModel:defaultTarget.id,roles,voice:Boolean(transcribeCall),images:Boolean(imageCall),imageStorage:Boolean(imageStore),detect:Boolean(segmentCall),traceEnabled,audience:'tester-poc',problems:[...Object.values(problems).map(p=>({id:p.id,title:p.title})),{id:'acceleration',title:motionTitle},{id:'flight',title:flightTitle},{id:'suction',title:suctionTitle}]});
   }));
   const actions=['/api/studio/session','/api/studio/ground','/api/studio/compose','/api/studio/compare','/api/studio/poll','/api/studio/guide','/api/studio/tryout','/api/studio/show','/api/studio/illustrate','/api/studio/cover','/api/studio/judge','/api/studio/detect','/api/studio/transcribe','/api/quantum/session','/api/quantum/explain','/api/session','/api/turn','/api/reset','/api/claim','/api/replay',...(traceEnabled?['/api/trace']:[])];
+  const ordinaryState=state;
   app.post(actions, requireOrigin, parseBody, tracked(async (req,res) => {
     let lockedId,lock;
     const json = (status,data,headers={}) => reply(res,status,data,headers);
     const tester=res.locals.tester, body=req.body, path=req.path;
+    const judge=tester.audience?.kind==='judge';
+    const state=judge?{...ordinaryState,consumeTurn:async()=>true}:ordinaryState;
+    const sessionLimit=judge?JUDGE_CALLS:8*multiplier,coachLimit=judge?JUDGE_CALLS:TURN_LIMIT*multiplier;
+    if(judge&&path==='/api/studio/cover'&&body.lessonId)throw new RequestError(403,'Judge sessions may draw covers only for their own saved lessons.');
     const [bucket,limit]=hourlyBudget(tester?.audience);
     const quotaExceeded=()=>new RequestError(429,tester?.audience?'This access code’s hourly request budget is used up. Reviewed lessons still open without live requests.':'API request limit reached. No request was sent.');
     try {
@@ -219,7 +241,7 @@ export function createHandler({
         s.llm=target;s.owner=tester.id;s.audience=tester.audience?.label??null;
         s.demoUsed=traceEnabled;
         if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached. Reset an existing session.');
-        json(200, { sessionId, ...sessionView(s) }); return;
+        json(200, { sessionId, ...view(s),attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm }); return;
       }
       if(typeof body.sessionId!=='string'||!/^[a-f0-9]{48}$/.test(body.sessionId))throw new RequestError(404,'Session expired. Start a new session.');
       let s = await state.get(body.sessionId);
@@ -279,7 +301,7 @@ export function createHandler({
         const ctx={s,body,tester,bucket,limit,lock,save,json,quotaExceeded,state,access,sessionLimit,traceEnabled,redacted,segmentCall,imageCall,storeImage,imageStore,imageBudgetMs,owner:ownerOf(tester)};
         if(mode==='detect'){await detectInImage(ctx);return;}
         if(mode==='illustrate'){await illustrateSlide(ctx);return;}
-        if(mode==='cover'){await drawCover(ctx);return;}
+        if(mode==='cover'){await judgeGate.write(tester);await drawCover(ctx);return;}
         // The compare route (studio-compare.mjs) drafts the same question with both Muse text
         // models and has the judge (the tester role unless the body names the other model)
         // score the ready lessons: up to four requests.
@@ -447,7 +469,7 @@ export function createHandler({
     if(res.headersSent)return next(error);
     const status=error instanceof RequestError?error.status:error.type==='entity.too.large'?413:error.type==='encoding.unsupported'?415:error.type==='entity.parse.failed'?400:500;
     const message=error instanceof RequestError?error.message:status===413?'Request is too large.':status===415?'Unsupported request encoding.':status===400?'Invalid JSON request.':'Request failed. Please try again.';
-    reply(res,status,{error:message,...(error instanceof RequestError&&error.code==='BACKGROUND_FAILED'?{code:error.code}:{}),...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})});
+    reply(res,status,{error:message,...(error instanceof RequestError&&(error.code==='BACKGROUND_FAILED'||/^JUDGE_/.test(error.code??''))?{code:error.code}:{}),...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})});
   });
   return app;
 

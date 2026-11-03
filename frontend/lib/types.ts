@@ -10,12 +10,15 @@ export type Target = {
   timeoutMs?: number;
 };
 export type Access = {
+  kind?: "judge";
   label: string;
   remaining: number;
   quota: number;
   expiresAt: number;
 };
 export type AuthInfo = {
+  judgeMode?: boolean;
+  admin?: boolean;
   configured: boolean;
   codes: boolean;
   open: boolean;

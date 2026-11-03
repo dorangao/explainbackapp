@@ -10,7 +10,7 @@ flowchart LR
   SW["Service worker<br/>shell and asset cache"] --> Browser
   Browser -->|"Same-origin HTTPS<br/>session, compose, poll, guide"| API["Express API<br/>origin + authentication + quotas"]
   Vercel --> API
-  API -->|"Sessions, locks, quotas,<br/>saved and shared lessons"| Redis["Upstash Redis<br/>production and preview namespaces"]
+  API -->|"Sessions, locks, quotas,<br/>saved and shared lessons,<br/>judge usage"| Redis["Upstash Redis<br/>production and preview namespaces"]
   API -->|"Covers, slide illustrations,<br/>source sketches"| Blob["Vercel Blob<br/>public unguessable URLs"]
   Browser -->|"Save, share, open<br/>no model request"| API
   API -->|"Wonder: background create / revise<br/>submit and poll"| Meta["Meta Model API<br/>Responses, Image and Voice"]
@@ -83,7 +83,7 @@ Saved records carry separate client-reported `lessonModel` and `showModel` label
 | Lesson canvas | SVG and Pointer Events; prediction drawing and keyboard point entry in every numeric model lesson, optional creator-confirmed image regions/control links, prediction overlay, shared bounded drawing validation and server-recomputed comparison values | `frontend/components/CanvasBindingEditor.tsx`, `frontend/components/PredictionCanvas.tsx`, `public/lesson-canvas.mjs` |
 | Server | Node.js 26, Express 5; shared local and Vercel API handler | `src/server.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
-| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
+| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions, public judge trials and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/judge-access.mjs`, `src/judge-redis.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
 | Studio image routes | SAM 3.1 detection, Muse Image illustration, and a library cover for a reviewed lesson drawn at a signed-in creator's request (kept in state, served to everyone by the public `/api/covers`), as one request each, sharing the action handler's session, budget and trace plumbing | `src/studio-images.mjs`, `src/lesson-covers.mjs`, `src/request-error.mjs` |
 | Site frame | Header with Library, Create and About, one account control (Sign in, or the hourly budget pill with Sign out), a shared page header (crumb trail, one h1, meta line, actions) used by the lesson player, the narrated show, the comparison, the evaluation card, the About page, both benches and the Create home page, with a collapsible 6-step tour above the question form (finished steps checked, the current one solid, a hint on each bubble with its cost or a reminder to review the draft, the step cards in a disclosure, Run next and Run all for signed-in reviewers); the 1120 px content column shared by header, main and footer. On phones the header folds the navigation, language and account controls behind one Menu button, and a bench opened without preview access shows an inline locked stage with the access button and a link to the lesson version. The benches are listed in the library as coached lessons rather than in the header. The phone hero retains a compact introductory tour. Lesson transfer questions are separated from a collapsed reference to the earlier experiment; show playback controls precede the slide, and gallery shows reuse the page title. Comparisons use a compact summary and expandable details, with AI wording scores and the human science review requirement explicit | `frontend/App.tsx`, `frontend/components/PageHeader.tsx`, `frontend/components/About.tsx` |
 | Studio ground route | Search first: Spark gathers a dated fact sheet for a topic with the Muse web search tool (one request), the author receives it as references and may name only its pages as the lesson's sources; the adapter harvests the pages each search returned and reads the last message as the structured reply. Both fact readers reject exact repeated facts, comparing URL, value, unit and both statement languages; distinct facts may share a page and value. See [search-grounding.md](search-grounding.md) | `src/lesson-ground.mjs`, `src/meta.mjs`, `/api/studio/ground` |
@@ -120,6 +120,58 @@ Liquid Glass uses translucent material on the header and controls, with opaque r
 | Muse Spark Open | Open weights; any self-hosted build runs through the same Ollama option | `EXPLAINBACK_OLLAMA_MODELS` |
 | Muse Code | A development product, not an API; not part of the app | — |
 
+## Public judge trials
+
+`EXPLAINBACK_JUDGE_MODE=1` enables a public button and `POST /api/login` with
+`{judge:true}`. It is off by default and disabling it rejects existing trial sessions.
+It needs no invite secret and does not authenticate a person's judge status. Normal
+invite/tester sign-ins remain available. A trial has an opaque HttpOnly, SameSite=Strict
+cookie (Secure in hosted environments), a fixed absolute expiry, and a separate
+`kind:judge` audience; it cannot acquire administrator privileges. Each explicit start
+revokes the previous login and creates a new saved-lesson owner and browser recovery
+scope. Reloads reuse the existing scope. Trials cannot replace global gallery covers.
+
+The lifetime and call ceilings are defined in `src/judge-access.mjs`. Each session has
+its own provider-call counter and all trials share a UTC-day counter, independently of
+`EXPLAINBACK_QUOTA_MULTIPLIER`. Reservations happen before every provider invocation:
+text, chain fallback retries, image generation, transcription and segmentation.
+Background dispatch counts once; polling, status, public playback and saving are free.
+The old hourly action counters remain for tester/invite access. Judge workflows use
+their own attempt ceiling while the provider boundary enforces the shared trial limits.
+
+`src/server.mjs` propagates the authenticated identity through `AsyncLocalStorage` and
+wraps the provider boundaries. `src/judge-redis.mjs` atomically checks authorization,
+absolute expiry, session usage and the daily total in Lua before reserving a call.
+Redis also limits starts per visitor hash and globally. Local development uses the
+same contract in memory; restarting a local server resets it. Hosted instances share
+Redis counters in the existing environment/credential namespace. Keep that namespace
+stable during a trial period: changing it or rotating tester credentials resets that
+namespace's stored state, including counters. Production and Preview are separate.
+All trial workflows share one bounded capacity bucket; a trial may only evict its own
+idle workflow when that bucket is full, so anonymous starts cannot consume the slots
+reserved by the existing global cap for other access categories.
+Storage failure blocks dispatch. Failed or uncertain provider calls keep their reserved
+slot; a completion bookkeeping failure leaves a pending entry. Late results from expired
+or replaced sessions are discarded. These are call limits, not monetary limits.
+
+Trial save/share attempts and saved-cover replacements have separate atomic session
+and UTC-day write ceilings, applied before uploads. Anonymous saved lessons also have
+an aggregate record cap across all trial owners (`JUDGE_SAVED_RECORDS`); deletion frees
+a slot. Records stay manageable by the administrator after session expiry. These limits
+bound persistent storage independently of model calls. Show/slide generation returns
+images to the trial browser without uploading them; the explicit, bounded save uploads
+the chosen assets. Replacements and deletions use the existing stale-asset cleanup.
+
+The password-authenticated admin can open **Judge usage** (`GET /api/admin/judge-usage`)
+to inspect a bounded, paginated list of sessions, current-day calls, expiry/status,
+model/action counts, provider-call outcomes and reported token totals. Records expire
+after the retention interval in `src/judge-access.mjs`. Usage output contains no cookies,
+authorizing IDs, visitor addresses, prompts or uploaded content. Background dispatch
+success means the provider accepted the job; polling results are not a second call and
+do not update the usage record. Token totals include only usage available at dispatch
+completion. A completed provider call does not imply a validated lesson or scientific
+correctness. Existing admin lesson access is separate from this usage view.
+
 ## Access limits
 
 - Failed sign-ins are counted per visitor address with a shared backstop across all visitors, checked before the credentials. On Vercel the visitor address is the platform's `x-real-ip` header (`vercelClientAddress` in `src/cloud.mjs`); locally it is the socket peer. The limits are defined in `src/tester-auth.mjs`.
@@ -129,7 +181,7 @@ Liquid Glass uses translucent material on the header and controls, with opaque r
 - Management permission is separate from ownership: shared responses mark administrator access with `canManage`, without falsely setting `mine`. Admin edits preserve the original owner, ID, creation date, sharing flag and image namespace, and clear the creator-review timestamp for another creator's lesson. The original creator can review it again. Publishing/unpublishing remains owner-only; deletion uses the actual owner's index and removes the lesson's images. Existing sign-in, expiry, origin checks and deletion confirmation apply to administrators too. None of these operations consumes a model request.
 - The hourly budget uses a fixed window starting with the first counted action, rather than a sliding hour or a clock-hour reset. The configured quota is an application action limit, not a provider-call or monetary cap: for example, one show action can generate text, a cover and slide images, and text requests may retry. Gallery playback, saving lessons and status checks do not consume this budget.
 - Codes expire at the end of their configured UTC date. Removing or rotating a code invalidates its existing sign-ins on their next authenticated request. Existing sessions retain their issued base quota and cannot outlive their original expiry; changing a code's configured base quota or extending the expiry requires signing in again. A shortened configured expiry also invalidates existing sign-ins once that date passes.
-- `EXPLAINBACK_QUOTA_MULTIPLIER` scales the hourly model-action budget for every access category (including the shared tester) and the attempt limits for Studio, quantum and coach sessions. It is a bounded integer deployment setting, defaulting to one. The status/header reports the effective hourly quota, and each response reports remaining attempts against the effective session limit. Existing counters are retained, so deploying a new multiplier changes capacity without erasing spent requests or rewriting credentials. Authentication limits, concurrency, expiry, request sizes and provider timeouts are unaffected.
+- `EXPLAINBACK_QUOTA_MULTIPLIER` scales the hourly model-action budget for tester and invite access (including the shared tester) and the attempt limits for Studio, quantum and coach sessions. It is a bounded integer deployment setting, defaulting to one. The status/header reports the effective hourly quota, and each response reports remaining attempts against the effective session limit. Existing counters are retained, so deploying a new multiplier changes capacity without erasing spent requests or rewriting credentials. Authentication limits, concurrency, expiry, request sizes and provider timeouts are unaffected.
 - Update the complete access-code variable in the intended Vercel environment and create a new deployment to activate it; existing deployments retain their configuration. Configure Production and Preview with separate access-code secrets so updating one environment does not change the other's configured access. Validate every entry before updating because malformed or expired entries are skipped with positional warnings. Keep labels, quota plans and distribution records in private notes; code values and live invite links stay out of Git, as described in `docs/repo-guidelines.md`.
 
 ## Multi-turn and prompt caching

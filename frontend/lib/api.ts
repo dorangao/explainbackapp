@@ -73,7 +73,12 @@ export function useAuth() {
     authenticated.current = false;
     if (recoveryScope.current) revokeStudioRecovery(recoveryScope.current);
     recoveryScope.current = null;
-    setInfo((i) => ({ ...i, authenticated: false, recoveryScope: undefined }));
+    setInfo((i) => ({
+      ...i,
+      authenticated: false,
+      admin: false,
+      recoveryScope: undefined,
+    }));
     setStatus(null);
     setError(message);
     setIdentity((i) => i + 1);
@@ -107,6 +112,21 @@ export function useAuth() {
         loseAccess("TESTER_REQUIRED");
     }
   }, [loseAccess]);
+  // Fixed server expiry: refreshing never extends a trial. Poll for usage in other tabs.
+  const judgeExpiry =
+    status?.access?.kind === "judge" ? status.access.expiresAt : null;
+  useEffect(() => {
+    if (!judgeExpiry || !info.authenticated) return;
+    const expiry = window.setTimeout(
+      () => loseAccess("TESTER_REQUIRED"),
+      Math.max(0, judgeExpiry - Date.now()),
+    );
+    const poll = window.setInterval(() => void refresh(), 15000);
+    return () => {
+      clearTimeout(expiry);
+      clearInterval(poll);
+    };
+  }, [judgeExpiry, info.authenticated, loseAccess, refresh]);
   useEffect(() => {
     const mountedRef = mounted,
       versionRef = version;
@@ -163,14 +183,24 @@ export function useAuth() {
       setInfo((i) => ({
         ...i,
         authenticated: true,
+        admin: auth.admin === true,
         recoveryScope: auth.recoveryScope,
       }));
       setStatus(next);
+      setIdentity((i) => i + 1);
       return true;
     } catch (e) {
       if (mounted.current && token === version.current) {
+        // A rejected trial restart leaves its existing cookie and workspace valid.
+        if (
+          e instanceof ApiError &&
+          ["JUDGE_START_LIMIT", "JUDGE_DISABLED"].includes(e.code ?? "")
+        ) {
+          setError(e.code!);
+          return false;
+        }
         authenticated.current = false;
-        setInfo((i) => ({ ...i, authenticated: false }));
+        setInfo((i) => ({ ...i, authenticated: false, admin: false }));
         setStatus(null);
         setError(e instanceof ApiError ? e.code || "NETWORK" : "NETWORK");
       }
@@ -216,6 +246,15 @@ export function useAuth() {
             "/api/turn",
             "/api/studio/compose",
             "/api/studio/guide",
+            "/api/studio/ground",
+            "/api/studio/compare",
+            "/api/studio/tryout",
+            "/api/studio/show",
+            "/api/studio/illustrate",
+            "/api/studio/cover",
+            "/api/studio/judge",
+            "/api/studio/detect",
+            "/api/studio/transcribe",
             "/api/quantum/explain",
           ].includes(path)
         )
