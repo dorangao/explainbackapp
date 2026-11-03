@@ -9,6 +9,7 @@ import {
 } from "react";
 import { emptyTryoutUI, type TryoutUI } from "../lib/workspace";
 import { t } from "../lib/messages";
+import { answerPrecision } from "../lib/answer-precision";
 import {
   presentExperiment,
   rememberUnitSystem,
@@ -232,6 +233,21 @@ export function LessonPlayer({
     [base, units],
   );
   const e = presented.experiment;
+  const precision = answerPrecision(base, presented);
+  const precisionText =
+    precision?.kind === "round"
+      ? t(language, "LessonPlayer.answerPrecision")
+          .replace("{step}", precision.step)
+          .replace(
+            "{unit}",
+            shownUnit(e.transfer.unit) ? ` ${e.transfer.unit}` : "",
+          )
+      : precision?.kind === "authored"
+        ? t(language, "LessonPlayer.answerPrecisionUnits").replace(
+            "{unit}",
+            base.transfer.unit,
+          )
+        : t(language, "LessonPlayer.answerFullPrecision");
   const chapter = player.lesson.chapters[state.chapter],
     ownText = own[state.chapter] ?? "";
   const canvas = chapter.canvas;
@@ -469,6 +485,18 @@ export function LessonPlayer({
       setNotice(t(language, "LessonPlayer.useAValueWithinThe"));
     }
     return false;
+  }
+  function changeUnits(system: UnitSystem) {
+    rememberUnitSystem(system);
+    if (system === units) return;
+    setUnits(system);
+    // A numeric entry/result belongs to the unit in which it was supplied.
+    if (state.stage === "transfer") {
+      setAnswer("");
+      setResult(null);
+      player.editAnswer();
+      update();
+    }
   }
   return (
     <section
@@ -1023,6 +1051,7 @@ export function LessonPlayer({
                     {shownUnit(e.transfer.unit) && ` (${e.transfer.unit})`}
                     <input
                       value={answer}
+                      aria-describedby={`${formId}-answer-precision`}
                       onChange={(event) => {
                         setAnswer(event.target.value);
                         setResult(null);
@@ -1034,6 +1063,19 @@ export function LessonPlayer({
                       disabled={busy}
                     />
                   </label>
+                  <p className="fine" id={`${formId}-answer-precision`}>
+                    {precisionText}
+                  </p>
+                  {precision?.kind === "authored" && (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => changeUnits("metric")}
+                    >
+                      {t(language, "LessonPlayer.answerUseLessonUnits")}
+                    </button>
+                  )}
                   <button className="secondary" disabled={busy}>
                     {t(language, "LessonPlayer.checkAnswerLocally")}
                   </button>
@@ -1051,7 +1093,12 @@ export function LessonPlayer({
                     ? t(language, "LessonPlayer.enterAFiniteNumber")
                     : result
                       ? t(language, "LessonPlayer.thatMatchesThisModelReady")
-                      : t(language, "LessonPlayer.thatDoesNotMatchYet")}
+                      : t(
+                          language,
+                          e.transfer.type === "choice"
+                            ? "LessonPlayer.choiceDoesNotMatchYet"
+                            : "LessonPlayer.thatDoesNotMatchYet",
+                        )}
               </p>
             </section>
           )}
@@ -1209,10 +1256,7 @@ export function LessonPlayer({
                     className="secondary"
                     aria-pressed={units === system}
                     disabled={busy}
-                    onClick={() => {
-                      setUnits(system);
-                      rememberUnitSystem(system);
-                    }}
+                    onClick={() => changeUnits(system)}
                   >
                     {t(
                       language,

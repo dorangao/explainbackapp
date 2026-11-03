@@ -45,8 +45,43 @@ test("the fresh case separates new settings from the earlier experiment and stil
     name: "Your answer (°C)",
     exact: true,
   });
+  await expect(answer).toHaveAccessibleDescription(/nearest 0\.1 °C/);
   await answer.fill("22.987");
   await page.getByRole("button", { name: "Check answer locally" }).click();
+  await expect(page.locator(".answer-feedback")).toContainText(
+    "Check the fresh-case values",
+  );
+  await expect
+    .poll(() =>
+      page
+        .locator(".transfer-question")
+        .evaluate((el) => el.scrollWidth <= el.clientWidth),
+    )
+    .toBe(true);
+  await page
+    .locator(".transfer-question")
+    .screenshot({ path: "output/precision-en-phone.png" });
+  await expect(
+    page.getByRole("button", { name: /Finish lesson/ }),
+  ).toBeDisabled();
+  await page
+    .getByRole("button", { name: "US (°F, ft, lb)", exact: true })
+    .click();
+  const usAnswer = page.getByRole("textbox", {
+    name: "Your answer (°F)",
+    exact: true,
+  });
+  await expect(usAnswer).toHaveValue("");
+  await expect(usAnswer).toHaveAccessibleDescription(/nearest 0\.1 °F/);
+  await usAnswer.fill("140.9");
+  await page.getByRole("button", { name: "Check answer locally" }).click();
+  await expect(
+    page.getByRole("button", { name: /Finish lesson/ }),
+  ).toBeEnabled();
+  await page
+    .getByRole("button", { name: "Metric (°C, m, kg)", exact: true })
+    .click();
+  await expect(answer).toHaveValue("");
   await expect(
     page.getByRole("button", { name: /Finish lesson/ }),
   ).toBeDisabled();
