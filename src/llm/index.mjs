@@ -12,7 +12,11 @@ export function createProviderRouter({env=process.env,fetchImpl=globalThis.fetch
  const coordinator=endpoint?createOllamaCoordinator({baseUrl:endpoint,models:ollamaModels,fetchImpl,lockDir}):null;
  async function invoke(id,args,ops){
   const t=get(id);if(!t.configured)throw new Error('Selected provider is not configured.');
-  if(t.provider==='meta')return {...await metaCall({...args,model:t.model,apiKey:env.MODEL_API_KEY,timeoutMs:t.timeoutMs,fetchImpl}),provider:'meta'};
+  // A bilingual show script can exceed Spark's ordinary deadline. Keep this
+  // exception scoped to the server-built show schema; other turns retain their
+  // usual timeout, and the 55-second show budget can still reserve image time.
+  const timeoutMs=t.provider==='meta'&&t.model.startsWith('muse-spark')&&args.tools?.[0]?.name==='make_show'?45000:t.timeoutMs;
+  if(t.provider==='meta')return {...await metaCall({...args,model:t.model,apiKey:env.MODEL_API_KEY,timeoutMs,fetchImpl}),provider:'meta'};
   if(args.images)throw Object.assign(new Error('Image input needs a Meta model.'),{code:'IMAGE_UNSUPPORTED'});
   await ops.prepare(t.model,args.onTrace);
   try{return await ollamaCall({...args,baseUrl:endpoint,model:t.model,timeoutMs:t.timeoutMs,fetchImpl});}
