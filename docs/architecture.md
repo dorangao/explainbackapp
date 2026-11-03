@@ -35,12 +35,15 @@ flowchart LR
 
 The public evaluation card is built from `docs/evaluation.md` and documents methods and limits. Dated evaluation reports and operational measurements are kept in the separate private repository and are not linked from the public app. Selected lesson fixtures remain public and reviewable.
 
-The author and grounding response schemas carry the same text-length and collection
-bounds as their readers (`public/schema-text.mjs`, `public/lesson-schema.mjs`,
-`public/demo-model.mjs`, `src/lesson-ground.mjs`). These constraints are sent in the
-structured response format; local validation remains authoritative and does not trim
-overlong content into an acceptable response. Grounding errors identify the fact and
-field without echoing rejected values.
+The author, grounding, explain-back guide and test-learner (tryout) response schemas
+carry the same text-length and collection bounds as their readers
+(`public/schema-text.mjs`, `public/lesson-schema.mjs`, `public/demo-model.mjs`,
+`src/lesson-ground.mjs`, `src/lesson-author.mjs`, `src/lesson-tester.mjs`). The tryout
+schema also fixes its chapter array to the lesson's chapter count for each request,
+and the prompts keep shorter text targets than the reader limits. These constraints
+are sent in the structured response format; local validation remains authoritative
+and does not trim overlong content into an acceptable response. Grounding errors
+identify the fact and field without echoing rejected values.
 
 Numeric models are checked over continuous input/axis intervals. When a coarse interval
 cannot establish a valid domain, the checker subdivides the input box and recomputes all
