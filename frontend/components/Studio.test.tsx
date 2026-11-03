@@ -191,6 +191,26 @@ describe("Studio homepage entry", () => {
 });
 
 describe("Studio gallery playback", () => {
+  it("opens the public canvas example with its sketch beside the controls without requests", async () => {
+    const { calls } = mount({ lessonId: "sketch-pendulum" });
+    expect(
+      await screen.findByRole("region", { name: "Prediction canvas" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByAltText("Source sketch or photo").closest("aside"),
+    ).not.toBeNull();
+    expect(calls).toEqual([]);
+  });
+
+  it("links directly to the canvas example from the library", async () => {
+    mount();
+    expect(
+      (
+        await screen.findByRole("link", { name: "Try the canvas" })
+      ).getAttribute("href"),
+    ).toBe("#lesson:sketch-pendulum");
+  });
+
   it("opens a reviewed lesson signed out, completes it locally and keeps progress across a language change", async () => {
     const { calls, rerender } = mount({ lessonId: "web-cache" });
     expect(

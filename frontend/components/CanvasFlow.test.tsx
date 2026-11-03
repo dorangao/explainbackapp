@@ -4,7 +4,10 @@ import { useState } from "react";
 import { CanvasBindingEditor } from "./CanvasBindingEditor";
 import { PredictionCanvas } from "./PredictionCanvas";
 import { LessonPlayer } from "./LessonPlayer";
-import { coolingLesson } from "../../test-support/generated-lessons.mjs";
+import {
+  coolingLesson,
+  processLesson,
+} from "../../test-support/generated-lessons.mjs";
 import { chapterExperiment, createLessonPlayer } from "../lib/shared";
 import type {
   CanvasBinding,
@@ -17,6 +20,145 @@ import type {
 
 afterEach(cleanup);
 const demo = coolingLesson().chapters[0].demo as ModelDemo;
+it.each([
+  processLesson(),
+  {
+    version: 1,
+    title: { en: "Catalog lesson", zh: "目录课程" },
+    intro: { en: "A catalog experiment", zh: "目录实验" },
+    chapters: [
+      {
+        experiment: "acceleration",
+        framing: { en: "Compare motion", zh: "比较运动" },
+        explanation: { en: "Compare the distance", zh: "比较距离" },
+      },
+    ],
+  },
+])("keeps non-model lessons on their existing player", (lesson) => {
+  render(
+    <LessonPlayer
+      player={createLessonPlayer(lesson as Lesson)}
+      language="en"
+      visible
+      busy={false}
+      canAsk={false}
+      feedback={null}
+      onGuide={() => {}}
+      onClearFeedback={() => {}}
+      onBack={() => {}}
+      onLibrary={() => {}}
+    />,
+  );
+  expect(
+    screen.queryByRole("region", { name: "Prediction canvas" }),
+  ).toBeNull();
+  expect(screen.getByRole("button", { name: "Agree" })).toBeTruthy();
+});
+
+it("offers prediction drawing on a numeric lesson without a picture connection", () => {
+  const player = createLessonPlayer(coolingLesson() as Lesson);
+  const guide = vi.fn();
+  render(
+    <LessonPlayer
+      player={player}
+      language="en"
+      visible
+      busy={false}
+      canAsk
+      feedback={null}
+      onGuide={guide}
+      onClearFeedback={() => {}}
+      onBack={() => {}}
+      onLibrary={() => {}}
+    />,
+  );
+  expect(
+    screen.getByRole("region", { name: "Prediction canvas" }),
+  ).toBeTruthy();
+  for (const [label, value] of [
+    ["Start prediction", "80"],
+    ["Middle prediction", "50"],
+    ["End prediction", "20"],
+  ])
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Use these points" }));
+  expect(document.querySelector(".prediction-path")).not.toBeNull();
+  expect(document.querySelector(".calculated-curve")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Disagree" }));
+  fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Show final state" }));
+  fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+  fireEvent.change(screen.getByLabelText(/Explain what changed and why/), {
+    target: { value: "My straight prediction differs from the cooling curve." },
+  });
+  fireEvent.click(
+    screen.getByRole("button", { name: /Check my explanation with Muse/ }),
+  );
+  expect(guide).toHaveBeenCalledWith(
+    "My straight prediction differs from the cooling curve.",
+    { points: expect.arrayContaining([expect.objectContaining({ x: 0.5 })]) },
+  );
+  fireEvent.change(screen.getByLabelText("Initial temperature slider"), {
+    target: { value: "90" },
+  });
+  expect(player.state.stage).toBe("predict");
+  expect(document.querySelector(".prediction-path")).toBeNull();
+  expect(document.querySelector(".calculated-curve")).toBeNull();
+});
+
+it("keeps each output's prediction while switching quantities without changing controls", () => {
+  const lesson = coolingLesson() as Lesson;
+  (lesson.chapters[0].demo as ModelDemo).outputs.push({
+    id: "gap",
+    label: { en: "Temperature gap", zh: "温差" },
+    unit: "°C",
+    expression: "temp - ambient",
+  });
+  const player = createLessonPlayer(lesson);
+  render(
+    <LessonPlayer
+      player={player}
+      language="en"
+      visible
+      busy={false}
+      canAsk={false}
+      feedback={null}
+      onGuide={() => {}}
+      onClearFeedback={() => {}}
+      onBack={() => {}}
+      onLibrary={() => {}}
+    />,
+  );
+  for (const [label, value] of [
+    ["Start prediction", "80"],
+    ["Middle prediction", "50"],
+    ["End prediction", "20"],
+  ])
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Use these points" }));
+  const path = document.querySelector(".prediction-path")?.getAttribute("d");
+  fireEvent.click(screen.getByRole("button", { name: "Agree" }));
+  fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Show final state" }));
+  fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+  fireEvent.change(screen.getByLabelText("Graph output"), {
+    target: { value: "1" },
+  });
+  expect(player.state.stage).toBe("predict");
+  expect(
+    screen.getByRole("heading", { name: "Sketch your prediction" }),
+  ).toBeTruthy();
+  expect(document.querySelector(".prediction-path")).toBeNull();
+  expect(document.querySelector(".calculated-curve")).toBeNull();
+  fireEvent.change(screen.getByLabelText("Graph output"), {
+    target: { value: "0" },
+  });
+  expect(document.querySelector(".prediction-path")?.getAttribute("d")).toBe(
+    path,
+  );
+  expect(player.state.controls).toEqual({});
+});
+
 it("switching a canvas output clears old feedback and starts a new prediction", () => {
   const lesson = coolingLesson() as Lesson;
   const chapter = lesson.chapters[0];

@@ -1906,6 +1906,12 @@ export function Studio({
                 <a className="button secondary-button" href="#create">
                   {t(language, "Studio.createALesson")}
                 </a>
+                <a
+                  className="button secondary-button"
+                  href="#lesson:sketch-pendulum"
+                >
+                  {say(language, "Try the canvas", "试试画布")}
+                </a>
               </div>
             </div>
             <FeaturedLesson language={language} id="explainback" />

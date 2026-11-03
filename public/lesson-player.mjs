@@ -7,7 +7,7 @@ export function createLessonPlayer(input){
  return {lesson,get state(){return {...state,controls:{...state.controls}};},
   experiment(language='en'){return chapterExperiment(lesson.chapters[state.chapter],state.variant,language,state.controls,state.metric);},
   input(id,value){const controls={...state.controls,[id]:value};chapterExperiment(lesson.chapters[state.chapter],state.variant,'en',controls,state.metric);const metric=state.metric,variant=state.variant;reset(state.chapter);state.controls=controls;state.metric=metric;state.variant=variant;},
-  output(metric){chapterExperiment(lesson.chapters[state.chapter],state.variant,'en',state.controls,metric);state.metric=metric;},
+  output(metric){const e=chapterExperiment(lesson.chapters[state.chapter],state.variant,'en',state.controls,metric);state.metric=metric;if(e.kind==='model'){state.stage='predict';state.prediction=null;state.progress=0;state.transfer=null;}},
   predict(value){if(state.stage==='predict'&&['agree','disagree','unsure'].includes(value))state.prediction=value;},
   scrub(value){if(state.stage!=='experiment'||!Number.isFinite(value))return;const steps=this.experiment().steps;state.progress=Math.round(Math.max(0,Math.min(1,value))*steps)/steps;},
   variant(value){if(![0,1].includes(value))return;const chapter=state.chapter;reset(chapter);state.variant=value;},

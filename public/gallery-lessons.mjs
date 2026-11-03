@@ -64,7 +64,7 @@ export const galleryLessons=Object.freeze([
  // Drafted by Muse from the hand-drawn sketch at /gallery/pendulum-sketch.png (frozen image suite,
  // run of October 28, 2026). Author edits: a duplicated chapter removed, labels capitalised, unit symbol.
  {id:'sketch-pendulum',kind:'model',source:'muse-sketch',image:'/gallery/pendulum-sketch.png',
-  summary:bi('Muse read this hand-drawn pendulum sketch and built a lesson from it. Change gravity and test how the period depends on length.','Muse 读取这张手绘单摆草图并据此生成课程。调整重力加速度，检验周期如何随摆长变化。'),
+  summary:bi('Try the canvas: sketch how period changes with length, then compare your prediction with the model. Change gravity and try again.','试试画布：画出周期随摆长变化的预测，再与模型对比。调整重力加速度，重新尝试。'),
   lesson:{version:2,title:bi('Pendulum sketch: length and swing','单摆草图：摆长与摆动'),intro:bi('A simple pendulum from a sketch: a support, a string of length L, and a round bob on a curved path.','来自草图的单摆：支架、长度为 L 的摆线，以及沿弧线运动的圆形摆锤。'),chapters:[{experiment:'generated',
    framing:bi('The sketch shows a pendulum of length L swinging on an arc. How does the swing period change when L is made longer or shorter?','草图显示一个摆长为 L 的单摆沿圆弧摆动。当 L 变长或变短时，摆动周期如何变化？'),
    explanation:bi('The curve rises ever more slowly because the period is proportional to the square root of L. A longer string means a longer period under small-angle motion.','曲线上升越来越平缓，因为周期与摆长的平方根成正比。在小角度运动中，摆线越长，周期越长。'),
