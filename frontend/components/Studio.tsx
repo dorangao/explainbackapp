@@ -568,7 +568,7 @@ export function Studio({
       live = false;
     };
   }, [authenticated, savedId, savedItem?.id]);
-  // A gallery lesson is reviewed content: open it straight into the player.
+  // Shared and gallery reading always open a fresh personal learner attempt.
   const openedGallery = useRef<string | null>(null);
   const evaluationItem = lessonId ? evaluationLesson(lessonId) : null;
   useEffect(() => {
@@ -587,7 +587,6 @@ export function Studio({
     setSourceImage(item.image ?? null);
     // A shared lesson keeps its "shared" note; its sketch only feeds the Spotlight.
     if (external?.sketch) setSourceImage(external.sketch);
-    if (external) restoreRef.current(lesson, external, external.updatedAt);
     if (external?.show)
       setShow({
         reply: {
@@ -1279,9 +1278,7 @@ export function Studio({
     setMessage(t(language, "Studio.illustrationReady"));
     return true;
   }
-  // The shared-lesson effect above runs once per lesson and calls the latest copy.
-  const restoreRef = useRef(restoreResults);
-  restoreRef.current = restoreResults;
+  // Explicit author/edit reopening restores saved results. Shared reading does not.
   // Puts a saved tryout report and explain-back grades back into the caches. Keys are
   // the ones the caches use, so each result shows as fresh or stale against the live
   // lesson state exactly as before; no model request is made.
