@@ -491,8 +491,28 @@ export const messages = {
     zh: "检验这个观点 →",
   },
   "LessonPlayer.thatDoesNotMatchYet": {
-    en: "That does not match yet. Revisit the inputs and try again.",
-    zh: "还不相符，请重新检查输入并再次尝试。",
+    en: "That does not match yet. Check the fresh-case values, the answer unit and the rounding guidance, then try again.",
+    zh: "还不相符。请核对新情境的给定值、答案单位和精度提示后重试。",
+  },
+  "LessonPlayer.choiceDoesNotMatchYet": {
+    en: "That does not match yet. Reconsider the fresh case and try another choice.",
+    zh: "还不相符。请重新思考新情境，再试一个选项。",
+  },
+  "LessonPlayer.answerPrecision": {
+    en: "Round to the nearest {step}{unit}, or use more precision.",
+    zh: "请四舍五入到最接近的 {step}{unit}，也可保留更高精度。",
+  },
+  "LessonPlayer.answerFullPrecision": {
+    en: "Enter the full calculated value without rounding.",
+    zh: "请输入完整计算结果，不要四舍五入。",
+  },
+  "LessonPlayer.answerPrecisionUnits": {
+    en: "This unit conversion loses the precision needed here. Answer in the lesson's units ({unit}).",
+    zh: "单位换算会损失本题所需精度。请使用课程原单位（{unit}）作答。",
+  },
+  "LessonPlayer.answerUseLessonUnits": {
+    en: "Use lesson units",
+    zh: "使用课程原单位",
   },
   "LessonPlayer.thatMatchesThisModelReady": {
     en: "That matches this model. Ready for the next step.",
