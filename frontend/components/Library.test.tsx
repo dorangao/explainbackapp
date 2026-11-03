@@ -221,13 +221,17 @@ describe("Gallery catalog", () => {
     render(<Gallery language="en" />);
     await screen.findByText("23 lessons");
     const size = screen.getByRole("combobox", { name: "Lessons per page" });
-    expect(screen.getByRole("combobox", { name: "Order" })).toHaveProperty(
-      "disabled",
-      true,
-    );
     expect(
-      screen.getByRole("option", { name: "Not applicable" }),
-    ).toHaveProperty("selected", true);
+      screen.getByRole("button", {
+        name: "Sort order unavailable in default order",
+      }),
+    ).toHaveProperty("disabled", true);
+    const help = screen.getByLabelText("About sorting and page size");
+    fireEvent.click(help);
+    expect(help.closest("details")).toHaveProperty("open", true);
+    expect(
+      screen.getByText(/Lessons without a recorded date appear last/),
+    ).toBeTruthy();
     expect(size).toHaveProperty("value", "8");
     expect(document.querySelectorAll(".gallery-grid article").length).toBe(8);
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
@@ -288,12 +292,9 @@ describe("Gallery catalog", () => {
         .closest("article")
         ?.querySelector(".lesson-meta")?.textContent,
     ).toContain("Created");
-    expect(
-      screen.getByText(/Lessons without a recorded date appear last/),
-    ).toBeTruthy();
-    fireEvent.change(screen.getByRole("combobox", { name: "Order" }), {
-      target: { value: "asc" },
-    });
+    fireEvent.click(
+      screen.getByRole("button", { name: /Sort order: Newest first/ }),
+    );
     expect(titles().slice(0, 3)).toEqual(["Alpha", "Beta", "Zulu"]);
     fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
       target: { value: "updated" },
@@ -310,9 +311,7 @@ describe("Gallery catalog", () => {
       target: { value: "title" },
     });
     expect(titles()).toEqual(["Alpha", "Beta", "Zulu"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "Order" }), {
-      target: { value: "desc" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /Sort order: A to Z/ }));
     expect(titles()).toEqual(["Zulu", "Beta", "Alpha"]);
   });
   it("offers localized sorting and orders the displayed Chinese titles", async () => {
@@ -347,9 +346,7 @@ describe("Gallery catalog", () => {
         (h) => h.textContent,
       );
     expect(titles()).toEqual(["苹果", "香蕉"]);
-    fireEvent.change(screen.getByRole("combobox", { name: "顺序" }), {
-      target: { value: "desc" },
-    });
+    fireEvent.click(screen.getByRole("button", { name: /排序顺序：升序/ }));
     expect(titles()).toEqual(["香蕉", "苹果"]);
   });
   it("pages filtered results and searches older shared lessons across API pages", async () => {

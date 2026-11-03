@@ -774,6 +774,32 @@ export function Gallery({
     currentPage * pageSize,
     (currentPage + 1) * pageSize,
   );
+  const orderName = (value: SortOrder) =>
+    sortBy === "title"
+      ? language === "zh"
+        ? value === "asc"
+          ? "升序"
+          : "降序"
+        : value === "asc"
+          ? "A to Z"
+          : "Z to A"
+      : language === "zh"
+        ? value === "asc"
+          ? "从早到晚"
+          : "从晚到早"
+        : value === "asc"
+          ? "Oldest first"
+          : "Newest first";
+  const orderHint =
+    sortBy === "default"
+      ? language === "zh"
+        ? "默认顺序不适用排序方向"
+        : "Sort order unavailable in default order"
+      : language === "zh"
+        ? `排序顺序：${orderName(order)}。切换为${orderName(order === "asc" ? "desc" : "asc")}`
+        : `Sort order: ${orderName(order)}. Change to ${orderName(order === "asc" ? "desc" : "asc")}`;
+  const helpLabel =
+    language === "zh" ? "排序与分页说明" : "About sorting and page size";
   function changePage(next: number) {
     setPage(next);
     requestAnimationFrame(() => {
@@ -809,21 +835,44 @@ export function Gallery({
           <span className="facet-legend">
             {t(language, "Gallery.searchLessons")}
           </span>
-          <input
-            id={searchId}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t(language, "Gallery.searchPlaceholder")}
-            aria-label={t(language, "Gallery.searchLessons")}
-          />
+          <span className="catalog-search-field">
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="8.5" cy="8.5" r="5.5" />
+              <path d="m12.5 12.5 4 4" />
+            </svg>
+            <input
+              id={searchId}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t(language, "Gallery.searchPlaceholder")}
+              aria-label={t(language, "Gallery.searchLessons")}
+            />
+          </span>
         </label>
         <div className="catalog-sort">
-          <label>
-            <span className="facet-legend">
-              {language === "zh" ? "排序依据" : "Sort by"}
-            </span>
+          <label className="catalog-select catalog-sort-select">
+            <svg
+              className="catalog-control-icon"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 5h9M3 9h7M3 13h5M15 5v10m-3-3 3 3 3-3" />
+            </svg>
             <select
+              aria-label={language === "zh" ? "排序依据" : "Sort by"}
               value={sortBy}
               onChange={(event) => {
                 const next = event.target.value as SortBy;
@@ -832,57 +881,74 @@ export function Gallery({
               }}
             >
               <option value="default">
-                {language === "zh" ? "默认顺序" : "Default order"}
+                {language === "zh" ? "默认" : "Default"}
               </option>
               <option value="created">
-                {language === "zh" ? "创建时间" : "Date created"}
+                {language === "zh" ? "创建时间" : "Created"}
               </option>
               <option value="updated">
-                {language === "zh" ? "最近更新" : "Last updated"}
+                {language === "zh" ? "最近更新" : "Updated"}
               </option>
               <option value="title">
                 {language === "zh" ? "标题" : "Title"}
               </option>
             </select>
-          </label>
-          <label>
-            <span className="facet-legend">
-              {language === "zh" ? "顺序" : "Order"}
-            </span>
-            <select
-              value={order}
-              disabled={sortBy === "default"}
-              onChange={(event) => setOrder(event.target.value as SortOrder)}
+            <svg
+              className="catalog-chevron"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
-              <option value="asc">
-                {sortBy === "title"
-                  ? language === "zh"
-                    ? "升序"
-                    : "A to Z"
-                  : language === "zh"
-                    ? "从早到晚"
-                    : "Oldest first"}
-              </option>
-              <option value="desc">
-                {sortBy === "default"
-                  ? language === "zh"
-                    ? "不适用"
-                    : "Not applicable"
-                  : sortBy === "title"
-                    ? language === "zh"
-                      ? "降序"
-                      : "Z to A"
-                    : language === "zh"
-                      ? "从晚到早"
-                      : "Newest first"}
-              </option>
-            </select>
+              <path d="m4 6 4 4 4-4" />
+            </svg>
           </label>
-          <label>
-            <span className="facet-legend">
-              {language === "zh" ? "每页课程数" : "Lessons per page"}
-            </span>
+          <button
+            type="button"
+            className="catalog-direction"
+            aria-label={orderHint}
+            title={orderHint}
+            disabled={sortBy === "default"}
+            onClick={() =>
+              setOrder((value) => (value === "asc" ? "desc" : "asc"))
+            }
+          >
+            <svg
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {order === "asc" ? (
+                <path d="M10 16V4M6 8l4-4 4 4" />
+              ) : (
+                <path d="M10 4v12m-4-4 4 4 4-4" />
+              )}
+            </svg>
+          </button>
+          <label className="catalog-select catalog-size-select">
+            <svg
+              className="catalog-control-icon"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3.5" y="3.5" width="5" height="5" rx="1" />
+              <rect x="11.5" y="3.5" width="5" height="5" rx="1" />
+              <rect x="3.5" y="11.5" width="5" height="5" rx="1" />
+              <rect x="11.5" y="11.5" width="5" height="5" rx="1" />
+            </svg>
             <select
+              aria-label={language === "zh" ? "每页课程数" : "Lessons per page"}
               value={pageSize}
               onChange={(event) =>
                 setPageSize(Number(event.target.value) as 8 | 24 | 48)
@@ -892,7 +958,49 @@ export function Gallery({
               <option value={24}>24</option>
               <option value={48}>48</option>
             </select>
+            <svg
+              className="catalog-chevron"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m4 6 4 4 4-4" />
+            </svg>
           </label>
+          <details className="catalog-help">
+            <summary aria-label={helpLabel} title={helpLabel}>
+              <svg
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <circle cx="10" cy="10" r="7" />
+                <path d="M10 9v4m0-6h.01" />
+              </svg>
+            </summary>
+            <div className="catalog-help-panel">
+              <strong>
+                {language === "zh" ? "排序与分页" : "Sort and display"}
+              </strong>
+              <p>
+                {language === "zh"
+                  ? "选择排序依据，用箭头切换方向；方格选择每页课程数。"
+                  : "Choose a sort, use the arrow to reverse it, and choose how many lessons to show per page."}
+              </p>
+              <p>
+                {language === "zh"
+                  ? "未记录日期的课程排在最后。更新时间也可能反映分享或封面更改。"
+                  : "Lessons without a recorded date appear last. Updates can include sharing or cover changes."}
+              </p>
+            </div>
+          </details>
         </div>
         <fieldset className="facet">
           <legend className="facet-legend">
@@ -988,13 +1096,6 @@ export function Gallery({
           {shown.length} {t(language, "Gallery.lessonCount")}
         </span>
       </div>
-      {(sortBy === "created" || sortBy === "updated") && (
-        <p className="fine catalog-sort-note">
-          {language === "zh"
-            ? "未记录日期的课程排在最后。更新时间也可能反映分享或封面更改。"
-            : "Lessons without a recorded date appear last. Updates can include sharing or cover changes."}
-        </p>
-      )}
       {sharedLoading && (
         <p className="fine" role="status">
           {language === "zh"
