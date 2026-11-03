@@ -197,7 +197,11 @@ export const saveLesson = (
     // The creator reviewed the definition and assumptions of this exact content.
     reviewed?: boolean;
   },
-) => post<SavedSummary>("/api/lessons", body);
+) =>
+  post<SavedSummary & { illustrations?: Record<string, string> }>(
+    "/api/lessons",
+    body,
+  );
 export const shareLesson = (post: Post, id: string, shared: boolean) =>
   post<SavedSummary>("/api/lessons/share", { id, shared });
 export const deleteLesson = (post: Post, id: string) =>

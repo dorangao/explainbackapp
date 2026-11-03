@@ -1,6 +1,6 @@
 import {RequestError} from './request-error.mjs';
 import {publicCover} from './lesson-covers.mjs';
-import {buildSavedLesson,attachImages,lessonSummary,publicLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
+import {buildSavedLesson,attachImages,lessonSummary,publicLesson,sharedLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
 import {recordImageUrls} from './blob.mjs';
 // Saved and shared lessons. The server registers the public shared routes before its
 // sign-in gate and the creator routes after it; both share its reply and tracking helpers.
@@ -20,7 +20,7 @@ export function registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin=()
   app.get('/api/shared/:id', tracked(async (req,res) => {
     const record=validLessonId(req.params.id)?await state.getLesson(req.params.id):null;
     if(!record||record.shared!==true)return reply(res,404,{error:'This shared lesson is not available.'});
-    reply(res,200,withMine(res,record,publicLesson(record)));
+    reply(res,200,withMine(res,record,sharedLesson(record)));
   }));
 }
 export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmin=()=>false,reply,tracked,requireOrigin,parseBody}){
@@ -42,7 +42,7 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     const owner=ownerOf(res.locals.tester),body=req.body;
     if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     const editable=async({ownerOnly=false}={})=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||(record.owner!==owner&&(ownerOnly||!isAdmin(res.locals.tester))))throw new RequestError(404,'Saved lesson not found.');return record;};
-    if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id))throw new RequestError(404,'Saved lesson not found.');await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
+    if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id,record))throw new RequestError(409,'This lesson changed or was deleted. Reopen it before deleting.');await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
     if(req.path==='/api/lessons/share'){
       if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
       const previous=await editable({ownerOnly:true});
@@ -65,6 +65,6 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
       throw new RequestError(409,previous?'This lesson changed or was deleted while saving. Your draft is still available; reopen the saved lesson before updating it.':`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
     }
     await imageStore?.remove(stale);
-    reply(res,200,permissions(res.locals.tester,record));
+    reply(res,200,{...permissions(res.locals.tester,record),illustrations:record.illustrations??{}});
   }));
 }
