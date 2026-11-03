@@ -16,8 +16,10 @@ export function parseAccessCodes(raw,{now=Date.now}={}){
   if(!LABEL.test(label)||labels.has(label)){warnings.push(`entry ${i+1}: invalid or duplicate label`);return;}
   if(!CODE.test(code)){warnings.push(`entry ${i+1}: code needs 8–64 letters, digits or hyphens`);return;}
   if(!match){warnings.push(`entry ${i+1}: expiry must be YYYY-MM-DD`);return;}
-  const expiresAt=Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3])+1);
-  if(!Number.isFinite(expiresAt)||expiresAt<=now()){warnings.push(`entry ${i+1}: already expired`);return;}
+  const start=Date.parse(`${date}T00:00:00.000Z`);
+  if(!Number.isFinite(start)||new Date(start).toISOString().slice(0,10)!==date){warnings.push(`entry ${i+1}: invalid expiry date`);return;}
+  const expiresAt=start+24*60*60_000;
+  if(expiresAt<=now()){warnings.push(`entry ${i+1}: already expired`);return;}
   if(!Number.isInteger(quota)||quota<1||quota>MAX_CODE_QUOTA){warnings.push(`entry ${i+1}: quota must be 1–${MAX_CODE_QUOTA}`);return;}
   labels.add(label);codes.push(Object.freeze({label,code:normalizeCode(code),hash:digest(normalizeCode(code)).toString('hex'),expiresAt,quota}));
  });

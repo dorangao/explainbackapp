@@ -9,6 +9,13 @@ const DAY=24*60*60_000,today=()=>new Date().toISOString().slice(0,10);
 const future=days=>new Date(Date.now()+days*DAY).toISOString().slice(0,10);
 const env=`judges:7KQ4-MUSE-2026:${future(10)}:3, press:PRESS-CODE-1:${future(2)}:40`;
 
+test('access codes reject impossible expiry dates and honor valid leap days',()=>{
+ const parse=date=>parseAccessCodes(`sample:SAMPLE-CODE-1:${date}:5`,{now:()=>Date.UTC(2099,0,1)});
+ for(const date of ['2099-02-29','2099-02-31','2099-00-10','2099-13-01','2099-04-31'])assert.equal(parse(date).codes.length,0,date);
+ const valid=parse('2104-02-29').codes[0];
+ assert.equal(valid.expiresAt,Date.UTC(2104,2,1));
+});
+
 test('access codes parse by position, skip malformed entries and never keep expired ones',()=>{
  const {codes,warnings}=parseAccessCodes(env);
  assert.deepEqual(codes.map(c=>[c.label,c.code,c.quota]),[['judges','7KQ4-MUSE-2026',3],['press','PRESS-CODE-1',40]]);

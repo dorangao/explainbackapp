@@ -580,12 +580,12 @@ export function Studio({
         setSavedItem(summary);
       })
       .catch(() => {
-        if (live) setSavedId(null);
+        if (live) setMessage(t(language, "Library.savedDetailsUnavailable"));
       });
     return () => {
       live = false;
     };
-  }, [authenticated, savedId, savedItem?.id]);
+  }, [authenticated, savedId, savedItem?.id, language]);
   // Shared and gallery reading always open a fresh personal learner attempt.
   const openedGallery = useRef<string | null>(null);
   const evaluationItem = lessonId ? evaluationLesson(lessonId) : null;
@@ -1493,14 +1493,43 @@ export function Studio({
       setSavedId(summary.id);
       setSavedItem(summary);
       setShelfRefresh((n) => n + 1);
-      // Images in the browser now point at their stored copies, so a later save
-      // uploads nothing again and the draft in this browser stays small.
-      if (current && summary.cover && summary.cover !== current.cover)
-        setShow((prev) =>
-          prev
-            ? { ...prev, reply: { ...prev.reply, cover: summary.cover } }
-            : prev,
-        );
+      // Reuse the stored images on later saves. Only replace an image if it still
+      // matches the one sent; a newer edit made while saving must survive.
+      const storedIllustrations = summary.illustrations;
+      const savedShow =
+        current && show
+          ? {
+              ...show,
+              reply: {
+                ...show.reply,
+                cover: summary.cover ?? show.reply.cover,
+                illustrations: {
+                  ...show.reply.illustrations,
+                  ...storedIllustrations,
+                },
+              },
+            }
+          : show;
+      if (current && show)
+        setShow((prev) => {
+          if (!prev || prev.key !== show.key || prev.at !== show.at)
+            return prev;
+          const illustrations = { ...prev.reply.illustrations };
+          for (const [index, url] of Object.entries(storedIllustrations ?? {}))
+            if (illustrations[index] === current.illustrations?.[index])
+              illustrations[index] = url;
+          return {
+            ...prev,
+            reply: {
+              ...prev.reply,
+              cover:
+                summary.cover && prev.reply.cover === current.cover
+                  ? summary.cover
+                  : prev.reply.cover,
+              illustrations,
+            },
+          };
+        });
       if (summary.sketch && summary.sketch !== sourceImage)
         setSourceImage(summary.sketch);
       setSavedFingerprint(
@@ -1508,10 +1537,7 @@ export function Studio({
           draft: valid,
           draftModel,
           reviewed,
-          show:
-            current && summary.cover && show
-              ? { ...show, reply: { ...show.reply, cover: summary.cover } }
-              : show,
+          show: savedShow,
           tryout,
           guide,
           explanations,

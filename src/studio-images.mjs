@@ -7,6 +7,7 @@ import {validateLesson} from '../public/lesson-schema.mjs';
 import {validateShowScript,MAX_SAVED_PER_OWNER} from './lessons.mjs';
 import {illustrationPrompt} from './lesson-show.mjs';
 import {coverPrompt,coverPromptVersion,coverLesson} from './lesson-covers.mjs';
+import {recordImageUrls} from './blob.mjs';
 // The two image routes of a Lesson Studio session. Each receives the action handler's
 // context: the session `s`, request `body`, the signed-in `tester`, the budget bucket and
 // limit, the session lock, `save`, `json`, `quotaExceeded`, shared services and the
@@ -64,7 +65,9 @@ export async function drawCover(ctx){
     let previous=null;
     if(savedId){
       previous=owned.cover??null;
-      if(!await ctx.state.putLesson({...owned,cover:src,coverModel:image.model,coverDrawn:true,updatedAt:Date.now()},MAX_SAVED_PER_OWNER,owned)){if(src!==owned.cover)await ctx.imageStore?.remove([src]);throw new RequestError(409,'This lesson changed while saving its cover. Reopen it before trying again.');}
+      const next={...owned,cover:src,coverModel:image.model,coverDrawn:true,updatedAt:Date.now()};
+      if(!await ctx.state.putLesson(next,MAX_SAVED_PER_OWNER,owned)){if(src!==owned.cover)await ctx.imageStore?.remove([src]);throw new RequestError(409,'This lesson changed while saving its cover. Reopen it before trying again.');}
+      if(previous&&recordImageUrls(next).includes(previous))previous=null;
     }else{
       previous=(await ctx.state.getCovers())[lessonId]?.src??null;
       await ctx.state.putCover(lessonId,{src,model:image.model,createdAt,promptVersion:coverPromptVersion,owner:ctx.owner});

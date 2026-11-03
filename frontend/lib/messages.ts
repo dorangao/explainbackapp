@@ -1505,6 +1505,10 @@ export const messages = {
     en: "That lesson could not be opened. It may have been deleted.",
     zh: "无法打开这节课，它可能已被删除。",
   },
+  "Library.savedDetailsUnavailable": {
+    en: "Could not load the saved lesson details. Your recovered draft is still linked to that lesson, which may be unavailable. Try again or export your draft.",
+    zh: "无法加载已保存的课程详情。恢复的草稿仍关联该课程，但课程可能不可用。请重试或导出草稿。",
+  },
   "Library.couldNotUpdate": {
     en: "That change could not be saved. Try again.",
     zh: "无法保存该更改，请重试。",
