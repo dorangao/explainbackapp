@@ -25,6 +25,11 @@ export function decodeImageDataUrl(value,maxBytes=MAX_IMAGE_BYTES){
  return {bytes,format,contentType:formats[format]};
 }
 export const isBlobUrl=value=>{try{const u=new URL(value);return u.protocol==='https:'&&u.hostname.endsWith(BLOB_HOST_SUFFIX)&&!u.search&&!u.hash;}catch{return false;}};
+// The public host of the store a read-write token belongs to. The SDK builds every URL as
+// https://<store id>.public.blob.vercel-storage.com/… with the id taken from the token
+// (vercel_blob_rw_<store id>_<secret>), so a save is held to that one host: a URL on
+// someone else's store under a matching owner prefix is not ours.
+export const blobHostFor=token=>{const id=typeof token==='string'?token.split('_')[3]??'':'';return /^[A-Za-z0-9-]+$/.test(id)?id.toLowerCase()+BLOB_HOST_SUFFIX:null;};
 // `putImpl`/`delImpl` default to the Vercel SDK; tests inject fakes. Pass `token:null`
 // (or leave the environment unset) to get null, which means "not configured".
 export function createBlobStore({token=process.env.BLOB_READ_WRITE_TOKEN,putImpl,delImpl,listImpl,random=()=>randomBytes(12).toString('hex')}={}){
@@ -34,18 +39,23 @@ export function createBlobStore({token=process.env.BLOB_READ_WRITE_TOKEN,putImpl
  const del=delImpl??(async urls=>(await sdk()).del(urls));
  const list=listImpl??(async options=>(await sdk()).list(options));
  const prefix=owner=>`images/${ownerHash(owner)}/`;
+ // Pinned from the token; the first upload confirms it from the URL the SDK returns.
+ let host=blobHostFor(token);
  return {
   configured:true,
-  // True when this URL is a blob that `owner` may reference: our host, their prefix.
+  // True when this URL is a blob that `owner` may reference: our store, their prefix.
   owns(url,owner){
    if(!isBlobUrl(url))return false;
-   return new URL(url).pathname.startsWith('/'+prefix(owner));
+   const u=new URL(url);
+   if(host&&u.hostname!==host)return false;
+   return u.pathname.startsWith('/'+prefix(owner));
   },
   // Stores one decoded image for an owner and returns its public URL.
   async putImage({owner,bytes,format,contentType}){
    const pathname=`${prefix(owner)}${random()}.${format}`;
    const result=await put(pathname,bytes,{access:'public',token,contentType,addRandomSuffix:false,cacheControlMaxAge:31536000});
    if(!isBlobUrl(result?.url))throw new Error('Blob storage returned no URL.');
+   host=new URL(result.url).hostname;
    return result.url;
   },
   // Best effort: a failed delete leaves an orphan, never a failed request.

@@ -90,8 +90,10 @@ it("labels admin actions honestly and confirms before deleting", async () => {
   expect(post).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Yes, delete" }));
   await waitFor(() =>
-    expect(post).toHaveBeenCalledWith("/api/lessons/delete", {
-      id: "0123456789abcdef",
-    }),
+    expect(post).toHaveBeenCalledWith(
+      "/api/lessons/delete",
+      { id: "0123456789abcdef" },
+      { timeoutMs: 30_000 },
+    ),
   );
 });

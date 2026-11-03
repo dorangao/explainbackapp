@@ -579,8 +579,10 @@ export function Studio({
         const { lesson: _lesson, show: _show, ...summary } = record;
         setSavedItem(summary);
       })
-      .catch(() => {
-        if (live) setSavedId(null);
+      .catch((e: unknown) => {
+        // Only a copy that is really gone detaches the draft; a passing failure must
+        // not make the next Save create a second record beside the shared one.
+        if (live && e instanceof ApiError && e.status === 404) setSavedId(null);
       });
     return () => {
       live = false;
@@ -828,12 +830,22 @@ export function Studio({
             );
             retrievalFailures = 0;
           } catch (error) {
+            // A background creation is already paid for and may run for minutes, so a
+            // passing failure to retrieve it (a poll timeout, a dropped connection, a
+            // 502 while the provider is slow, a 409 while the previous poll's lock is
+            // still held) is retried; only a definite answer or a run of failures ends it.
+            const transient =
+              error instanceof ApiError
+                ? (error.status === 502 &&
+                    error.code !== "BACKGROUND_FAILED") ||
+                  error.status === 409
+                : error instanceof TypeError ||
+                  (error instanceof DOMException &&
+                    error.name === "TimeoutError");
             if (
               options.signal.aborted ||
-              !(error instanceof ApiError) ||
-              error.status !== 502 ||
-              error.code === "BACKGROUND_FAILED" ||
-              ++retrievalFailures >= 3
+              !transient ||
+              ++retrievalFailures >= 5
             )
               throw error;
           }
@@ -1617,6 +1629,10 @@ export function Studio({
       })
       .catch(() => {
         if (live) setMessage(t(language, "Library.editUnavailable"));
+      })
+      .finally(() => {
+        // The same link may be followed again later in this sign-in.
+        if (edited.current === editId) edited.current = null;
       });
     return () => {
       live = false;

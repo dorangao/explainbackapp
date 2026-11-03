@@ -337,6 +337,8 @@ export function LessonShelf({
                     <button
                       type="button"
                       className="text-button"
+                      // The Delete button that had focus is gone; keep the keyboard here.
+                      ref={(el) => el?.focus()}
                       onClick={() => setConfirming(null)}
                     >
                       {t(language, "Library.keep")}

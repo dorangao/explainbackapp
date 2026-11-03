@@ -15,7 +15,9 @@ export function createProviderRouter({env=process.env,fetchImpl=globalThis.fetch
   // A bilingual show script can exceed Spark's ordinary deadline. Keep this
   // exception scoped to the server-built show schema; other turns retain their
   // usual timeout, and the 55-second show budget can still reserve image time.
-  const timeoutMs=t.provider==='meta'&&t.model.startsWith('muse-spark')&&args.tools?.[0]?.name==='make_show'?45000:t.timeoutMs;
+  const deadlineMs=t.provider==='meta'&&t.model.startsWith('muse-spark')&&args.tools?.[0]?.name==='make_show'?45000:t.timeoutMs;
+  // A caller may shorten a call to what is left of its request budget, never lengthen it.
+  const timeoutMs=Number.isFinite(args.timeoutMs)&&args.timeoutMs>0?Math.min(args.timeoutMs,deadlineMs):deadlineMs;
   if(t.provider==='meta')return {...await metaCall({...args,model:t.model,apiKey:env.MODEL_API_KEY,timeoutMs,fetchImpl}),provider:'meta'};
   if(args.images)throw Object.assign(new Error('Image input needs a Meta model.'),{code:'IMAGE_UNSUPPORTED'});
   await ops.prepare(t.model,args.onTrace);

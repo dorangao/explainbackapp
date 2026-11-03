@@ -38,8 +38,10 @@ export function validateTryout(value,lesson){
  const chapters=value.chapters.map(c=>{
   if(!c||typeof c!=='object'||!['agree','disagree','unsure'].includes(c.prediction)||!text(c.reason,300)||!text(c.explanation,600)||!list(c.confusions,3,200)||!list(c.suggestions,3,200))throw new Error('Invalid tryout chapter.');
   const tr=c.transfer;
-  if(!tr||typeof tr!=='object'||typeof tr.given!=='string'||tr.given.length>80||typeof tr.correct!=='boolean'||!['number','choice'].includes(tr.type))throw new Error('Invalid tryout transfer.');
-  const unit=optional(tr.unit,20),choice=optional(tr.choice,200);if(unit===undefined||choice===undefined)throw new Error('Invalid tryout transfer.');
+  // Bounds match what the test learner's reader can produce: an answer of up to 200
+  // characters (lesson-tester.mjs) and a demo unit of up to 24 (demo-model.mjs).
+  if(!tr||typeof tr!=='object'||typeof tr.given!=='string'||tr.given.length>200||typeof tr.correct!=='boolean'||!['number','choice'].includes(tr.type))throw new Error('Invalid tryout transfer.');
+  const unit=optional(tr.unit,24),choice=optional(tr.choice,200);if(unit===undefined||choice===undefined)throw new Error('Invalid tryout transfer.');
   return {prediction:c.prediction,reason:c.reason.trim(),explanation:c.explanation.trim(),transfer:{given:tr.given.trim(),correct:tr.correct,type:tr.type,...(unit?{unit}:{}),...(choice!==null?{choice}:{})},confusions:c.confusions,suggestions:c.suggestions};
  });
  return {chapters,overall:value.overall.trim(),rating:value.rating,model,language:value.language};

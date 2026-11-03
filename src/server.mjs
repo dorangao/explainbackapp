@@ -97,7 +97,8 @@ export function createHandler({
   const defaultTarget=selected();
   // A hosted function has 60 s in all (vercel.json maxDuration). The show's cover call gets
   // what is left after the script call, and is skipped when that is too little to succeed.
-  const REQUEST_BUDGET_MS=55_000,MIN_IMAGE_MS=8_000;
+  // The budget leaves room for the Redis trips before the call and the upload after it.
+  const REQUEST_BUDGET_MS=53_000,MIN_IMAGE_MS=8_000;
   const imageBudgetMs=elapsedMs=>{const left=REQUEST_BUDGET_MS-elapsedMs;return left>=MIN_IMAGE_MS?Math.min(60_000,Math.round(left)):0;};
   // A drawn image goes to Blob storage under its creator when configured, so the browser
   // gets a short URL that a saved lesson can keep; otherwise the data URL as before.
