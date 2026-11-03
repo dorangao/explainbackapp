@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { Drawing, Experiment, Language } from "../lib/types";
 import { chartDomain } from "../../public/lesson-canvas.mjs";
 import { PredictionLayer } from "./PredictionLayer";
@@ -30,6 +31,15 @@ export function ExperimentView({
   drawing?: Drawing | null;
   onDrawing?: (drawing: Drawing) => void;
 }) {
+  // The curve depends on the experiment alone; the replay sweep re-renders this
+  // component every frame with a new progress, so the samples are kept between frames.
+  const points = useMemo(
+    () =>
+      e.kind === "process"
+        ? []
+        : Array.from({ length: e.steps + 1 }, (_, i) => e.sample(i / e.steps)),
+    [e],
+  );
   if (e.kind === "process")
     return (
       <div className="process-flow">
@@ -53,9 +63,6 @@ export function ExperimentView({
         ))}
       </div>
     );
-  const points = Array.from({ length: e.steps + 1 }, (_, i) =>
-    e.sample(i / e.steps),
-  );
   const { low, high } = chartDomain(e);
   const X = (v: number) => 64 + v * 548,
     Y = (v: number) => 224 - ((v - low) / (high - low)) * 188,

@@ -101,3 +101,22 @@ test('compare needs two different configured models and a valid topic',async t=>
  assert.equal((await two.post('/api/studio/compare',{sessionId:two.sessionId,topic:'x'.repeat(601)})).status,400);
  assert.equal((await two.post('/api/studio/compare',{sessionId:two.sessionId,topic:'Cooling',judge:'yes'})).status,400);
 });
+
+test('the judge gets what is left of the request budget and its failures are named, not quoted',async t=>{
+ const judgeCalls=[];
+ const {post,sessionId}=await setup(t,async(args,id)=>{
+  const name=args.tools[0].name;
+  if(name==='compose_lesson')return ready(id.includes('wonder')?coolingLesson():processLesson());
+  judgeCalls.push(args.timeoutMs);
+  if(judgeCalls.length===1)return judged(full);
+  throw new Error('upstream said: secret provider text');
+ });
+ const result=await(await post('/api/studio/compare',{sessionId,topic:'Why does coffee cool?'})).json();
+ assert.equal(judgeCalls.length,2);
+ for(const timeoutMs of judgeCalls){assert.equal(typeof timeoutMs,'number');assert.ok(timeoutMs>0&&timeoutMs<=55_000,`judge timeout ${timeoutMs} fits the request budget`);}
+ const failed=result.replies.find(r=>r.judge?.failure==='judge-failed');
+ assert.ok(failed,'the second judge call failed');
+ assert.doesNotMatch(JSON.stringify(result),/secret provider text/);
+ assert.equal(failed.judge.reason,'The judge did not answer in time or its reply was rejected.');
+ assert.equal(result.attemptsRemaining,4,'both judge calls were charged');
+});

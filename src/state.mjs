@@ -1,6 +1,11 @@
 import {randomUUID} from 'node:crypto';
 export const SESSION_TTL=30*60_000;
-export const LOCK_TTL=90_000; // Longer than the cloud provider's 30-second timeout.
+export const LOCK_TTL=90_000; // Longer than the hosted function's 60-second limit.
+// Live Studio sessions per sign-in bucket (one access code, or the tester account). One
+// bucket may not crowd the others out of the shared cap of 100: past its own cap, its
+// oldest session that is not inside a request is evicted to make room.
+export const MAX_SESSIONS_PER_BUCKET=30;
+export const sessionBucket=s=>s?.audience??'tester';
 export const snapshot=s=>structuredClone(Object.fromEntries(Object.entries(s).filter(([k])=>k!=='trace')));
 
 // Local development adapter. The cloud adapter implements the same contract in Redis.
@@ -14,7 +19,12 @@ export function createMemoryState({now=Date.now}={}){
  const prune=()=>{for(const [id,s] of sessions)if(now()-s.createdAt>=SESSION_TTL&&!locks.has(id))remove(id);};
  const owns=(id,token)=>sessions.has(id)&&locks.get(id)?.token===token;
  return {
-  async create(id,s){prune();if(sessions.size>=100)return false;sessions.set(id,snapshot(s));return true;},
+  async create(id,s){
+   prune();
+   const bucket=sessionBucket(s),own=[...sessions.entries()].filter(([,x])=>sessionBucket(x)===bucket).sort((a,b)=>a[1].createdAt-b[1].createdAt);
+   if(own.length>=MAX_SESSIONS_PER_BUCKET){const victim=own.find(([old])=>!locks.has(old));if(!victim)return false;remove(victim[0]);}
+   if(sessions.size>=100)return false;sessions.set(id,snapshot(s));return true;
+  },
   async get(id){prune();return sessions.has(id)?snapshot(sessions.get(id)):null;},
   async remove(id){remove(id);},
   revokeOwner(owner){for(const [id,s] of sessions)if(s.owner===owner)remove(id);},

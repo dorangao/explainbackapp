@@ -1,5 +1,5 @@
 import {createHash,randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
-import {SESSION_TTL,LOCK_TTL,snapshot} from './state.mjs';
+import {SESSION_TTL,LOCK_TTL,MAX_SESSIONS_PER_BUCKET,sessionBucket,snapshot} from './state.mjs';
 import {findAccessCode,audienceOf,audienceValid} from './access-codes.mjs';
 import {CLIENT_FAILURE_LIMIT,GLOBAL_FAILURE_LIMIT,FAILURE_WINDOW_MS,MAX_SESSIONS,clientKey} from './tester-auth.mjs';
 
@@ -61,6 +61,12 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    }
    const token=randomBytes(32).toString('hex'),id=digest(token).toString('hex'),previous=tokenId(cookie);
    const expiresAt=Math.min(now()+AUTH_TTL,audience?.expiresAt??Infinity),ttl=expiresAt-now(),bucket=audience?.label??'tester';
+   // The sign-in this one replaces leaves its own bucket's live-login set too, which may
+   // belong to a different code than the new sign-in's.
+   const previousValue=previous?await get(authKey(previous)):null;
+   let previousBucket=bucket;
+   if(previousValue==='1')previousBucket='tester';
+   else if(previousValue){try{previousBucket=JSON.parse(previousValue).audience?.label??'tester';}catch{}}
    const result=await run(`
     if tonumber(redis.call('GET',KEYS[1]) or '0')>=tonumber(ARGV[8]) then return 'rate' end
     if tonumber(redis.call('GET',KEYS[5]) or '0')>=tonumber(ARGV[9]) then return 'rate' end
@@ -70,9 +76,9 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
      return 'invalid' end
     redis.call('ZREMRANGEBYSCORE',KEYS[2],'-inf',ARGV[2])
     if redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[11]) and redis.call('EXISTS',KEYS[3])==0 then return 'capacity' end
-    redis.call('DEL',KEYS[1],KEYS[3]);redis.call('ZREM',KEYS[2],ARGV[4])
+    redis.call('DEL',KEYS[1],KEYS[3]);redis.call('ZREM',KEYS[2],ARGV[4]);redis.call('ZREM',KEYS[6],ARGV[4])
     redis.call('SET',KEYS[4],ARGV[7],'PX',ARGV[5]);redis.call('ZADD',KEYS[2],ARGV[3],ARGV[6]);redis.call('PEXPIRE',KEYS[2],ARGV[5]);return 'ok'
-   `,[key('login-failures',clientKey(client)),key('logins',bucket),authKey(previous??'none'),authKey(id),key('login-failures','all')],
+   `,[key('login-failures',clientKey(client)),key('logins',bucket),authKey(previous??'none'),authKey(id),key('login-failures','all'),key('logins',previousBucket)],
     [valid?'yes':'no',now(),expiresAt,previous??'none',ttl,id,audience?JSON.stringify({audience}):'1',CLIENT_FAILURE_LIMIT,GLOBAL_FAILURE_LIMIT,'1',audience?MAX_SESSIONS.code:MAX_SESSIONS.tester,FAILURE_WINDOW_MS]);
    if(result==='rate')fail(429,'TESTER_RATE','Too many login attempts. Try again in one minute.');
    if(result==='invalid'){if(body?.code!==undefined)fail(401,'ACCESS_CODE','This access code is not valid or has expired.');fail(401,'TESTER_CREDENTIALS','Username or password is incorrect.');}
@@ -83,15 +89,34 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
  };
  const sessionKey=id=>key('session',id),lockKey=id=>key('lock',id),traceKey=id=>key('trace',id);
  const lessonKey=id=>key('lesson',id),ownerLessonsKey=owner=>key('owner-lessons',digest(owner).toString('hex').slice(0,32));
+ const evict=(id,bucketKey)=>run("redis.call('DEL',KEYS[1],KEYS[2],KEYS[3]);redis.call('ZREM',KEYS[4],ARGV[1]);redis.call('ZREM',KEYS[5],ARGV[1]);return 1",[sessionKey(id),traceKey(id),lockKey(id),key('sessions'),bucketKey],[id]);
  const readLessons=async ids=>{if(!Array.isArray(ids)||!ids.length)return [];const values=await command(['MGET',...ids.map(lessonKey)]);return values.map(v=>{try{return v?JSON.parse(v):null;}catch{return null;}}).filter(Boolean);};
  const state={
-  async create(id,s){return await run(`
-   if redis.call('EXISTS',KEYS[3])==0 then return 0 end
-   redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]);if redis.call('ZCARD',KEYS[1])>=100 then return 0 end
-   redis.call('SET',KEYS[2],ARGV[4],'PX',ARGV[5]);redis.call('ZADD',KEYS[1],ARGV[2],ARGV[3]);redis.call('PEXPIRE',KEYS[1],ARGV[5]);return 1
-  `,[key('sessions'),sessionKey(id),authKey(s.owner)],[now(),s.createdAt+SESSION_TTL,id,JSON.stringify(snapshot(s)),SESSION_TTL])===1;},
+  // A session sits in the shared zset and in its sign-in bucket's zset (see
+  // MAX_SESSIONS_PER_BUCKET); both are scored by expiry and pruned on each create.
+  async create(id,s){
+   const bucketKey=key('sessions-by',sessionBucket(s));
+   const attempt=()=>run(`
+    if redis.call('EXISTS',KEYS[3])==0 then return 0 end
+    redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]);redis.call('ZREMRANGEBYSCORE',KEYS[4],'-inf',ARGV[1])
+    if redis.call('ZCARD',KEYS[4])>=tonumber(ARGV[6]) then return 'full' end
+    if redis.call('ZCARD',KEYS[1])>=100 then return 0 end
+    redis.call('SET',KEYS[2],ARGV[4],'PX',ARGV[5]);redis.call('ZADD',KEYS[1],ARGV[2],ARGV[3]);redis.call('ZADD',KEYS[4],ARGV[2],ARGV[3])
+    redis.call('PEXPIRE',KEYS[1],ARGV[5]);redis.call('PEXPIRE',KEYS[4],ARGV[5]);return 1
+   `,[key('sessions'),sessionKey(id),authKey(s.owner),bucketKey],[now(),s.createdAt+SESSION_TTL,id,JSON.stringify(snapshot(s)),SESSION_TTL,MAX_SESSIONS_PER_BUCKET]);
+   let result=await attempt();
+   if(result==='full'){
+    // The bucket is at its cap: evict its oldest session that is not inside a request.
+    const ids=await run("return redis.call('ZRANGE',KEYS[1],0,-1)",[bucketKey]);
+    for(const old of Array.isArray(ids)?ids:[]){
+     if(await get(lockKey(old)))continue;
+     await evict(old,bucketKey);result=await attempt();break;
+    }
+   }
+   return result===1;
+  },
   async get(id){const value=await get(sessionKey(id));return value?JSON.parse(value):null;},
-  async remove(id){await run("redis.call('DEL',KEYS[1],KEYS[2],KEYS[3]);redis.call('ZREM',KEYS[4],ARGV[1]);return 1",[sessionKey(id),traceKey(id),lockKey(id),key('sessions')],[id]);},
+  async remove(id){let s=null;try{s=await state.get(id);}catch{}await evict(id,key('sessions-by',sessionBucket(s)));},
   async acquire(id){const token=randomUUID();return await run("if redis.call('EXISTS',KEYS[1])==0 then return 0 end;return redis.call('SET',KEYS[2],ARGV[1],'NX','PX',ARGV[2])",[sessionKey(id),lockKey(id)],[token,LOCK_TTL])==='OK'?token:null;},
   async release(id,token){await run("if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) end;return 0",[lockKey(id)],[token]);},
   async save(id,s,token,rows){return await run(`

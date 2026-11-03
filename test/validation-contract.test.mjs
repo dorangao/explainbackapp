@@ -45,7 +45,9 @@ test('tryout response schema bounds fields to the reader limits and fixes the ch
   assert.equal(field.minLength,1);assert.equal(field.maxLength,limit);
  }
  assert.equal(chapter.confusions.maxItems,3);assert.equal(chapter.suggestions.maxItems,3);
- assert.equal(chapter.transferAnswer.minLength,1);assert.equal(chapter.transferAnswer.maxLength,undefined);
+ // The answer shares its bound with the save validator (src/lessons.mjs), so a report
+ // the reader accepts can always be saved.
+ assert.equal(chapter.transferAnswer.minLength,1);assert.equal(chapter.transferAnswer.maxLength,200);
  // The reader still enforces the same limits on decoded replies.
  const lesson=coolingLesson(),ok={prediction:'agree',reason:'Fine.',explanation:'Fine.',transferAnswer:'1',confusions:[],suggestions:[]};
  const report=(chapters,overall='Clear enough.')=>({structured:{name:'try_lesson',value:{chapters,overall,rating:4}}});

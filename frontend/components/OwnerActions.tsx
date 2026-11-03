@@ -72,6 +72,8 @@ export function OwnerActions({
             type="button"
             className="text-button"
             disabled={deleting}
+            // The Delete button that had focus is gone; keep the keyboard here.
+            ref={(el) => el?.focus()}
             onClick={() => setConfirming(false)}
           >
             {t(language, "Library.keep")}

@@ -40,7 +40,8 @@ every minute without spending anything.
 | Draft or show times out | Provider work exceeded the configured request or job deadline | For background creation, keep the page open and let polling finish before starting another request. If it fails, check provider availability and configuration before retrying. |
 | Images missing from saved lessons | `BLOB_READ_WRITE_TOKEN` missing, or the store is unreachable | The app says images were not kept and saves the lesson without them. Set the token in the Vercel project and redeploy. |
 | SAM Spotlight or the microphone control is hidden | The feature is disabled when its model call is not configured | Both need `MODEL_API_KEY`; the microphone also needs a secure context and the user's permission. |
-| Orphaned images on Blob | Test runs or deleted shelves before the delete-on-remove rule | Run `node scripts/prune-blobs.mjs` with the token and Redis variables in the environment; it lists first and deletes only with `--live` (default: images older than 7 days that no saved lesson uses). |
+| Orphaned images on Blob | Test runs or deleted shelves before the delete-on-remove rule | Run `node scripts/prune-blobs.mjs` with the token and Redis variables in the environment; it lists first and deletes only with `--live` (default: images older than 7 days that no saved lesson in any environment uses). |
+| Every saved lesson and share link disappeared after a deployment | The tester username or password changed. Every Redis key, including saved lessons, is namespaced by a hash of those credentials so that old cookies die with them | Restore the previous credentials to see the records again. Rotating the tester credentials needs a copy of the `lesson:*`, `owner-lessons:*`, `shared-lessons` and `covers` keys into the new prefix first; without it the saved lessons are invisible and `prune-blobs.mjs` will treat their images as orphans after seven days. |
 
 ## Changing configuration
 

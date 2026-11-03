@@ -197,15 +197,26 @@ export const saveLesson = (
     // The creator reviewed the definition and assumptions of this exact content.
     reviewed?: boolean;
   },
+  // A save may carry a sketch and images of a few megabytes and the server uploads
+  // them one by one, so it gets longer than the default request timeout.
 ) =>
   post<SavedSummary & { illustrations?: Record<string, string> }>(
     "/api/lessons",
     body,
+    { timeoutMs: 60_000 },
   );
 export const shareLesson = (post: Post, id: string, shared: boolean) =>
-  post<SavedSummary>("/api/lessons/share", { id, shared });
+  post<SavedSummary>(
+    "/api/lessons/share",
+    { id, shared },
+    { timeoutMs: 30_000 },
+  );
 export const deleteLesson = (post: Post, id: string) =>
-  post<{ deleted: true; id: string }>("/api/lessons/delete", { id });
+  post<{ deleted: true; id: string }>(
+    "/api/lessons/delete",
+    { id },
+    { timeoutMs: 30_000 },
+  );
 // Copies a share link; falls back to the system share sheet where the clipboard is blocked.
 export async function copyText(text: string): Promise<boolean> {
   try {

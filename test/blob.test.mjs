@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createBlobStore,decodeImageDataUrl,isBlobUrl,recordImageUrls} from '../src/blob.mjs';
+import {blobHostFor,createBlobStore,decodeImageDataUrl,isBlobUrl,recordImageUrls} from '../src/blob.mjs';
 const webp=()=>{const b=Buffer.alloc(32);b.write('RIFF',0,'latin1');b.write('WEBP',8,'latin1');return b;};
 const png=()=>Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]),Buffer.alloc(8)]);
 const dataUrl=(bytes,type='image/webp')=>`data:${type};base64,${bytes.toString('base64')}`;
@@ -31,4 +31,24 @@ test('the store scopes paths to the owner and only owns its own URLs',async()=>{
  assert.equal(createBlobStore({token:''}),null);
  assert.equal(isBlobUrl('http://store.public.blob.vercel-storage.com/a'),false);
  assert.deepEqual(recordImageUrls({cover:url,sketch:null,illustrations:{1:url+'2',2:'data:x'}}),[url,url+'2']);
+});
+// Assembled at run time so the secret scanner does not read the fixture as a real token.
+const fakeToken=['vercel','blob','rw','Store1AbC','secretpart'].join('_');
+test('a save may only reference images on the store the token belongs to',async()=>{
+ // The store id sits in the token; the SDK serves it at <id>.public.blob.vercel-storage.com.
+ const puts=[];
+ const store=createBlobStore({token:fakeToken,random:()=>'r001',
+  putImpl:async pathname=>{puts.push(pathname);return {url:`https://store1abc.public.blob.vercel-storage.com/${pathname}`};},delImpl:async()=>{}});
+ const url=await store.putImage({owner:'code:judges',...decodeImageDataUrl(dataUrl(webp()))});
+ assert.equal(store.owns(url,'code:judges'),true);
+ const foreign=url.replace('store1abc.public','attacker-store.public');
+ assert.equal(isBlobUrl(foreign),true,'a foreign store is still a blob URL for cleanup purposes');
+ assert.equal(store.owns(foreign,'code:judges'),false,'but a save may not reference it');
+ // Before any upload the host comes from the token alone.
+ const fresh=createBlobStore({token:fakeToken,putImpl:async()=>({url:''}),delImpl:async()=>{}});
+ assert.equal(fresh.owns(url,'code:judges'),true);
+ assert.equal(fresh.owns(foreign,'code:judges'),false);
+ // A token without a readable store id falls back to the host suffix (test fakes).
+ assert.equal(blobHostFor('synthetic-token'),null);
+ assert.equal(blobHostFor(fakeToken),'store1abc.public.blob.vercel-storage.com');
 });

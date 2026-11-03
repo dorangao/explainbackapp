@@ -11,6 +11,9 @@ import {scoreOpenReply} from './eval/studio.mjs';
 // on the session budget: two drafts, then up to two judge scores. The judge is the tester
 // role (Spark) unless the body names the other compared model's id.
 const usage=u=>u?{input:u.input_tokens??null,output:u.output_tokens??null}:null;
+// The hosted function has 60 s in all; the judge gets what the drafts left of this budget
+// and is skipped when that is too little for a Spark turn to finish.
+const REQUEST_BUDGET_MS=55_000,MIN_JUDGE_MS=8_000;
 const reserveBudget=async ctx=>{
  if(ctx.s.attempts>=ctx.sessionLimit)return false;
  // Reserve synchronously: parallel judges must not both claim the final slot
@@ -66,17 +69,20 @@ export async function compareDrafts(ctx){
     // own draft as well as the other model's.
     const judgeOne=async reply=>{
       if(!wantJudge||reply.status!=='ready'||!judgeTarget?.configured)return;
+      const left=REQUEST_BUDGET_MS-Math.round(performance.now()-startedAt);
+      if(left<MIN_JUDGE_MS){reply.judge={failure:'time',reason:'No time left in this request for the judge.'};return;}
       if(!await reserveBudget(ctx)){reply.judge={failure:'budget',reason:'No request left for the judge.'};return;}
       const item={topic,language:/[㐀-鿿]/.test(topic)?'zh':'en',category:reply.kind};
       const request=lessonJudgeRequest(item,reply.response,{grounded});
       const call=trace?.start({provider:judgeTarget.provider,model:judgeTarget.model,input:request.input,instructions:request.instructions});
       try{
         await trace?.flush();
-        const raw=await ctx.invoke(judgeTarget,{...request,promptCacheKey:'explainback-judge',...(call?{onTrace:call.event}:{})});
+        const raw=await ctx.invoke(judgeTarget,{...request,promptCacheKey:'explainback-judge',timeoutMs:left,...(call?{onTrace:call.event}:{})});
         reply.judge={...readLessonJudge(raw,{grounded}),model:raw.model??judgeTarget.model,version:judgeVersionFor(grounded)};call?.finish('accepted');
       }catch(error){
         if(error instanceof RequestError)throw error;
-        call?.finish('failed or rejected');reply.judge={failure:'judge-failed',reason:String(error?.message??'').slice(0,120)};
+        // Provider text never reaches the browser; the failure is named, not quoted.
+        call?.finish('failed or rejected');reply.judge={failure:'judge-failed',reason:'The judge did not answer in time or its reply was rejected.'};
       }
     };
     await Promise.all(replies.map(judgeOne));
