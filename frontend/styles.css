@@ -3022,6 +3022,25 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.catalog-sort {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  min-width: 0;
+}
+.catalog-sort label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.app-shell .catalog-sort select {
+  width: auto;
+  max-width: 100%;
+  min-height: 44px;
+}
+.catalog-sort-note {
+  margin: -8px 0 16px;
+}
 .catalog-filters {
   display: flex;
   flex-wrap: wrap;

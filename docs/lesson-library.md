@@ -26,6 +26,7 @@ Added October 28, 2026 Pacific. A signed-in creator (a reviewer invite or the te
 ## Catalog
 
 - A search box matches titles and summaries in both languages, so a Chinese reader finds an English-titled shared lesson and vice versa.
+- **Sort by** offers the default library order, creation date, last update, or the title in the selected language, in ascending or descending order. Sorting applies after search and filters and before paging; changing it returns to the first page. Only creator-shared records have stored creation and update dates; undated built-in and evaluation entries appear last in either date direction. The cards show the selected date, and a last update can reflect sharing or cover changes as well as a lesson edit.
 - Filters: a Type row (All, Adjustable models, Process explorers, Experiment series), a Source row (Any, Reviewed, From the evaluation, Shared), a Depth row (Any, Self-checked, Coached by Muse) and two toggles (With a show, From a sketch). On phones the Type row scrolls sideways and the other rows fold behind More filters, while a compact introductory tour stays above the library. The two hand-built benches (Physics & math, Quantum computing) are listed as coached lessons: Muse confirms the claim, reads the reasoning and asks the next question at each stage, so those stages need preview access. Reviewed, evaluation and shared lessons sit in one grid on one card; the source badge, the meta line and the note under each card say where it came from. The count updates live and an empty result says so.
 
 ## Server
