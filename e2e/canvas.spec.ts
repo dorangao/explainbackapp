@@ -39,6 +39,68 @@ async function createCanvas(page: Page, manual = false) {
   await page.getByRole("button", { name: "Present this lesson →" }).click();
 }
 
+test("revisions retain an unchanged connection and disclose a changed control", async ({
+  page,
+}) => {
+  await createCanvas(page);
+  await page
+    .getByRole("button", { name: "Back to Create", exact: true })
+    .click();
+  let revisions = 0;
+  await page.route("**/api/studio/compose", async (route) => {
+    const lesson = structuredClone(route.request().postDataJSON().draft);
+    delete lesson.chapters[0].canvas;
+    lesson.chapters[0].explanation.en =
+      "A clearer explanation of the same model.";
+    if (++revisions === 2) lesson.chapters[0].demo.inputs[0].max = 110;
+    await route.fulfill({
+      json: {
+        status: "ready",
+        lesson,
+        message: { en: "Ready", zh: "已就绪" },
+        attemptsRemaining: 6,
+      },
+    });
+  });
+  await page
+    .getByLabel("Ask Muse to revise this draft")
+    .fill("Clarify the explanation");
+  await page
+    .getByRole("button", { name: "Revise lesson & demo", exact: true })
+    .click();
+  const review = page.getByRole("checkbox", { name: /I reviewed/ });
+  await expect(page.getByText(/Revision ready/)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Remove connection", exact: true }),
+  ).toBeVisible();
+  await expect(review).not.toBeChecked();
+  await expect(page.locator(".revision-summary")).not.toContainText(
+    "Picture connection",
+  );
+  await page
+    .getByLabel("Ask Muse to revise this draft")
+    .fill("Change the initial-temperature range");
+  await page.getByRole("button", { name: /Send changes to Muse/ }).click();
+  await expect(
+    page.getByText(/Some picture connections were removed/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Remove connection", exact: true }),
+  ).toHaveCount(0);
+  await expect(review).not.toBeChecked();
+  const removed = page.locator('.revision-summary li[data-kind="removed"]');
+  await expect(removed).toContainText("Picture connection");
+  await expect(removed).toContainText("cup");
+  await expect(
+    page.getByRole("img", { name: "Source sketch or photo", exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Language / 语言").selectOption("zh");
+  await expect(removed).toContainText("图片关联");
+  await page
+    .locator(".revision-summary")
+    .screenshot({ path: "output/playwright/canvas-revision-diff.png" });
+});
+
 test("image → confirmed connection → pointer prediction → recomputed feedback; reload and changed controls", async ({
   page,
 }) => {

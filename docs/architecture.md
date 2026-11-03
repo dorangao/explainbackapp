@@ -62,6 +62,10 @@ Saved-lesson updates compare the exact snapshot read before image work with the 
 
 Changes to learner-facing content invalidate review and mark the prior attempt outdated. It remains available in recovery until the creator explicitly starts a new tryout after review. Title and display-unit changes preserve the attempt. Unapplied definition edits block save and tryout until applied or discarded. In-flight requests remain associated with their current working lesson; choosing to stop before moving on invalidates late replies. Ordinary area switching keeps the request active, with editors disabled during mutations. Public gallery and shared lessons retain their standalone player and existing access rules.
 
+A model revision carries a creator-confirmed image/control connection only when the entire numeric demo has one exact match in each lesson. Canonical JSON comparison ignores object-key order, while matching independently of chapter position permits unambiguous reordering. Changed or ambiguous demos lose confirmation; a revision notice reports removals and the bilingual diff describes connection additions, removals and edits. Model-supplied connection fields cannot replace the creator's confirmation. Source-image retention, earlier learner attempts and renewed review continue through the existing workspace flow.
+
+Shared-link reading starts a new personal learner attempt for every reader, including an owner or administrator. It loads the lesson, source image and show without restoring the creator's saved explanation or feedback caches. Explicit authoring through the saved shelf or edit route restores those results; ownership/management permission alone does not identify a continuation of the creator's attempt. Stored grades and server access rules are unchanged.
+
 ## Technology stack
 
 | Layer | Technology and role | Source of truth |

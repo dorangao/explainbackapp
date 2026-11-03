@@ -27,6 +27,7 @@ vi.mock("../lib/recorder", () => ({
   blobToBase64: async () => "QUJD",
 }));
 import type { Lesson, Post, Status } from "../lib/types";
+import type { SavedLesson } from "../lib/library";
 import { ApiError } from "../lib/api";
 import {
   coolingLesson,
@@ -1403,81 +1404,192 @@ describe("Search first", () => {
   });
 });
 
-describe("Reopening a saved lesson", () => {
-  it("restores the learner tryout and an explain-back grade without any provider request", async () => {
-    const lesson = coolingLesson();
-    shelf.record = {
-      id: "0123456789abcdef",
-      title: lesson.title,
-      intro: lesson.intro,
-      kind: "model",
-      hasShow: false,
-      hasTryout: true,
-      graded: 1,
-      model: "test",
-      cover: null,
-      sketch: null,
-      shared: false,
-      createdAt: 1,
-      updatedAt: 2,
-      lesson,
-      show: null,
-      coverModel: null,
-      illustrations: {},
-      tryout: {
-        chapters: [
-          {
-            prediction: "disagree",
-            reason: "The gap shrinks.",
-            explanation: "Cooling follows the gap.",
-            transfer: {
-              given: "18",
-              correct: true,
-              type: "number",
-              unit: "°C",
-            },
-            confusions: [],
-            suggestions: ["Label the axis."],
-          },
-        ],
-        overall: "Short and clear.",
-        rating: 4,
+describe("Shared learner attempts", () => {
+  it.each([
+    { role: "guest", authenticated: false, mine: false, canManage: false },
+    {
+      role: "signed-in non-owner",
+      authenticated: true,
+      mine: false,
+      canManage: false,
+    },
+    {
+      role: "owner reading a shared link",
+      authenticated: true,
+      mine: true,
+      canManage: false,
+    },
+    {
+      role: "administrator reading a shared link",
+      authenticated: true,
+      mine: false,
+      canManage: true,
+    },
+  ])(
+    "starts fresh for $role without replacing their own new text on a record refresh",
+    async ({ authenticated, mine, canManage }) => {
+      const lesson = coolingLesson() as Lesson;
+      const record: SavedLesson = {
+        id: "0123456789abcdef",
+        lesson,
+        title: lesson.title,
+        intro: lesson.intro,
+        kind: "model",
+        hasShow: false,
+        hasTryout: false,
+        graded: 1,
         model: "test",
-        language: "en",
-      },
-      grades: {
-        "0": {
-          explanation: "It cools faster when hotter.",
-          feedback: "Right: the rate follows the gap.",
-          verdict: "supported",
-          followUp: "What happens near room temperature?",
+        cover: null,
+        coverModel: null,
+        illustrations: {},
+        sketch: null,
+        show: null,
+        shared: true,
+        mine,
+        canManage,
+        reviewedAt: 1,
+        createdAt: 1,
+        updatedAt: 2,
+        tryout: null,
+        grades: {
+          "0": {
+            explanation: "The creator's saved explanation.",
+            feedback: "The creator's saved feedback.",
+            verdict: "supported",
+            followUp: "The creator's saved follow-up?",
+            model: "test",
+            language: "en",
+            key: "old-context",
+          },
+        },
+      };
+      const { calls, rerender } = mount({
+        authenticated,
+        status: authenticated ? status : null,
+        lessonId: `shared:${record.id}`,
+        external: record,
+      });
+      fireEvent.click(await screen.findByRole("button", { name: "Disagree" }));
+      fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+      fireEvent.click(screen.getByRole("button", { name: "Show final state" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: /Explain the result/ }),
+      );
+      const answer = screen.getByRole("textbox", {
+        name: "Explain what changed and why, in your own words",
+      });
+      expect(answer).toHaveProperty("value", "");
+      expect(
+        screen.queryByText(/Inputs changed since the last response/),
+      ).toBeNull();
+      expect(screen.queryByText(/earlier feedback is out of date/)).toBeNull();
+      expect(document.querySelector(".model-feedback")).toBeNull();
+      fireEvent.change(answer, {
+        target: { value: "My own new explanation." },
+      });
+      const refreshed = structuredClone(record);
+      refreshed.updatedAt = 3;
+      refreshed.grades["0"].explanation = "Another creator revision.";
+      rerender({ external: refreshed });
+      expect(answer).toHaveProperty("value", "My own new explanation.");
+      expect(record.grades["0"].explanation).toBe(
+        "The creator's saved explanation.",
+      );
+      expect(localStorage.getItem("explainback-studio-draft")).toBeNull();
+      expect(calls.filter((p) => p.startsWith("/api/studio/"))).toEqual([]);
+    },
+  );
+});
+
+describe("Reopening a saved lesson", () => {
+  it.each(["owner", "administrator"] as const)(
+    "restores authoring results for the %s without any provider request",
+    async (role) => {
+      const lesson = coolingLesson();
+      shelf.record = {
+        id: "0123456789abcdef",
+        title: lesson.title,
+        intro: lesson.intro,
+        kind: "model",
+        hasShow: false,
+        hasTryout: true,
+        graded: 1,
+        model: "test",
+        cover: null,
+        sketch: null,
+        shared: false,
+        mine: role === "owner",
+        canManage: role === "administrator",
+        createdAt: 1,
+        updatedAt: 2,
+        lesson,
+        show: null,
+        coverModel: null,
+        illustrations: {},
+        tryout: {
+          chapters: [
+            {
+              prediction: "disagree",
+              reason: "The gap shrinks.",
+              explanation: "Cooling follows the gap.",
+              transfer: {
+                given: "18",
+                correct: true,
+                type: "number",
+                unit: "°C",
+              },
+              confusions: [],
+              suggestions: ["Label the axis."],
+            },
+          ],
+          overall: "Short and clear.",
+          rating: 4,
           model: "test",
           language: "en",
-          key: "abc-1",
         },
-      },
-    };
-    const calls: string[] = [];
-    const post: Post = async (path) => {
-      calls.push(path);
-      return { records: [] } as never;
-    };
-    mount({ authenticated: true, status, view: "create" }, post);
-    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
-    await screen.findByText(/Short and clear\./);
-    expect(document.querySelector(".tryout-report")?.textContent).toMatch(
-      /4\/5/,
-    );
-    expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
-    // The restored grade is part of the remembered draft, so it survives a reload too.
-    await vi.waitFor(() => {
-      const stored = localStorage.getItem("explainback-studio-draft") ?? "";
-      expect(stored).toMatch(/It cools faster when hotter\./);
-      expect(stored).toMatch(/"verdict":"supported"/);
-      expect(stored).toMatch(/Short and clear\./);
-    });
-    shelf.record = null;
-  });
+        grades: {
+          "0": {
+            explanation: "It cools faster when hotter.",
+            feedback: "Right: the rate follows the gap.",
+            verdict: "supported",
+            followUp: "What happens near room temperature?",
+            model: "test",
+            language: "en",
+            key: "abc-1",
+          },
+        },
+      };
+      const calls: string[] = [];
+      const post: Post = async (path) => {
+        calls.push(path);
+        return { records: [] } as never;
+      };
+      mount(
+        {
+          authenticated: true,
+          status,
+          view: "create",
+          editId: role === "administrator" ? "0123456789abcdef" : null,
+        },
+        post,
+      );
+      if (role === "owner")
+        fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+      await screen.findByText(/Short and clear\./);
+      expect(document.querySelector(".tryout-report")?.textContent).toMatch(
+        /4\/5/,
+      );
+      expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
+      // The restored grade is part of the remembered draft, so it survives a reload too.
+      await vi.waitFor(() => {
+        const stored = localStorage.getItem("explainback-studio-draft") ?? "";
+        expect(stored).toMatch(/It cools faster when hotter\./);
+        expect(stored).toMatch(/"verdict":"supported"/);
+        expect(stored).toMatch(/Short and clear\./);
+      });
+      shelf.record = null;
+    },
+  );
 });
 
 describe("Failure states", () => {
@@ -2000,6 +2112,84 @@ describe("Workspace replacement safety", () => {
 });
 
 describe("Workspace revision isolation", () => {
+  it.each(["text", "control", "ambiguous"] as const)(
+    "handles confirmed canvas during a %s revision without skipping review",
+    async (change) => {
+      const { saveStudio } = await import("../lib/studio-store");
+      const draft = coolingLesson() as Lesson;
+      draft.chapters[0].canvas = {
+        concept: "cup",
+        input: "rate",
+        box: { x: 0.1, y: 0.2, width: 0.5, height: 0.4 },
+      };
+      saveStudio({
+        draft,
+        topic: "Cooling",
+        creation: "generated",
+        reviewed: true,
+        revisionPrompt: "",
+        compose: null,
+        revise: null,
+        tryout: null,
+        show: null,
+        guide: {},
+        explanations: {},
+        player: null,
+        presenting: false,
+        pace: "off",
+        sourceImage: "/gallery/pendulum-sketch.png",
+      });
+      const reply = coolingLesson() as Lesson;
+      reply.chapters[0].explanation.en =
+        "A revised explanation of the same model.";
+      if (change === "control" && reply.chapters[0].demo?.kind === "model")
+        reply.chapters[0].demo.inputs[2].max = 0.3;
+      if (change === "ambiguous")
+        reply.chapters.push(structuredClone(reply.chapters[0]));
+      const post: Post = async (path) => {
+        if (path === "/api/studio/session")
+          return { sessionId: "s1", attemptsRemaining: 8 } as never;
+        if (path === "/api/studio/compose")
+          return {
+            status: "ready",
+            lesson: reply,
+            message: { en: "Ready", zh: "已就绪" },
+            attemptsRemaining: 7,
+          } as never;
+        return { records: [] } as never;
+      };
+      mount({ authenticated: true, status, view: "create" }, post);
+      await screen.findByRole("button", { name: "Remove connection" });
+      fireEvent.change(screen.getByLabelText(/Ask Muse to revise/), {
+        target: { value: "Clarify the explanation" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /Revise lesson/ }));
+      await screen.findByText(/Revision ready/);
+      expect(
+        screen.getByRole("checkbox", { name: /I reviewed/ }),
+      ).toHaveProperty("checked", false);
+      if (change === "text") {
+        expect(
+          screen.getByRole("button", { name: "Remove connection" }),
+        ).toBeTruthy();
+        expect(screen.queryByText("Picture connection")).toBeNull();
+      } else {
+        expect(
+          screen.queryByRole("button", { name: "Remove connection" }),
+        ).toBeNull();
+        expect(screen.getByText("Picture connection")).toBeTruthy();
+        expect(
+          screen.getByText(/Some picture connections were removed/),
+        ).toBeTruthy();
+      }
+      const { loadStudio } = await import("../lib/studio-store");
+      await waitFor(() =>
+        expect(Boolean(loadStudio()?.draft.chapters[0].canvas)).toBe(
+          change === "text",
+        ),
+      );
+    },
+  );
   it("revises the working lesson using its own topic after a different home question is entered", async () => {
     const posted: Record<string, unknown>[] = [];
     const post: Post = async (path, body) => {

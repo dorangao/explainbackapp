@@ -47,6 +47,7 @@ import { blobToBase64 } from "../lib/recorder";
 import { useProviderSession } from "../hooks/useProviderSession";
 import { useImageAttachment } from "../hooks/useImageAttachment";
 import { fingerprint, guideKey } from "../lib/studio-cache";
+import { preserveRevisionCanvas } from "../lib/lesson-revision";
 import type { Cached, Pace } from "../lib/studio-cache";
 import {
   clearStudio,
@@ -567,7 +568,7 @@ export function Studio({
       live = false;
     };
   }, [authenticated, savedId, savedItem?.id]);
-  // A gallery lesson is reviewed content: open it straight into the player.
+  // Shared and gallery reading always open a fresh personal learner attempt.
   const openedGallery = useRef<string | null>(null);
   const evaluationItem = lessonId ? evaluationLesson(lessonId) : null;
   useEffect(() => {
@@ -586,7 +587,6 @@ export function Studio({
     setSourceImage(item.image ?? null);
     // A shared lesson keeps its "shared" note; its sketch only feeds the Spotlight.
     if (external?.sketch) setSourceImage(external.sketch);
-    if (external) restoreRef.current(lesson, external, external.updatedAt);
     if (external?.show)
       setShow({
         reply: {
@@ -861,11 +861,14 @@ export function Studio({
     if (mode === "compose") {
       const composed = result.reply as ComposeReply;
       if (composed.status === "ready" && composed.lesson) {
-        // A revision rewrites content; the creator's default unit system stays with the lesson.
+        const carried = before
+          ? preserveRevisionCanvas(before, composed.lesson)
+          : { lesson: composed.lesson, removedConnections: 0 };
+        // Creator metadata travels only when safe; revisions still require review.
         const next = loadLesson(
           before?.units
-            ? { ...composed.lesson, units: before.units }
-            : composed.lesson,
+            ? { ...carried.lesson, units: before.units }
+            : carried.lesson,
           Boolean(before),
         );
         setRevision(before ? { before, after: next } : null);
@@ -896,6 +899,13 @@ export function Studio({
               ? "修改已就绪。先查看改动，再审阅后演示。"
               : "草稿已就绪，演示前请审阅模型与假设。",
           ) +
+            (carried.removedConnections > 0
+              ? say(
+                  language,
+                  " Some picture connections were removed. Review the changes; reconnect any picture you want to use before presenting.",
+                  " 部分图片关联已移除。请审阅改动；演示前，请重新确认需要使用的图片与控制参数之间的关联。",
+                )
+              : "") +
             (!before && sheet
               ? ` ${t(
                   language,
@@ -1268,9 +1278,7 @@ export function Studio({
     setMessage(t(language, "Studio.illustrationReady"));
     return true;
   }
-  // The shared-lesson effect above runs once per lesson and calls the latest copy.
-  const restoreRef = useRef(restoreResults);
-  restoreRef.current = restoreResults;
+  // Explicit author/edit reopening restores saved results. Shared reading does not.
   // Puts a saved tryout report and explain-back grades back into the caches. Keys are
   // the ones the caches use, so each result shows as fresh or stale against the live
   // lesson state exactly as before; no model request is made.

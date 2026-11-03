@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { coolingLesson } from "../test-support/generated-lessons.mjs";
 
 test("a reviewer saves a lesson, shares it by link, and a signed-out visitor opens it from the catalog", async ({
@@ -144,6 +144,107 @@ test("a reviewer saves a lesson, shares it by link, and a signed-out visitor ope
   await guest.reload();
   await expect(guest.getByText(/not available/)).toBeVisible();
   await visitor.close();
+});
+
+test("shared readers start fresh while author Edit restores the saved explanation", async ({
+  page,
+  browser,
+}) => {
+  const explain = async (reader: Page) => {
+    await reader.getByRole("button", { name: "Disagree", exact: true }).click();
+    await reader.getByRole("button", { name: /Test this claim/ }).click();
+    await reader
+      .getByRole("button", { name: "Show final state", exact: true })
+      .click();
+    await reader.getByRole("button", { name: /Explain the result/ }).click();
+    return reader.getByRole("textbox", {
+      name: "Explain what changed and why, in your own words",
+      exact: true,
+    });
+  };
+  const creatorText =
+    "My saved creator explanation: the cooling rate follows the temperature gap.";
+  await page.goto("/#invite:BROWSER-TEST-CODE");
+  await page.getByLabel("Import lesson JSON").setInputFiles({
+    name: "lesson.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(JSON.stringify(coolingLesson())),
+  });
+  await page.getByRole("checkbox", { name: /I reviewed/ }).check();
+  await page
+    .getByRole("button", { name: "Present this lesson →", exact: true })
+    .click();
+  await (await explain(page)).fill(creatorText);
+  await page
+    .getByRole("button", {
+      name: "Check my explanation with Muse",
+      exact: true,
+    })
+    .click();
+  await expect(page.locator(".model-feedback")).toBeVisible();
+  await page
+    .getByRole("button", { name: "Back to Create", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Save to my lessons", exact: true })
+    .click();
+  await expect(page.getByText("Saved copy")).toBeVisible();
+  await page.getByRole("switch", { name: "Private", exact: true }).click();
+  const link = await page.getByLabel("Share link").inputValue();
+  const guestContext = await browser.newContext();
+  const guest = await guestContext.newPage();
+  const guestCalls: string[] = [];
+  guest.on("request", (r) => {
+    if (r.method() === "POST" && r.url().includes("/api/studio/"))
+      guestCalls.push(r.url());
+  });
+  await guest.goto(link);
+  await expect(await explain(guest)).toHaveValue("");
+  await expect(guest.getByText(/earlier feedback is out of date/)).toHaveCount(
+    0,
+  );
+  await guest
+    .getByRole("textbox", { name: /Explain what changed/ })
+    .fill("A visitor's own attempt.");
+  await guest.reload();
+  await expect(await explain(guest)).toHaveValue("");
+  expect(guestCalls).toEqual([]);
+  const otherContext = await browser.newContext();
+  const other = await otherContext.newPage();
+  await other.goto("/#invite:BROWSER-OTHER-CODE");
+  await expect(
+    other.getByRole("button", { name: "Sign out", exact: true }),
+  ).toBeVisible();
+  await other.goto(link);
+  await expect(await explain(other)).toHaveValue("");
+  await expect(
+    other.getByRole("link", { name: "Edit this lesson", exact: true }),
+  ).toHaveCount(0);
+  await page.goto(link.replace("#shared:", "#edit:"));
+  await expect(page.getByText(/Opened your saved lesson/)).toBeVisible();
+  await page.getByRole("tab", { name: "Tryout", exact: true }).click();
+  await expect(await explain(page)).toHaveValue(creatorText);
+  const id = link.split("#shared:")[1];
+  const stored = await page.evaluate(
+    async (id) => await (await fetch(`/api/lessons/${id}`)).json(),
+    id,
+  );
+  expect(stored.grades["0"].explanation).toBe(creatorText);
+  expect(
+    await page.evaluate(
+      async (id) =>
+        (
+          await fetch("/api/lessons/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          })
+        ).status,
+      id,
+    ),
+  ).toBe(200);
+  await guestContext.close();
+  await otherContext.close();
 });
 
 test("on a phone the header folds into a menu, the introductory tour stays visible and the facets fold behind More filters", async ({
