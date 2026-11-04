@@ -173,6 +173,36 @@ function mount(
 }
 
 describe("Studio homepage entry", () => {
+  it("uses the current Judge allowance for the tour tally and never shows negative usage", () => {
+    const judgeStatus = (
+      remaining: number,
+      label = "synthetic-judge",
+    ): Status => ({
+      ...status,
+      access: {
+        kind: "judge",
+        label,
+        quota: 50,
+        remaining,
+        expiresAt: Date.now() + 1800000,
+      },
+    });
+    const view = mount({
+      authenticated: true,
+      status: judgeStatus(50),
+      view: "create",
+    });
+    const tally = () => document.querySelector(".judge-foot")?.textContent;
+    expect(tally()).toContain("Used in this session: 0");
+    view.rerender({ status: judgeStatus(49) });
+    expect(tally()).toContain("Used in this session: 1");
+    view.rerender({ status: judgeStatus(0) });
+    expect(tally()).toContain("Used in this session: 50");
+    view.rerender({ status: judgeStatus(50, "next-judge") });
+    expect(tally()).toContain("Used in this session: 0");
+    view.rerender({ status: judgeStatus(51, "next-judge") });
+    expect(tally()).toContain("Used in this session: 0");
+  });
   it("links the filled action to the first numeric gallery lesson", () => {
     mount();
     const entry = firstExperimentLesson();

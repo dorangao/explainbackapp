@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page, type Route } from "@playwright/test";
 async function completeCheck(page: Page) {
   await page
     .getByRole("button", { name: "Use a text check", exact: true })
@@ -24,6 +24,8 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     .click();
   const banner = page.getByRole("region", { name: "Judge session" });
   await expect(banner).toContainText("50/50 AI calls left");
+  const tally = page.locator(".judge-foot");
+  await expect(tally).toContainText("Used in this session: 0");
   const restart = banner.getByRole("button", {
     name: "New judge session",
     exact: true,
@@ -48,6 +50,10 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   await expect(banner).toContainText("49/50 AI calls left");
   await page.reload();
   await expect(banner).toContainText("49/50 AI calls left");
+  await page
+    .getByText("Guided creation · the 6-step tour", { exact: true })
+    .click();
+  await expect(tally).toContainText("Used in this session: 1");
   const reloaded = await page.request.get("/api/status").then((r) => r.json());
   expect(reloaded.access.expiresAt).toBe(initial.access.expiresAt);
   await expect(restart).toHaveCount(0);
@@ -70,6 +76,7 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     .getByRole("button", { name: "Start Judge mode", exact: true })
     .click();
   await expect(banner).toContainText("50/50 AI calls left");
+  await expect(tally).toContainText("Used in this session: 0");
   await expect(restart).toHaveCount(0);
   await expect(
     page.getByLabel("What would you like to explore?"),
@@ -103,6 +110,7 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     .getByRole("button", { name: "Start Judge mode", exact: true })
     .click();
   await expect(banner).toContainText("50/50 AI calls left");
+  await expect(tally).toContainText("Used in this session: 0");
   await expect(restart).toHaveCount(0);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(banner).toHaveCount(0);
@@ -152,3 +160,90 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(usage).toHaveCount(0);
 });
+
+for (const phone of [false, true]) {
+  test(`Judge entry focuses the delayed quick check on ${phone ? "phone" : "desktop"}`, async ({
+    page,
+  }) => {
+    if (phone) await page.setViewportSize({ width: 390, height: 844 });
+    // Focus-only cases control delivery without consuming the fixture server's
+    // per-network quick-check quota. The login flow above uses real challenges.
+    const deliverCheck = (route: Route) =>
+      route.fulfill({
+        json: {
+          id: "synthetic-focus-check",
+          expiresAt: Date.now() + 300000,
+          ...(route.request().postDataJSON().kind === "text"
+            ? { kind: "text", left: 2, right: 3 }
+            : {
+                kind: "image",
+                image:
+                  "data:image/svg+xml;base64," +
+                  Buffer.from(
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="88"><text x="20" y="50">12345</text></svg>',
+                  ).toString("base64"),
+              }),
+        },
+      });
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/api/judge-challenge", async (route) => {
+      await pending;
+      await deliverCheck(route);
+    });
+    await page.goto("/");
+    if (phone)
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await page.getByRole("button", { name: "Judge mode", exact: true }).click();
+    await expect(
+      page.getByText("Preparing a quick check…", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Reviewer access code", { exact: true }),
+    ).not.toBeFocused();
+    await expect(page.locator(".judge-check")).toBeFocused();
+    release();
+    await expect(
+      page.getByLabel("Enter the five digits", { exact: true }),
+    ).toBeFocused();
+    await page.unroute("**/api/judge-challenge");
+    await page.route("**/api/judge-challenge", deliverCheck);
+    await page
+      .getByRole("button", { name: "Use a text check", exact: true })
+      .click();
+    await expect(page.getByLabel("Your answer", { exact: true })).toBeFocused();
+    if (phone)
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Sign in", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.getByLabel("Reviewer access code", { exact: true }),
+    ).toBeFocused();
+    if (phone)
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+    await page.getByRole("button", { name: "Judge mode", exact: true }).click();
+    await expect(page.getByLabel("Your answer", { exact: true })).toBeFocused();
+    let releaseNext!: () => void;
+    const nextPending = new Promise<void>((resolve) => {
+      releaseNext = resolve;
+    });
+    await page.unroute("**/api/judge-challenge");
+    await page.route("**/api/judge-challenge", async (route) => {
+      await nextPending;
+      await deliverCheck(route);
+    });
+    await page.getByRole("button", { name: "New image", exact: true }).click();
+    await page.getByLabel("Reviewer access code", { exact: true }).click();
+    releaseNext();
+    await expect(
+      page.getByLabel("Enter the five digits", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByLabel("Reviewer access code", { exact: true }),
+    ).toBeFocused();
+  });
+}

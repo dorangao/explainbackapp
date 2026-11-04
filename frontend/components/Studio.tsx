@@ -294,6 +294,9 @@ export function Studio({
     alive,
     epoch,
   } = provider;
+  const sessionAllowance =
+    providerStatus?.access?.kind === "judge" ? providerStatus.access.quota : 8;
+  const sessionUsed = Math.max(0, sessionAllowance - remaining);
   const image = useImageAttachment(language);
   const playerState = useRef<Player["state"] | null>(null);
   const onPlayerState = useCallback((state: Player["state"]) => {
@@ -1971,7 +1974,7 @@ export function Studio({
               providerStatus?.access?.remaining ?? null,
               remaining,
             )}
-            used={8 - remaining}
+            used={sessionUsed}
             actions={authenticated && Boolean(target?.configured)}
             onRun={(id) => void runJudgeStep(id)}
             onRunAll={() => void runJudgeAll()}
