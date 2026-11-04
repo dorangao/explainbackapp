@@ -513,6 +513,40 @@ export function LessonPlayer({
       {nextLabel}
     </button>
   );
+  const predictionControls = (
+    <>
+      <div className="prediction-row">
+        <span className="prediction-prompt">
+          {t(language, "LessonPlayer.yourCall")}
+        </span>
+        {(["agree", "disagree", "unsure"] as const).map((value, i) => (
+          <button
+            key={value}
+            className="secondary"
+            aria-pressed={state.prediction === value}
+            disabled={busy}
+            onClick={() => {
+              manual();
+              player.predict(value);
+              update();
+            }}
+          >
+            {
+              [
+                t(language, "LessonPlayer.agree"),
+                t(language, "LessonPlayer.disagree"),
+                t(language, "LessonPlayer.notSure"),
+              ][i]
+            }
+          </button>
+        ))}
+        {nextButton}
+      </div>
+      <p className="fine">
+        {t(language, "LessonPlayer.chooseBeforeRevealingTheResult")}
+      </p>
+    </>
+  );
   function setInput(id: string, value: number) {
     try {
       act(() => player.input(id, value));
@@ -685,42 +719,9 @@ export function LessonPlayer({
                 {e.claim}
               </blockquote>
             )}
-            {state.stage === "predict" && (
-              <>
-                <div className="prediction-row">
-                  <span className="prediction-prompt">
-                    {t(language, "LessonPlayer.yourCall")}
-                  </span>
-                  {(["agree", "disagree", "unsure"] as const).map(
-                    (value, i) => (
-                      <button
-                        key={value}
-                        className="secondary"
-                        aria-pressed={state.prediction === value}
-                        disabled={busy}
-                        onClick={() => {
-                          manual();
-                          player.predict(value);
-                          update();
-                        }}
-                      >
-                        {
-                          [
-                            t(language, "LessonPlayer.agree"),
-                            t(language, "LessonPlayer.disagree"),
-                            t(language, "LessonPlayer.notSure"),
-                          ][i]
-                        }
-                      </button>
-                    ),
-                  )}
-                  {nextButton}
-                </div>
-                <p className="fine">
-                  {t(language, "LessonPlayer.chooseBeforeRevealingTheResult")}
-                </p>
-              </>
-            )}
+            {state.stage === "predict" &&
+              !hasPredictionCanvas &&
+              predictionControls}
           </div>
           {hasPredictionCanvas &&
             ["predict", "experiment", "explain"].includes(state.stage) && (
@@ -733,8 +734,24 @@ export function LessonPlayer({
                 preview={state.stage === "predict"}
                 progress={state.progress}
                 busy={busy}
+                onEdit={() => {
+                  focusNextStage.current = true;
+                  act(() => player.output(state.metric));
+                }}
               />
             )}
+          {hasPredictionCanvas && state.stage === "predict" && (
+            <div className="prediction-test-action">
+              <p className="fine">
+                {say(
+                  language,
+                  "Ready to compare? Choose your prediction below, then test. You can reopen the canvas to draw again afterward.",
+                  "准备对比了吗？在下方选择你的判断，再检验。查看模型后，仍可重新打开画布绘图。",
+                )}
+              </p>
+              {predictionControls}
+            </div>
+          )}
           {state.stage === "predict" &&
             e.kind !== "process" &&
             !hasPredictionCanvas && (

@@ -106,6 +106,77 @@ it("offers prediction drawing on a numeric lesson without a picture connection",
   expect(document.querySelector(".calculated-curve")).toBeNull();
 });
 
+it("reopens a tested sketch for editing while preserving settings and clearing the old comparison", () => {
+  const lesson = coolingLesson() as Lesson;
+  (lesson.chapters[0].demo as ModelDemo).outputs.push({
+    id: "gap",
+    label: { en: "Temperature gap", zh: "温差" },
+    unit: "°C",
+    expression: "temp - ambient",
+  });
+  const player = createLessonPlayer(lesson);
+  player.variant(1);
+  player.input("ambient", 15);
+  player.output(1);
+  player.markAssisted();
+  render(
+    <LessonPlayer
+      player={player}
+      language="en"
+      visible
+      busy={false}
+      canAsk={false}
+      feedback={null}
+      onGuide={() => {
+        throw new Error("Editing must stay local");
+      }}
+      onClearFeedback={() => {}}
+      onBack={() => {}}
+      onLibrary={() => {}}
+    />,
+  );
+  for (const [label, value] of [
+    ["Start prediction", "80"],
+    ["Middle prediction", "50"],
+    ["End prediction", "20"],
+  ])
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+  fireEvent.click(screen.getByRole("button", { name: "Use these points" }));
+  const original = document
+    .querySelector(".prediction-path")
+    ?.getAttribute("d");
+  fireEvent.click(screen.getByRole("button", { name: "Not sure" }));
+  fireEvent.click(screen.getByRole("button", { name: /Test this claim/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Show final state" }));
+  fireEvent.click(screen.getByRole("button", { name: /Explain the result/ }));
+  expect(document.querySelector(".calculated-curve")).not.toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Edit sketch" }));
+  expect(player.state.stage).toBe("predict");
+  expect(player.state.prediction).toBeNull();
+  expect(player.state.progress).toBe(0);
+  expect(player.state.controls).toEqual({ ambient: 15 });
+  expect(player.state.variant).toBe(1);
+  expect(player.state.metric).toBe(1);
+  expect(player.state.assisted).toBe(true);
+  expect(document.querySelector(".calculated-curve")).toBeNull();
+  expect(document.querySelector(".prediction-path")?.getAttribute("d")).toBe(
+    original,
+  );
+  expect(document.querySelector(".prediction-input")).not.toBeNull();
+  fireEvent.change(screen.getByLabelText("Middle prediction"), {
+    target: { value: "35" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Use these points" }));
+  expect(
+    document.querySelector(".prediction-path")?.getAttribute("d"),
+  ).not.toBe(original);
+  expect(
+    screen
+      .getByRole("button", { name: /Test this claim/ })
+      .hasAttribute("disabled"),
+  ).toBe(true);
+});
+
 it("keeps each output's prediction while switching quantities without changing controls", () => {
   const lesson = coolingLesson() as Lesson;
   (lesson.chapters[0].demo as ModelDemo).outputs.push({

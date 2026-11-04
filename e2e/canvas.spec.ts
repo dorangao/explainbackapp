@@ -2,6 +2,90 @@ import { test, expect, type Page } from "@playwright/test";
 import { AxeBuilder } from "@axe-core/playwright";
 test.use({ serviceWorkers: "block" });
 
+for (const [width, language] of [
+  [320, "en"],
+  [390, "zh"],
+  [1440, "en"],
+] as const) {
+  test(`canvas drawing can reopen after testing at ${width}px (${language})`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const posts: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() === "POST") posts.push(request.url());
+    });
+    await page.goto("/#lesson:cooling");
+    if (language === "zh") {
+      await page.getByRole("button", { name: "Menu", exact: true }).click();
+      await page.getByLabel("Language / 语言").selectOption("zh");
+      await page.getByRole("button", { name: "关闭菜单", exact: true }).click();
+    }
+    const canvas = page.getByRole("region", {
+      name: /Prediction canvas|预测画布/,
+    });
+    const testClaim = page.getByRole("button", {
+      name: /Test this claim|检验这个观点/,
+    });
+    await expect(canvas).toBeVisible();
+    const canvasBox = (await canvas.boundingBox())!;
+    expect((await testClaim.boundingBox())!.y).toBeGreaterThanOrEqual(
+      canvasBox.y + canvasBox.height,
+    );
+    await page.getByRole("button", { name: /^(Not sure|不确定)$/ }).click();
+    await testClaim.click();
+    // A learner who skipped the optional canvas can still add a sketch afterward.
+    await canvas.getByRole("button", { name: /Add a sketch|添加草图/ }).click();
+    await expect(page.locator(".lesson-player")).toHaveAttribute(
+      "data-stage",
+      "predict",
+    );
+    await expect(testClaim).toBeDisabled();
+    const input = canvas.locator(".prediction-input");
+    async function draw(end: number) {
+      await input.scrollIntoViewIfNeeded();
+      const b = (await input.boundingBox())!;
+      await page.mouse.move(b.x + 4, b.y + 4);
+      await page.mouse.down();
+      await page.mouse.move(b.x + b.width - 4, b.y + b.height * end, {
+        steps: 10,
+      });
+      await page.mouse.up();
+    }
+    await draw(0.8);
+    const sketch = canvas.locator(".prediction-path");
+    const original = (await sketch.getAttribute("d"))!;
+    await page.getByRole("button", { name: /^(Not sure|不确定)$/ }).click();
+    await testClaim.click();
+    await expect(canvas.locator(".calculated-curve")).toBeVisible();
+    await expect(input).toHaveCount(0);
+    const edit = canvas.getByRole("button", {
+      name: /^(Edit sketch|编辑草图)$/,
+    });
+    await edit.focus();
+    await edit.press("Enter");
+    await expect(page.locator(".lesson-player")).toHaveAttribute(
+      "data-stage",
+      "predict",
+    );
+    await expect(canvas.locator(".calculated-curve")).toHaveCount(0);
+    await expect(sketch).toHaveAttribute("d", original);
+    await expect(input).toBeVisible();
+    await expect(testClaim).toBeDisabled();
+    await draw(0.4);
+    await expect(sketch).not.toHaveAttribute("d", original);
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    await page.screenshot({
+      path: `output/playwright/canvas-edit-${width}-${language}.png`,
+    });
+    expect(posts).toEqual([]);
+  });
+}
+
 test("public canvas example opens from the library and compares a drawing without model requests", async ({
   page,
 }) => {

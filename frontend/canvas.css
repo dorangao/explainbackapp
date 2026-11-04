@@ -87,6 +87,17 @@
 .prediction-canvas {
   margin: 16px 0;
 }
+.prediction-edit {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.prediction-edit .fine {
+  margin-top: 0;
+}
+.prediction-test-action {
+  margin: 0 0 20px;
+}
 .prediction-point-fields {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
