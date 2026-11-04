@@ -13,6 +13,7 @@ export function PredictionCanvas({
   preview,
   progress,
   busy = false,
+  onEdit,
 }: {
   experiment: Experiment;
   language: Language;
@@ -21,6 +22,7 @@ export function PredictionCanvas({
   preview: boolean;
   progress: number;
   busy?: boolean;
+  onEdit?: () => void;
 }) {
   const { low, high } = chartDomain(experiment);
   const [values, setValues] = useState(["", "", ""]);
@@ -51,10 +53,10 @@ export function PredictionCanvas({
         {say(
           language,
           preview
-            ? "Draw the curve you expect, or enter three points below. Then choose agree, disagree, or not sure to test the claim."
+            ? "Draw the curve you expect here, or enter three points below, before choosing Test this claim. Drag again to replace the curve. Drawing is optional."
             : "Dashed line: your prediction. Solid line: the model calculation. Explain what agrees or differs.",
           preview
-            ? "画出你预期的曲线，或在下方输入三个点。然后选择同意、不同意或不确定，检验这个说法。"
+            ? "在选择“检验这个观点”之前，在这里画出预期曲线，或在下方输入三个点。再次拖动画布可替换曲线。也可以不画。"
             : "虚线是你的预测，实线是模型计算。请解释两者的相同或不同之处。",
         )}
       </p>
@@ -75,6 +77,29 @@ export function PredictionCanvas({
           `图表使用原始单位：${experiment.unit}。草图是预测，并非测量数据。`,
         )}
       </p>
+      {!preview && onEdit && (
+        <div className="prediction-edit">
+          <p className="fine">
+            {say(
+              language,
+              "The sketch is fixed while you compare it with the model. Reopen it to add or change a curve; the model will be hidden while you draw, and your settings will stay the same.",
+              "对比模型时，草图暂时锁定。可重新打开以添加或修改曲线；绘图时会隐藏模型曲线，实验设置保持不变。",
+            )}
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={onEdit}
+          >
+            {say(
+              language,
+              drawing ? "Edit sketch" : "Add a sketch",
+              drawing ? "编辑草图" : "添加草图",
+            )}
+          </button>
+        </div>
+      )}
       {preview && (
         <>
           <details className="prediction-points">
