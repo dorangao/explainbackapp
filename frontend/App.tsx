@@ -24,6 +24,7 @@ import { PageHeader } from "./components/PageHeader";
 import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Appearance } from "./components/Appearance";
+import { CalculatorDialog } from "./components/Calculator";
 import { Studio } from "./components/Studio";
 import { JudgeSession } from "./components/JudgeSession";
 import { JudgeUsage } from "./components/JudgeUsage";
@@ -68,6 +69,7 @@ function readRoute() {
 export function App() {
   const auth = useAuth();
   const [showJudgeUsage, setShowJudgeUsage] = useState(false);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
   const { loading: authLoading, info: authInfo, login: authLogin } = auth;
   const [language, setLanguage] = useState<Language>(() => {
       try {
@@ -340,6 +342,14 @@ export function App() {
         <div className="site-menu" id="site-menu">
           <div className="header-tools">
             <Appearance language={language} />
+            <button
+              type="button"
+              className="text-button"
+              aria-haspopup="dialog"
+              onClick={() => setCalculatorOpen(true)}
+            >
+              {say(language, "Calculator", "计算器")}
+            </button>
             <label className="language-switch">
               <span className="sr-only">Language / 语言</span>
               <select
@@ -415,6 +425,11 @@ export function App() {
           </div>
         </div>
       </header>
+      <CalculatorDialog
+        language={language}
+        open={calculatorOpen}
+        onClose={() => setCalculatorOpen(false)}
+      />
       <main id="main-content" ref={main} tabIndex={-1}>
         {auth.loading && (
           <p className="connection-note" role="status">

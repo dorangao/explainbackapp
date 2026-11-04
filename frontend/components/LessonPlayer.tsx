@@ -31,6 +31,7 @@ import type { Cached, Pace } from "../lib/studio-cache";
 import { CacheNote, actionLabel } from "./CacheNote";
 import { measureQuantum, sampleQuantum } from "../../public/quantum.mjs";
 import { ExperimentView } from "./ExperimentView";
+import { Calculator } from "./Calculator";
 const measure = measureQuantum as (state: unknown) => {
   state: unknown;
   outcome: number;
@@ -1077,6 +1078,7 @@ export function LessonPlayer({
                     {t(language, "LessonPlayer.yourAnswer")}
                     {shownUnit(e.transfer.unit) && ` (${e.transfer.unit})`}
                     <input
+                      id={`${formId}-answer`}
                       value={answer}
                       aria-describedby={`${formId}-answer-precision`}
                       onChange={(event) => {
@@ -1103,6 +1105,29 @@ export function LessonPlayer({
                       {t(language, "LessonPlayer.answerUseLessonUnits")}
                     </button>
                   )}
+                  <Calculator
+                    key={`${experimentKey}/${units}`}
+                    language={language}
+                    disabled={busy}
+                    onInteraction={manual}
+                    targets={[
+                      {
+                        targetId: `${formId}-answer`,
+                        label:
+                          say(language, "Use result", "填入答案") +
+                          (shownUnit(e.transfer.unit)
+                            ? ` (${e.transfer.unit})`
+                            : ""),
+                        onUse: (value) => {
+                          manual();
+                          setAnswer(value);
+                          setResult(null);
+                          player.editAnswer();
+                          update();
+                        },
+                      },
+                    ]}
+                  />
                   <button className="secondary" disabled={busy}>
                     {t(language, "LessonPlayer.checkAnswerLocally")}
                   </button>
