@@ -435,6 +435,8 @@ function LibraryCard({
     entry.image ??
     cover?.src ??
     (entry.reviewed ? (galleryShow(entry.id)?.cover ?? null) : null);
+  const sketchArt =
+    entry.reviewed?.source === "muse-sketch" && art === entry.image;
   return (
     <article className={`lesson-card lesson-card-${entry.source}`}>
       <a
@@ -445,11 +447,11 @@ function LibraryCard({
       >
         {art ? (
           <img
-            className="lesson-art lesson-art-image"
+            className={`lesson-art lesson-art-image${sketchArt ? " lesson-art-sketch" : ""}`}
             src={art}
             alt=""
             width={360}
-            height={158}
+            height={240}
             loading="lazy"
           />
         ) : (
@@ -592,7 +594,7 @@ export function FeaturedLesson({
             src={cover}
             alt=""
             width={360}
-            height={158}
+            height={240}
             loading="eager"
           />
         ) : (
