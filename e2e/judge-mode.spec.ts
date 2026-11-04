@@ -24,6 +24,14 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     .click();
   const banner = page.getByRole("region", { name: "Judge session" });
   await expect(banner).toContainText("50/50 AI calls left");
+  const restart = banner.getByRole("button", {
+    name: "New judge session",
+    exact: true,
+  });
+  await expect(restart).toHaveCount(0);
+  await banner.screenshot({
+    path: "output/playwright/judge-session-active.png",
+  });
   await expect(
     page.getByRole("button", { name: "Judge usage", exact: true }),
   ).toHaveCount(0);
@@ -42,12 +50,27 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   await expect(banner).toContainText("49/50 AI calls left");
   const reloaded = await page.request.get("/api/status").then((r) => r.json());
   expect(reloaded.access.expiresAt).toBe(initial.access.expiresAt);
-  await banner.getByRole("button", { name: "New judge session" }).click();
+  await expect(restart).toHaveCount(0);
+  // Drive the browser's last-call boundary without spending real provider calls.
+  await page.route("**/api/status", async (route) => {
+    const response = await route.fetch(),
+      data = await response.json();
+    data.access.remaining = 0;
+    await route.fulfill({ response, json: data });
+  });
+  await page.reload();
+  await expect(banner).toContainText("0/50 AI calls left");
+  await banner.screenshot({
+    path: "output/playwright/judge-session-exhausted.png",
+  });
+  await restart.click();
+  await page.unroute("**/api/status");
   await completeCheck(page);
   await page
     .getByRole("button", { name: "Start Judge mode", exact: true })
     .click();
   await expect(banner).toContainText("50/50 AI calls left");
+  await expect(restart).toHaveCount(0);
   await expect(
     page.getByLabel("What would you like to explore?"),
   ).toBeVisible();
@@ -63,11 +86,26 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     await route.fulfill({ response, json: data });
   });
   await page.reload();
-  await expect(banner).toHaveCount(0);
+  await expect(banner).toContainText("This judge session has expired.");
+  await banner.screenshot({
+    path: "output/playwright/judge-session-expired.png",
+  });
   await expect(
-    page.getByText("Your session ended. Reviewed lessons remain available."),
-  ).toBeVisible();
+    page.getByRole("button", { name: "Sign out", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByLabel("What would you like to explore?")).toHaveCount(
+    0,
+  );
+  await restart.click();
   await page.unroute("**/api/status");
+  await completeCheck(page);
+  await page
+    .getByRole("button", { name: "Start Judge mode", exact: true })
+    .click();
+  await expect(banner).toContainText("50/50 AI calls left");
+  await expect(restart).toHaveCount(0);
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(banner).toHaveCount(0);
   await page
     .getByRole("button", { name: "Sign in", exact: true })
     .first()

@@ -29,6 +29,9 @@ The image/text answer is a short-lived, single-use check. It is separate from th
 - Use **New lesson** to make another lesson within the same Judge session. Starting
   a new Judge session creates a separate workspace and revokes the previous login;
   it does not reset the shared daily allowance.
+- **New judge session** stays hidden while time and calls remain. It appears when
+  the session expires or runs out of calls and opens the quick check for a new
+  session. If an administrator restores calls before expiry, it hides again.
 - **Export lesson JSON** to keep your work before signing out, restarting or expiry.
   The private browser workspace is cleared when access ends. Saving has separate
   limits; export remains available while the workspace is accessible if saving is full.

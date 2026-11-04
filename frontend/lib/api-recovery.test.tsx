@@ -11,7 +11,73 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
+
+it.each(["timer", "server"])(
+  "remembers judge expiry from the %s while clearing private access",
+  async (source) => {
+    const expiresAt = Date.now() + 1800000;
+    let rejected = false;
+    vi.stubGlobal("fetch", async (path: string) => {
+      if (path === "/api/auth" || path === "/api/login")
+        return new Response(
+          JSON.stringify({
+            authenticated: true,
+            judgeMode: true,
+            configured: true,
+            codes: false,
+            open: false,
+            recoveryScope: "synthetic-judge",
+          }),
+        );
+      if (rejected)
+        return new Response(JSON.stringify({ code: "TESTER_REQUIRED" }), {
+          status: 401,
+        });
+      return new Response(
+        JSON.stringify({
+          configured: true,
+          models: [],
+          problems: [],
+          traceEnabled: false,
+          defaultModel: "test",
+          access: {
+            kind: "judge",
+            label: "synthetic",
+            quota: 50,
+            remaining: 50,
+            expiresAt,
+          },
+        }),
+      );
+    });
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useAuth());
+    await act(async () => {});
+    expect(result.current.info.authenticated).toBe(true);
+    expect(result.current.judgeExpired).toBe(false);
+    if (source === "timer") {
+      await act(async () => vi.advanceTimersByTimeAsync(1800000));
+    } else {
+      vi.setSystemTime(expiresAt);
+      rejected = true;
+      await act(async () => result.current.refresh());
+    }
+    expect(result.current.info.authenticated).toBe(false);
+    expect(result.current.status).toBeNull();
+    expect(localStorage.getItem(recoveryScopeKey)).toBeNull();
+    expect(result.current.judgeExpired).toBe(true);
+    rejected = false;
+    vi.setSystemTime(expiresAt - 10000);
+    await act(async () => {
+      await result.current.login({ judge: true });
+    });
+    expect(result.current.judgeExpired).toBe(false);
+    await act(async () => result.current.logout());
+    expect(result.current.judgeExpired).toBe(false);
+  },
+);
 it.each(["newer-login", null])(
   "initial auth follows another tab's current login scope (%s)",
   async (scope) => {
