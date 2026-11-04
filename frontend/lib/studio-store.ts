@@ -348,6 +348,7 @@ export function restorePlayer(
       solve();
       player.next();
     }
+    if (saved.assisted === true) player.markAssisted();
     if (saved.variant === 1) player.variant(1);
     for (const [id, value] of Object.entries(saved.controls ?? {}))
       if (Number.isFinite(value)) player.input(id, value);

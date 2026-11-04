@@ -28,12 +28,21 @@ export function Calculator({
   const tr = (en: string, zh: string) => say(language, en, zh);
   const id = useId(),
     input = useRef<HTMLInputElement>(null),
-    selection = useRef<number | null>(null);
+    selection = useRef<number | null>(null),
+    feedback = useRef<HTMLDivElement>(null);
   const [expression, setExpression] = useState(""),
     [mode, setMode] = useState<AngleMode>("rad");
   const [result, setResult] = useState<number | null>(null),
     [error, setError] = useState<string | null>(null);
   const [copyNote, setCopyNote] = useState("");
+  const [evaluations, setEvaluations] = useState(0);
+  useLayoutEffect(() => {
+    if (evaluations > 0)
+      feedback.current?.scrollIntoView?.({
+        block: "nearest",
+        behavior: "instant",
+      });
+  }, [evaluations]);
   useLayoutEffect(() => {
     if (selection.current === null) return;
     input.current?.setSelectionRange(selection.current, selection.current);
@@ -68,12 +77,24 @@ export function Calculator({
       }
     }
     const selected = before.slice(start, end);
-    const addition =
+    let addition =
       selected && text.endsWith("(")
         ? text + selected + ")"
         : selected && text === "^2"
           ? `(${selected})^2`
           : text;
+    const prefix = before.slice(0, start);
+    const endsNamedValue = /(?:[)%π]|\bpi|\be)\s*$/i.test(prefix);
+    // Match an entire numeric token, including scientific notation, rather than
+    // mistaking the digits in a function name such as log10 for a number.
+    const endsNumber =
+      /(?:^|[^a-z0-9_])(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\s*$/i.test(prefix);
+    if (
+      ((endsNamedValue || endsNumber) && /^[a-zπ(]/i.test(addition)) ||
+      (endsNamedValue && /^[\d.]/.test(addition))
+    ) {
+      addition = "×" + addition;
+    }
     const next = before.slice(0, start) + addition + before.slice(end);
     if (next.length > CALCULATOR_MAX_LENGTH) return;
     selection.current = start + addition.length;
@@ -83,6 +104,7 @@ export function Calculator({
     if (disabled) return;
     onInteraction?.();
     setCopyNote("");
+    setEvaluations((count) => count + 1);
     try {
       setResult(calculate(expression, mode));
       setError(null);
@@ -152,6 +174,12 @@ export function Calculator({
           }
         }}
       />
+      <p id={`${id}-help`} className="fine calculator-help">
+        {tr(
+          "xʸ: powers such as 2^3. eˣ: exp(x). ln: natural log; log: base 10. %: divide by 100.",
+          "xʸ 用于乘方，例如 2^3；eˣ 为 exp(x)。ln 为自然对数，log 为常用对数；% 表示除以 100。",
+        )}
+      </p>
       <div className="calculator-toolbar">
         <label>
           {tr("Angle unit", "角度单位")}
@@ -228,86 +256,87 @@ export function Calculator({
       >
         {tr("Calculate", "计算")} =
       </button>
-      <p id={`${id}-help`} className="fine calculator-help">
-        {tr(
-          "Tap keys or type. Use × or * for multiplication. ln is natural log; log is base 10. % divides by 100.",
-          "可点按或键入。乘法用 × 或 *。ln 为自然对数，log 为常用对数；% 表示除以 100。",
-        )}
-      </p>
-      {error && (
-        <p className="calculator-error" role="alert">
-          {error === "domain"
-            ? tr(
-                "This calculation has no finite result in its domain. Check the values and angle unit.",
-                "此计算在定义域内没有有限结果，请检查数值和角度单位。",
-              )
-            : error === "limit"
+      <div className="calculator-feedback" ref={feedback}>
+        {error && (
+          <p className="calculator-error" role="alert">
+            {error === "multiplication"
               ? tr(
-                  "This expression is too long or deeply nested. Split it into smaller calculations.",
-                  "算式过长或嵌套过深，请分步计算。",
+                  "Add × between a value and a function, e.g. 2 × exp(3). For a power, use xʸ (2^3).",
+                  "数值与函数之间请加 ×，例如 2 × exp(3)。乘方请用 xʸ（2^3）。",
                 )
-              : tr(
-                  "Check the expression, parentheses and function names.",
-                  "请检查算式、括号和函数名称。",
-                )}
+              : error === "domain"
+                ? tr(
+                    "This calculation has no finite result in its domain. Check the values and angle unit.",
+                    "此计算在定义域内没有有限结果，请检查数值和角度单位。",
+                  )
+                : error === "limit"
+                  ? tr(
+                      "This expression is too long or deeply nested. Split it into smaller calculations.",
+                      "算式过长或嵌套过深，请分步计算。",
+                    )
+                  : tr(
+                      "Check the expression, parentheses and function names.",
+                      "请检查算式、括号和函数名称。",
+                    )}
+          </p>
+        )}
+        <label htmlFor={`${id}-result`}>{tr("Result", "结果")}</label>
+        <input
+          id={`${id}-result`}
+          className="calculator-result"
+          aria-label={tr("Calculator result", "计算器结果")}
+          value={result === null ? "" : String(result)}
+          readOnly
+          onFocus={(event) => event.target.select()}
+        />
+        <p className="sr-only" aria-live="polite">
+          {result === null ? "" : tr("Result: ", "结果：") + String(result)}
         </p>
-      )}
-      <label htmlFor={`${id}-result`}>{tr("Result", "结果")}</label>
-      <input
-        id={`${id}-result`}
-        className="calculator-result"
-        aria-label={tr("Calculator result", "计算器结果")}
-        value={result === null ? "" : String(result)}
-        readOnly
-        onFocus={(event) => event.target.select()}
-      />
-      <p className="sr-only" aria-live="polite">
-        {result === null ? "" : tr("Result: ", "结果：") + String(result)}
-      </p>
-      <div className="calculator-actions">
-        {targets.map((target) => (
+        <div className="calculator-actions">
+          {targets.map((target) => (
+            <button
+              key={target.label}
+              type="button"
+              disabled={disabled || result === null}
+              onClick={() => {
+                if (result === null || disabled) return;
+                target.onUse(String(result));
+                const disclosure = input.current?.closest("details");
+                if (disclosure) disclosure.open = false;
+                if (target.targetId)
+                  document.getElementById(target.targetId)?.focus();
+              }}
+            >
+              {target.label}
+            </button>
+          ))}
           <button
-            key={target.label}
             type="button"
+            className="secondary"
             disabled={disabled || result === null}
-            onClick={() => {
-              if (result === null || disabled) return;
-              target.onUse(String(result));
-              const disclosure = input.current?.closest("details");
-              if (disclosure) disclosure.open = false;
-              if (target.targetId)
-                document.getElementById(target.targetId)?.focus();
+            onClick={async () => {
+              if (result === null) return;
+              try {
+                await navigator.clipboard.writeText(String(result));
+                setCopyNote(tr("Copied.", "已复制。"));
+              } catch {
+                setCopyNote(
+                  tr("Select the result to copy it.", "请选择结果后复制。"),
+                );
+              }
             }}
           >
-            {target.label}
+            {tr("Copy result", "复制结果")}
           </button>
-        ))}
-        <button
-          type="button"
-          className="secondary"
-          disabled={disabled || result === null}
-          onClick={async () => {
-            if (result === null) return;
-            try {
-              await navigator.clipboard.writeText(String(result));
-              setCopyNote(tr("Copied.", "已复制。"));
-            } catch {
-              setCopyNote(
-                tr("Select the result to copy it.", "请选择结果后复制。"),
-              );
-            }
-          }}
-        >
-          {tr("Copy result", "复制结果")}
-        </button>
+        </div>
+        <p className="fine calculator-note" aria-live="polite">
+          {copyNote ||
+            tr(
+              "Calculate in the answer's displayed units.",
+              "请按答案所示单位计算。",
+            )}
+        </p>
       </div>
-      <p className="fine calculator-note" aria-live="polite">
-        {copyNote ||
-          tr(
-            "Calculate in the answer's displayed units.",
-            "请按答案所示单位计算。",
-          )}
-      </p>
     </fieldset>
   );
   return standalone ? (

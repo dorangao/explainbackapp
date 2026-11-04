@@ -167,6 +167,12 @@ it("offers authored-unit recovery when an offset conversion cannot preserve a ti
   expect(screen.getByText(/unit conversion loses the precision/)).toBeTruthy();
   submit("32");
   expect(player.state.transfer).toBe(false);
+  fireEvent.click(
+    screen.getByRole("button", { name: /Show worked steps and answer/ }),
+  );
+  expect(screen.getByText(/Calculated answer:/).textContent).toBe(
+    "Calculated answer: 1e-12 °C",
+  );
   fireEvent.click(screen.getByRole("button", { name: "Use lesson units" }));
   expect(
     (
@@ -229,4 +235,46 @@ it("uses the shared calculator on numeric fresh cases without automatically grad
 it("keeps the calculator out of choice-only fresh cases", () => {
   mount(processLesson() as Lesson);
   expect(screen.queryByText("Calculator", { selector: "summary" })).toBeNull();
+});
+
+it("reveals worked steps only on request after an unsuccessful check and records assistance", () => {
+  const player = mount();
+  expect(
+    screen.queryByRole("button", { name: /Show worked steps and answer/ }),
+  ).toBeNull();
+  submit("59.9");
+  expect(screen.queryByText(/Calculated answer:/)).toBeNull();
+  fireEvent.click(
+    screen.getByRole("button", { name: /Show worked steps and answer/ }),
+  );
+  expect(screen.getByText(/Calculated answer:/).textContent).toContain(
+    "63.57080299231656",
+  );
+  expect(screen.getByText(/Substitute:/).textContent).toContain("85");
+  expect(player.state.assisted).toBe(true);
+  submit("63.6");
+  fireEvent.click(screen.getByRole("button", { name: /Finish lesson/ }));
+  expect(screen.getByText(/Completed with help/)).toBeTruthy();
+});
+
+it("starts a new attempt without revealing the earlier solution", () => {
+  const player = mount();
+  submit("0");
+  fireEvent.click(
+    screen.getByRole("button", { name: /Show worked steps and answer/ }),
+  );
+  submit("63.6");
+  fireEvent.click(screen.getByRole("button", { name: /Finish lesson/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Start over|Restart/i }));
+  player.predict("unsure");
+  player.next();
+  player.scrub(1);
+  player.next();
+  player.next();
+  fireEvent.click(screen.getByRole("button", { name: /Not sure/i }));
+  submit("0");
+  expect(
+    screen.queryByRole("button", { name: /Show worked steps and answer/ }),
+  ).not.toBeNull();
+  expect(screen.queryByText(/Calculated answer:/)).toBeNull();
 });

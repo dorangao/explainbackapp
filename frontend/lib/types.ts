@@ -177,6 +177,7 @@ export type PlayerState = {
   transfer: boolean | null;
   controls: Record<string, number>;
   metric: number;
+  assisted?: boolean;
 };
 export type Experiment = {
   id: string;
@@ -236,6 +237,7 @@ export interface Player {
   variant(value: number): void;
   check(raw: string): boolean | null;
   editAnswer(): void;
+  markAssisted(): void;
   next(): boolean;
   replay(): void;
   restart(): void;

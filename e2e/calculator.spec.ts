@@ -1,5 +1,35 @@
 import { test, expect } from "@playwright/test";
 
+test("a short phone viewport reveals calculator feedback, including repeated calculations", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
+  await page
+    .locator(".header-tools")
+    .getByRole("button", { name: "Calculator", exact: true })
+    .click();
+  const calculator = page.getByRole("dialog", {
+    name: "Calculator",
+    exact: true,
+  });
+  const input = calculator.getByLabel("Expression", { exact: true });
+  for (let i = 0; i < 2; i++) {
+    await input.fill("2+2");
+    await input.press("Enter");
+    await expect(
+      calculator.getByLabel("Calculator result", { exact: true }),
+    ).toBeInViewport({ ratio: 1 });
+    await calculator.evaluate((node) => {
+      node.scrollTop = 0;
+    });
+  }
+  await input.fill("75×0.95exp(10)+15");
+  await input.press("Enter");
+  await expect(calculator.getByRole("alert")).toBeInViewport({ ratio: 1 });
+});
+
 for (const width of [320, 1440]) {
   test(`menu calculator preserves the lesson and supports keyboard and touch at ${width}px`, async ({
     page,
@@ -95,11 +125,32 @@ test("fresh-case calculator fills an answer explicitly and Enter never grades it
   await calculator.locator("summary").click();
   await calculator
     .getByLabel("Expression", { exact: true })
+    .fill("75×0.95exp(10)+15");
+  await calculator
+    .getByRole("button", { name: "Calculate", exact: true })
+    .evaluate((button) => {
+      window.scrollBy(
+        0,
+        button.getBoundingClientRect().bottom - window.innerHeight + 8,
+      );
+    });
+  await calculator
+    .getByRole("button", { name: "Calculate", exact: true })
+    .click();
+  await expect(calculator.getByRole("alert")).toBeInViewport({ ratio: 1 });
+  await calculator
+    .getByLabel("Expression", { exact: true })
     .fill("15+75*exp(-0.5)");
   await calculator.getByLabel("Expression", { exact: true }).press("Enter");
   await expect(
     calculator.getByLabel("Calculator result", { exact: true }),
   ).toHaveValue("60.48979947844751");
+  await expect(
+    calculator.getByLabel("Calculator result", { exact: true }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(
+    calculator.getByRole("button", { name: "Use result (°C)", exact: true }),
+  ).toBeInViewport({ ratio: 1 });
   await expect(
     page.getByRole("button", { name: /Finish lesson/ }),
   ).toBeDisabled();

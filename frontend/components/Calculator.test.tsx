@@ -137,3 +137,33 @@ it("returns focus to the selected numeric destination and collapses the inline k
   expect(document.activeElement).toBe(screen.getByLabelText("Second answer"));
   expect(document.querySelector("details")?.open).toBe(false);
 });
+
+it.each([
+  ["75×0.95", "Exponential", "75×0.95×exp("],
+  ["2", "Square root", "2×sqrt("],
+  ["2", "π", "2×π"],
+  ["(2+3)", "4", "(2+3)×4"],
+  ["1e3", "Square root", "1e3×sqrt("],
+  ["log10", "(", "log10("],
+])(
+  "inserts multiplication after the completed term %s",
+  (before, key, expected) => {
+    const { input } = setup();
+    expression(input, before);
+    input.setSelectionRange(before.length, before.length);
+    fireEvent.click(screen.getByRole("button", { name: key }));
+    expect(input.value).toBe(expected);
+  },
+);
+
+it("explains the screenshot's missing multiplication while keeping exp distinct from powers", () => {
+  const { input, use } = setup();
+  expression(input, "75×0.95exp(10)+15");
+  fireEvent.click(screen.getByRole("button", { name: "Calculate" }));
+  expect(screen.getByRole("alert").textContent).toMatch(/×.*function/);
+  expect(result()).toBe("");
+  expect(use).not.toHaveBeenCalled();
+  expression(input, "75×0.95^10+15");
+  fireEvent.click(screen.getByRole("button", { name: "Calculate" }));
+  expect(Number(result())).toBeCloseTo(59.90527044287842, 12);
+});

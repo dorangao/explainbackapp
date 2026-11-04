@@ -79,4 +79,9 @@ describe("calculator arithmetic", () => {
     expect(() => calculate("1+".repeat(300) + "1")).toThrow();
     expect(() => calculate("(".repeat(40) + "1" + ")".repeat(40))).toThrow();
   });
+
+  it.each(["75×0.95exp(10)+15", "2pi", "2(3+4)", "sqrt(2pi)"])(
+    "identifies the missing multiplication in %s without reinterpreting it",
+    (value) => expect(() => calculate(value)).toThrow("multiplication"),
+  );
 });

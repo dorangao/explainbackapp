@@ -3,7 +3,9 @@
 export type AngleMode = "rad" | "deg";
 export const CALCULATOR_MAX_LENGTH = 240;
 export class CalculatorError extends Error {
-  constructor(public readonly code: "syntax" | "domain" | "limit") {
+  constructor(
+    public readonly code: "syntax" | "domain" | "limit" | "multiplication",
+  ) {
     super(code);
   }
 }
@@ -118,7 +120,19 @@ export function calculate(source: string, mode: AngleMode = "rad"): number {
             : op === "^"
               ? 30
               : -1;
-      if (power < minimum) break;
+      if (power < minimum) {
+        if (
+          minimum === 0 &&
+          (typeof op === "number" ||
+            op === "(" ||
+            op === "pi" ||
+            op === "e" ||
+            Object.hasOwn(arities, op))
+        ) {
+          throw new CalculatorError("multiplication");
+        }
+        break;
+      }
       at++;
       const right = parse(op === "^" ? power : power + 1, depth + 1);
       value = finite(
