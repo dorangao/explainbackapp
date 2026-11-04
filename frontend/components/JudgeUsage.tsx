@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getJson } from "../lib/api";
-import { say, type Language } from "../lib/types";
+import { say, type Language, type Post } from "../lib/types";
 type SessionUsage = {
   id: string;
   createdAt: number;
@@ -8,6 +8,7 @@ type SessionUsage = {
   status: "active" | "expired" | "revoked";
   saves: number;
   calls: number;
+  used?: number;
   succeeded: number;
   failed: number;
   pending: number;
@@ -20,19 +21,39 @@ type SessionUsage = {
 type Usage = {
   sessions: SessionUsage[];
   cursor: string | null;
-  daily: { date: string; used: number; limit: number };
+  daily: { date: string; used: number; limit: number; total?: number };
+  resets?: {
+    type: string;
+    at: number;
+    reason: string;
+    previousUsed: number;
+    sessionId?: string;
+  }[];
   retentionDays: number;
 };
 export function JudgeUsage({
   language,
   onClose,
+  post,
 }: {
   language: Language;
   onClose: () => void;
+  post: Post;
 }) {
   const [usage, setUsage] = useState<Usage | null>(null),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [reset, setReset] = useState<{
+      type: "starts" | "daily" | "session";
+      sessionId?: string;
+    } | null>(null),
+    [reason, setReason] = useState(""),
+    [confirmed, setConfirmed] = useState(false);
+  const prepareReset = (next: NonNullable<typeof reset>) => {
+    setReset(next);
+    setReason("");
+    setConfirmed(false);
+  };
   const load = useCallback(async (cursor?: string) => {
     setBusy(true);
     setError("");
@@ -109,6 +130,112 @@ export function JudgeUsage({
           <p className="fine">
             {say(
               language,
+              `Total provider calls today: ${usage.daily.total ?? usage.daily.used}. The allowance above counts calls since the last manual reset.`,
+              `今日实际调用总数：${usage.daily.total ?? usage.daily.used}。上方额度显示上次手动重置后的调用次数。`,
+            )}
+          </p>
+          <div className="judge-reset-actions">
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => prepareReset({ type: "starts" })}
+            >
+              {say(language, "Reset start cooldowns", "重置启动冷却")}
+            </button>
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => prepareReset({ type: "daily" })}
+            >
+              {say(language, "Reset daily allowance", "重置每日额度")}
+            </button>
+          </div>
+          {reset && (
+            <form
+              className="judge-reset-confirm"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!confirmed || reason.trim().length < 3 || busy) return;
+                setBusy(true);
+                setError("");
+                try {
+                  await post("/api/admin/judge-reset", {
+                    ...reset,
+                    reason: reason.trim(),
+                    confirm: true,
+                  });
+                  setReset(null);
+                  await load();
+                } catch {
+                  setError(
+                    "Reset failed. Refresh usage and check administrator access before retrying.",
+                  );
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <h3>
+                {say(language, "Confirm Judge reset", "确认重置评审额度")}
+              </h3>
+              <p>
+                {say(
+                  language,
+                  reset.type === "daily"
+                    ? "Restore up to 500 more Judge calls for everyone today. This can increase model costs."
+                    : reset.type === "session"
+                      ? `Restore up to 50 more calls for session ${reset.sessionId}. Its expiry will not change.`
+                      : "Clear this network’s Judge start/check cooldowns and the shared start/check cooldowns. Other networks’ individual cooldowns and Vercel firewall limits remain in place.",
+                  reset.type === "daily"
+                    ? "为所有评审恢复今日最多500次调用。这可能增加模型费用。"
+                    : reset.type === "session"
+                      ? `为会话 ${reset.sessionId} 恢复最多50次调用。到期时间不变。`
+                      : "清除此网络和全局的评审启动及验证冷却。其他网络的独立冷却和Vercel防火墙限制仍然有效。",
+                )}
+              </p>
+              <p>
+                {say(
+                  language,
+                  "Usage history stays intact. This action is recorded in the reset history.",
+                  "用量历史不会被删除。此操作将记录在重置历史中。",
+                )}
+              </p>
+              <label>
+                {say(language, "Reason for reset", "重置原因")}
+                <input
+                  required
+                  minLength={3}
+                  maxLength={160}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={confirmed}
+                  onChange={(e) => setConfirmed(e.target.checked)}
+                  disabled={busy}
+                />
+                {say(language, "I confirm this reset", "我确认执行此重置")}
+              </label>
+              <button disabled={busy || !confirmed || reason.trim().length < 3}>
+                {say(language, "Confirm reset", "确认重置")}
+              </button>
+              <button
+                type="button"
+                className="text-button"
+                disabled={busy}
+                onClick={() => setReset(null)}
+              >
+                {say(language, "Cancel", "取消")}
+              </button>
+            </form>
+          )}
+          <p className="fine">
+            {say(
+              language,
               `Sessions are retained for ${usage.retentionDays} days. Calls include failed attempts and retries; token totals include only usage returned by the provider.`,
               `保留${usage.retentionDays}天的会话记录。调用次数包含失败和重试；Token总数仅包含服务商返回的用量。`,
             )}
@@ -149,8 +276,34 @@ export function JudgeUsage({
                           }[row.status],
                         )}
                       </td>
-                      <td>{row.calls} / 50</td>
                       <td>
+                        {row.used ?? row.calls} / 50
+                        {row.used !== undefined && row.used !== row.calls && (
+                          <p className="fine">
+                            {row.calls}{" "}
+                            {say(language, "total calls", "次总调用")}
+                          </p>
+                        )}
+                      </td>
+                      <td>
+                        {row.status === "active" && (
+                          <button
+                            className="text-button"
+                            disabled={busy}
+                            onClick={() =>
+                              prepareReset({
+                                type: "session",
+                                sessionId: row.id,
+                              })
+                            }
+                          >
+                            {say(
+                              language,
+                              "Reset session allowance",
+                              "重置会话额度",
+                            )}
+                          </button>
+                        )}
                         <details>
                           <summary>
                             {say(language, "Models and outcomes", "模型和结果")}
@@ -208,6 +361,23 @@ export function JudgeUsage({
             >
               {say(language, "Load more sessions", "加载更多会话")}
             </button>
+          )}
+          {!!usage.resets?.length && (
+            <details className="judge-reset-history">
+              <summary>
+                {say(language, "Administrator reset history", "管理员重置历史")}
+              </summary>
+              <ul>
+                {usage.resets.map((event, i) => (
+                  <li key={`${event.at}-${i}`}>
+                    {date(event.at)} · {event.type}
+                    {event.sessionId ? ` · ${event.sessionId}` : ""} ·{" "}
+                    {say(language, "previous usage", "重置前用量")}{" "}
+                    {event.previousUsed} · {event.reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
           )}
         </>
       )}

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { t } from "../lib/messages";
 import type { AuthInfo, Language } from "../lib/types";
 import { say } from "../lib/types";
+import { JudgeCheck } from "./JudgeCheck";
 export function AccessPanel({
   language,
   info,
@@ -39,6 +40,10 @@ export function AccessPanel({
       : ["You can try again now.", "现在可以重试。"]
     : ["Please try again shortly.", "请稍后重试。"];
   const errors: Record<string, [string, string]> = {
+    JUDGE_CHALLENGE: [
+      "That check was incorrect, expired, or already used. Request a new check. Your current session is unchanged.",
+      "验证有误、已过期或已使用。请获取新的验证。已有会话不受影响。",
+    ],
     JUDGE_START_LIMIT: [
       `Too many judge sessions started. ${retryMessage[0]} Your current session, if any, is unchanged.`,
       `评审会话启动次数过多。${retryMessage[1]}已有会话不受影响。`,
@@ -100,16 +105,12 @@ export function AccessPanel({
               "无需账号或邀请码。每个会话有效期为30分钟，最多可调用AI 50次，并受共享每日额度限制。一次操作可能调用多次。",
             )}
           </p>
-          <button
-            disabled={working || wait > 0}
-            onClick={() => void onLogin({ judge: true })}
-          >
-            {say(
-              language,
-              working ? "Starting…" : "Start Judge mode",
-              working ? "正在启动…" : "启动评审模式",
-            )}
-          </button>
+          <JudgeCheck
+            language={language}
+            working={working}
+            cooldown={wait > 0}
+            onLogin={onLogin}
+          />
           <p className="fine">
             {say(
               language,

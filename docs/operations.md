@@ -99,6 +99,21 @@ edge firewall: inspect the matched WAF rule and traffic, rather than resetting R
 counters or changing credentials. Missing source headers and foreign origins return
 `403`, a separate failure from either rate limiter.
 
+Judge sign-in also requires a fresh quick check. A reviewer can read the image or
+choose the accessible text check; neither spends model calls. Incorrect, expired or
+replayed answers require a new check and leave an existing login intact. Reload an
+older open sign-in page after deploying this requirement.
+
+In **Judge usage**, the tester administrator can choose **Reset start cooldowns**,
+**Reset daily allowance**, or **Reset session allowance** for an active row. Supply
+a short operational reason (no credentials or personal information), confirm the
+scope, then refresh usage. Restoring calls can increase spending beyond the ordinary
+allowance. The original session expiry, usage records and total daily calls remain;
+the allowance-used value counts from the last reset. The latest reset history is
+shown below the table. These controls do not change Vercel rules or clear other
+networks' individual cooldowns. A stale/expired session reset returns `409` without
+signing the administrator out.
+
 Public trials share a bounded workflow pool and a bounded saved-lesson pool. Save/share
 attempts are limited separately from model calls. If trial storage is full, the admin
 can review and delete older trial lessons using the existing administrator library;

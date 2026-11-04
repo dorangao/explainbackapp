@@ -4517,6 +4517,36 @@ body {
 .judge-access h3 {
   margin-top: 0;
 }
+.judge-check img {
+  display: block;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0;
+}
+.judge-check input {
+  max-width: 15rem;
+  font-variant-numeric: tabular-nums;
+}
+.judge-check-actions,
+.judge-reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+.judge-reset-confirm {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  margin: 1rem 0;
+}
+.judge-reset-confirm input[type="checkbox"] {
+  width: auto;
+  margin-right: 0.5rem;
+}
+.judge-reset-history {
+  margin-top: 1rem;
+}
 .judge-session,
 .judge-usage {
   max-width: 1200px;

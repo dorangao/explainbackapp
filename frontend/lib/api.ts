@@ -61,6 +61,8 @@ async function request<T>(
 }
 // A plain GET with the session cookie; errors carry the server's message and status.
 export const getJson = <T>(path: string) => request<T>(path);
+export const postJson = <T>(path: string, body: unknown) =>
+  request<T>(path, body);
 const signedOut: AuthInfo = {
   configured: false,
   codes: false,
@@ -210,7 +212,8 @@ export function useAuth() {
         if (
           e instanceof ApiError &&
           !loginAccepted &&
-          (e.status === 429 || e.code === "JUDGE_DISABLED")
+          (e.status === 429 ||
+            ["JUDGE_DISABLED", "JUDGE_CHALLENGE"].includes(e.code ?? ""))
         ) {
           setError(e.code || "API_RATE_LIMIT");
           setRetryAt(

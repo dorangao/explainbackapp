@@ -183,6 +183,10 @@ export function createHandler({
   // beyond the deployed commit, which the public repository shows anyway.
   app.get('/api/health', (req,res) => reply(res,200,{status:'ok',build:process.env.VERCEL_GIT_COMMIT_SHA?.slice(0,7)??null}));
   app.get('/api/auth', (req,res) => reply(res,200,{configured:access.configured,codes:access.codesConfigured===true,...(judgeMode?{judgeMode:true}:{}),open:openAccess,authenticated:Boolean(res.locals.tester),...(res.locals.tester?{recoveryScope:recoveryScope(res.locals.tester)}:{}),...(isAdmin(res.locals.tester)?{admin:true}:{})}));
+  app.post('/api/judge-challenge',requireOrigin,parseBody,tracked(async(req,res)=>{
+    if(!['image','text'].includes(req.body.kind))throw new RequestError(400,'Choose an image or text check.');
+    reply(res,200,await judgeGate.challenge(req.body.kind,clientAddress(req)));
+  }));
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
     try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true,recoveryScope:recoveryScope(result),admin:isAdmin(result)},{'Set-Cookie':result.cookie}); }
@@ -206,6 +210,14 @@ export function createHandler({
     const raw=req.query.cursor??'0';if(typeof raw!=='string'||!/^\d{1,7}$/.test(raw)||Number(raw)>1000000)throw new RequestError(400,'Invalid usage cursor.');
     reply(res,200,await judgeStore.list(Number(raw)));
   }));
+  app.post('/api/admin/judge-reset',requireOrigin,parseBody,tracked(async(req,res)=>{
+    if(!isAdmin(res.locals.tester))throw new RequestError(403,'Administrator access required.');
+    const {type,sessionId,reason,confirm}=req.body;
+    if(confirm!==true||!['starts','daily','session'].includes(type)||typeof reason!=='string'||reason.trim().length<3||reason.trim().length>160||(type==='session'&&(typeof sessionId!=='string'||! /^[a-f0-9]{16}$/.test(sessionId))))throw new RequestError(400,'Confirm the reset and provide a reason of 3 to 160 characters.');
+    const result=await judgeStore.reset({type,sessionId,reason:reason.trim(),client:createHash('sha256').update(clientAddress(req)||'unknown').digest('hex')});
+    if(result.error)throw new RequestError(409,'This Judge session is no longer active. Refresh usage before resetting it.');
+    reply(res,200,{ok:true});
+  }));
   app.get('/api/status', tracked(async (req,res) => {
     const tester=res.locals.tester; const [bucket,limit]=hourlyBudget(tester?.audience);
     const audience=tester.audience?.kind==='judge'?await judgeGate.status(tester):tester.audience?{...publicAudience(tester.audience),quota:limit,remaining:await state.remainingTurns(bucket,limit)}:null;
@@ -219,7 +231,7 @@ export function createHandler({
     const tester=res.locals.tester, body=req.body, path=req.path;
     const judge=tester.audience?.kind==='judge';
     const state=judge?{...ordinaryState,consumeTurn:async()=>true}:ordinaryState;
-    const sessionLimit=judge?JUDGE_CALLS:8*multiplier,coachLimit=judge?JUDGE_CALLS:TURN_LIMIT*multiplier;
+    const sessionLimit=judge?tester.audience.callCeiling:8*multiplier,coachLimit=judge?tester.audience.callCeiling:TURN_LIMIT*multiplier;
     if(judge&&path==='/api/studio/cover'&&body.lessonId)throw new RequestError(403,'Judge sessions may draw covers only for their own saved lessons.');
     const [bucket,limit]=hourlyBudget(tester?.audience);
     const quotaExceeded=()=>new RequestError(429,tester?.audience?'This access code’s hourly request budget is used up. Reviewed lessons still open without live requests.':'API request limit reached. No request was sent.');
@@ -476,7 +488,8 @@ export function createHandler({
     if(res.headersSent)return next(error);
     const status=error instanceof RequestError?error.status:error.type==='entity.too.large'?413:error.type==='encoding.unsupported'?415:error.type==='entity.parse.failed'?400:500;
     const message=error instanceof RequestError?error.message:status===413?'Request is too large.':status===415?'Unsupported request encoding.':status===400?'Invalid JSON request.':'Request failed. Please try again.';
-    reply(res,status,{error:message,...(error instanceof RequestError&&(error.code==='BACKGROUND_FAILED'||/^JUDGE_/.test(error.code??''))?{code:error.code}:{}),...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})});
+    const retryAfter=error instanceof RequestError&&Number.isFinite(error.retryAfter)&&error.retryAfter>0?Math.ceil(error.retryAfter):undefined;
+    reply(res,status,{error:message,...(error instanceof RequestError&&(error.code==='BACKGROUND_FAILED'||/^JUDGE_/.test(error.code??''))?{code:error.code}:{}),...(retryAfter?{retryAfter}:{}),...(Number.isInteger(error.attemptsRemaining)?{attemptsRemaining:error.attemptsRemaining}:{}),...(typeof error.reason==='string'&&error.reason?{reason:error.reason}:{})},retryAfter?{'Retry-After':String(retryAfter)}:{});
   });
   return app;
 

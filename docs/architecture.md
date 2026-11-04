@@ -69,7 +69,7 @@ A model revision carries a creator-confirmed image/control connection only when 
 
 Shared-link reading starts a new personal learner attempt for every reader, including an owner or administrator. The public shared response contains the lesson, source image and show, but excludes the creator's saved tryout and explain-back grades. Explicit authoring through the authenticated owner or administrator shelf or edit route restores those results; ownership/management permission alone does not identify a continuation of the creator's attempt. Stored results are unchanged.
 
-The public shared index returns up to 48 summaries with a nullable offset cursor. Redis determines whether another page exists from the indexed positions it scanned, even if a lesson disappears or becomes private before its record is fetched; such records are omitted without prematurely ending the listing. The catalog fetches these pages until complete, deduplicates IDs, reports loading or failure with retry, and applies search, filters and the selected sort to the combined index before showing 8, 24 or 48 cards per page (default 8). It sorts localized titles with the selected language's collation, or the recorded creation/update timestamps of shared records; undated built-in entries follow dated records in either direction. Update timestamps can reflect sharing and cover changes. The client restarts its load after share changes; concurrent updates during pagination can shift offsets, so a refresh may be needed for a consistent view. Owner and administrator annotations remain derived per request; lesson content and owner IDs are not included in summaries.
+The public shared index returns up to 48 summaries with a nullable offset cursor. Redis determines whether another page exists from the indexed positions it scanned, even if a lesson disappears or becomes private before its record is fetched; such records are omitted without prematurely ending the listing. The catalog fetches these pages until complete, deduplicates IDs, reports loading or failure with retry, and applies search, filters and the selected sort to the combined index before showing 9, 18 or 36 cards per page (default 9). It sorts localized titles with the selected language's collation, or the recorded creation/update timestamps of shared records; undated built-in entries follow dated records in either direction. Update timestamps can reflect sharing and cover changes. The client restarts its load after share changes; concurrent updates during pagination can shift offsets, so a refresh may be needed for a consistent view. Owner and administrator annotations remain derived per request; lesson content and owner IDs are not included in summaries.
 
 Saved records carry separate client-reported `lessonModel` and `showModel` labels for the latest lesson generation or revision and the show script, respectively; subsequent manual edits are possible. The lesson label also travels with browser recovery and is restored when undoing a revision. The older `model` field is retained for compatibility but cannot establish either role. Older records show its value only as role unknown, and a show without its own label has an unknown narration source. Old browser recovery snapshots also lose their cached show-model label because it may have come from that ambiguous field. When an older client omits the new fields on update, the server retains each known label only if its corresponding validated content is unchanged; it otherwise clears that label. These labels are creator-supplied metadata, not independent verification of authorship or scientific accuracy.
 
@@ -83,7 +83,7 @@ Saved records carry separate client-reported `lessonModel` and `showModel` label
 | Lesson canvas | SVG and Pointer Events; prediction drawing and keyboard point entry in every numeric model lesson, optional creator-confirmed image regions/control links, prediction overlay, shared bounded drawing validation and server-recomputed comparison values | `frontend/components/CanvasBindingEditor.tsx`, `frontend/components/PredictionCanvas.tsx`, `public/lesson-canvas.mjs` |
 | Server | Node.js 26, Express 5; shared local and Vercel API handler | `src/server.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
-| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions, public judge trials and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/judge-access.mjs`, `src/judge-redis.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
+| State and access | Upstash Redis REST in hosted environments; in-memory local adapter; reviewer codes, tester sessions, public judge trials and rate limits; saved lessons per creator with public share links | `src/redis-state.mjs`, `src/state.mjs`, `src/tester-auth.mjs`, `src/judge-access.mjs`, `src/judge-redis.mjs`, `src/judge-challenge.mjs`, `src/lessons.mjs`, `src/lesson-routes.mjs` |
 | Studio image routes | SAM 3.1 detection, Muse Image illustration, and a library cover for a reviewed lesson drawn at a signed-in creator's request (kept in state, served to everyone by the public `/api/covers`), as one request each, sharing the action handler's session, budget and trace plumbing | `src/studio-images.mjs`, `src/lesson-covers.mjs`, `src/request-error.mjs` |
 | Site frame | Header with Library, Create and About, one account control (Sign in, or the hourly budget pill with Sign out), a shared page header (crumb trail, one h1, meta line, actions) used by the lesson player, the narrated show, the comparison, the evaluation card, the About page, both benches and the Create home page, with a collapsible 6-step tour above the question form (finished steps checked, the current one solid, a hint on each bubble with its cost or a reminder to review the draft, the step cards in a disclosure, Run next and Run all for signed-in reviewers); the 1120 px content column shared by header, main and footer. On phones the header folds the navigation, language and account controls behind one Menu button, and a bench opened without preview access shows an inline locked stage with the access button and a link to the lesson version. The benches are listed in the library as coached lessons rather than in the header. The phone hero retains a compact introductory tour. Lesson transfer questions are separated from a collapsed reference to the earlier experiment; show playback controls precede the slide, and gallery shows reuse the page title. Comparisons use a compact summary and expandable details, with AI wording scores and the human science review requirement explicit | `frontend/App.tsx`, `frontend/components/PageHeader.tsx`, `frontend/components/About.tsx` |
 | Studio ground route | Search first: Spark gathers a dated fact sheet for a topic with the Muse web search tool (one request), the author receives it as references and may name only its pages as the lesson's sources; the adapter harvests the pages each search returned and reads the last message as the structured reply. Both fact readers reject exact repeated facts, comparing URL, value, unit and both statement languages; distinct facts may share a page and value. See [search-grounding.md](search-grounding.md) | `src/lesson-ground.mjs`, `src/meta.mjs`, `/api/studio/ground` |
@@ -139,13 +139,24 @@ the application's origin policy. Do not replace session controls with a header r
 ## Public judge trials
 
 `EXPLAINBACK_JUDGE_MODE=1` enables a public button and `POST /api/login` with
-`{judge:true}`. It is off by default and disabling it rejects existing trial sessions.
+`{judge:true,challengeId,answer}`. It is off by default and disabling it rejects existing trial sessions.
 It needs no invite secret and does not authenticate a person's judge status. Normal
 invite/tester sign-ins remain available. A trial has an opaque HttpOnly, SameSite=Strict
 cookie (Secure in hosted environments), a fixed absolute expiry, and a separate
 `kind:judge` audience; it cannot acquire administrator privileges. Each explicit start
 revokes the previous login and creates a new saved-lesson owner and browser recovery
 scope. Reloads reuse the existing scope. Trials cannot replace global gallery covers.
+
+`POST /api/judge-challenge` issues a short-lived, single-use recognition check. The
+default is a five-digit PNG rendered by `src/judge-challenge.mjs` using Node's built-in
+crypto/zlib; an accessible text addition check is available. No external CAPTCHA
+service or model call is involved. Only a salted answer digest, client hash and expiry
+are stored. A matching client gets one answer attempt, atomically consumed in Redis
+before a session can be issued. Issuance has independent client/global limits and
+expired checks are removed. The public response has no answer-text or digest field;
+usage history has no answers, digests or visitor identifiers. Invite/tester sign-in does not need this check.
+This is lightweight friction for simple scripts, not proof of humanity: OCR or a script
+that solves the text alternative can pass it. WAF and atomic usage limits still apply.
 
 The lifetime and call ceilings are defined in `src/judge-access.mjs`. Each session has
 its own provider-call counter and all trials share a UTC-day counter, independently of
@@ -205,6 +216,20 @@ success means the provider accepted the job; polling results are not a second ca
 do not update the usage record. Token totals include only usage available at dispatch
 completion. A completed provider call does not imply a validated lesson or scientific
 correctness. Existing admin lesson access is separate from this usage view.
+
+The same tester administrator can explicitly restore a session's call allowance,
+the shared daily call allowance, or this network's and the shared start/check cooldowns
+through `POST /api/admin/judge-reset`. Requests require the administrator cookie,
+same-origin checks, an explicit confirmation and a short reason. No automatic reset
+or privilege elevation is available. The UI states when a reset can permit additional
+provider spending. Expired/revoked sessions cannot be restored and expiry never moves.
+Session resets advance an allowance baseline while retaining every call and outcome;
+daily resets preserve an independent total. Reservations, resets and audit writes are
+atomic in Redis. Existing workflows respect a restored allowance, and Studio displays
+the shared Judge balance after reload and administrator changes. A public-ID index
+resolves a selected session without exposing its authorizing ID. The latest 100 reset
+records are retained for up to seven days; they include action, reason, time and prior
+usage. Storage ceilings, other networks' cooldowns and platform WAF limits are unchanged.
 
 ## Access limits
 

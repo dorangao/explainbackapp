@@ -5,14 +5,31 @@ import {
   act,
   cleanup,
 } from "@testing-library/react";
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
 import { AccessPanel } from "./AccessPanel";
 describe("Judge mode access", () => {
+  beforeEach(() =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              id: "synthetic-check",
+              kind: "image",
+              image: "data:image/png;base64,AA==",
+              expiresAt: Date.now() + 300000,
+            }),
+          ),
+      ),
+    ),
+  );
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
-  it("starts only on an explicit click, with no credential fields required", () => {
+  it("starts only on an explicit click after the quick check, with no credentials", async () => {
     const login = vi.fn().mockResolvedValue(true);
     render(
       <AccessPanel
@@ -32,11 +49,18 @@ describe("Judge mode access", () => {
     );
     expect(login).not.toHaveBeenCalled();
     expect(screen.getByText(/30 minutes/)).toBeTruthy();
+    fireEvent.change(await screen.findByLabelText("Enter the five digits"), {
+      target: { value: "24680" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Start Judge mode" }));
-    expect(login).toHaveBeenCalledWith({ judge: true });
+    expect(login).toHaveBeenCalledWith({
+      judge: true,
+      challengeId: "synthetic-check",
+      answer: "24680",
+    });
     expect(screen.queryByText(/not configured/i)).toBeNull();
   });
-  it("shows the actual cooldown and enables an explicit retry when it ends", () => {
+  it("shows the actual cooldown and enables an explicit retry when it ends", async () => {
     vi.useFakeTimers();
     const login = vi.fn();
     render(
@@ -56,6 +80,10 @@ describe("Judge mode access", () => {
         onClose={() => {}}
       />,
     );
+    await act(async () => {});
+    fireEvent.change(screen.getByLabelText("Enter the five digits"), {
+      target: { value: "24680" },
+    });
     expect(screen.getByRole("alert").textContent).toMatch(/28 seconds/);
     expect(
       (

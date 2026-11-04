@@ -37,7 +37,8 @@ Each claim below names where to see it in the app and the check in this reposito
 ## Try without credentials
 
 The public library and included narrated shows open without sign-in or model calls.
-When the deployment enables **Judge mode**, select that button, then **Start Judge mode**
+When the deployment enables **Judge mode**, select that button, complete the quick
+image or text check, then select **Start Judge mode**
 to try live creation without an account or invite code. A session lasts 30 minutes with
 up to 50 AI calls, subject to the app's shared daily allowance. One action can use several
 calls (for example, a show script and its images); failures and retries also count.

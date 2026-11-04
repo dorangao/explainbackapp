@@ -422,6 +422,7 @@ export function App() {
           <JudgeUsage
             key={`judge-usage-${auth.identity}`}
             language={language}
+            post={auth.post}
             onClose={() => setShowJudgeUsage(false)}
           />
         )}
