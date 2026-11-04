@@ -74,7 +74,7 @@ export function JudgePath({
   steps: JudgeStep[];
   running: boolean;
   // Why no request can be made now: the provider session's cap or the hourly budget.
-  blocked?: null | "session" | "hour";
+  blocked?: null | "session" | "hour" | "judge";
   used: number;
   // Whether the draft has been reviewed; until it has, the Draft bubble says so.
   reviewed?: boolean;
@@ -186,11 +186,13 @@ export function JudgePath({
         <p className="fine judge-foot" role="status">
           {complete
             ? t(language, "JudgePath.complete")
-            : blocked === "hour"
-              ? t(language, "JudgePath.noHourlyBudget")
-              : blocked === "session"
-                ? t(language, "JudgePath.noBudget")
-                : `${t(language, "JudgePath.remainingCost")}: ${cost}`}
+            : blocked === "judge"
+              ? t(language, "Studio.judgeSessionLimit")
+              : blocked === "hour"
+                ? t(language, "JudgePath.noHourlyBudget")
+                : blocked === "session"
+                  ? t(language, "JudgePath.noBudget")
+                  : `${t(language, "JudgePath.remainingCost")}: ${cost}`}
           {" · "}
           {t(language, "JudgePath.usedSoFar")}: {used}
         </p>

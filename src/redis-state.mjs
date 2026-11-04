@@ -1,7 +1,7 @@
 import {judgeOwner,JUDGE_SAVED_RECORDS} from './judge-access.mjs';
 import {createRedisJudgeStore} from './judge-redis.mjs';
 import {createHash,randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
-import {SESSION_TTL,LOCK_TTL,MAX_SESSIONS_PER_BUCKET,sessionBucket,snapshot} from './state.mjs';
+import {SESSION_TTL,LOCK_TTL,MAX_SESSIONS_PER_BUCKET,MAX_JUDGE_WORKFLOWS_PER_OWNER,sessionBucket,snapshot} from './state.mjs';
 import {findAccessCode,audienceOf,audienceValid} from './access-codes.mjs';
 import {CLIENT_FAILURE_LIMIT,GLOBAL_FAILURE_LIMIT,FAILURE_WINDOW_MS,MAX_SESSIONS,clientKey} from './tester-auth.mjs';
 
@@ -98,6 +98,28 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
   // MAX_SESSIONS_PER_BUCKET); both are scored by expiry and pruned on each create.
   async create(id,s){
    const bucketKey=key('sessions-by',sessionBucket(s));
+   // Count, select an idle owned victim, and insert atomically. Concurrent free
+   // creates cannot fill the trial pool or evict another visitor's workspace.
+   if(sessionBucket(s)==='judge:shared')return await run(`
+    if redis.call('EXISTS',KEYS[3])==0 then return 0 end
+    redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]);redis.call('ZREMRANGEBYSCORE',KEYS[4],'-inf',ARGV[1])
+    local owned=0;local victim=nil
+    for _,old in ipairs(redis.call('ZRANGE',KEYS[4],0,-1)) do
+     local value=redis.call('GET',ARGV[9]..old)
+     if value and cjson.decode(value).owner==ARGV[7] then
+      owned=owned+1
+      if not victim and redis.call('EXISTS',ARGV[10]..old)==0 then victim=old end
+     end
+    end
+    if owned>=tonumber(ARGV[8]) or redis.call('ZCARD',KEYS[4])>=tonumber(ARGV[6]) then
+     if not victim then return 0 end
+     redis.call('DEL',ARGV[9]..victim,ARGV[10]..victim,ARGV[11]..victim)
+     redis.call('ZREM',KEYS[1],victim);redis.call('ZREM',KEYS[4],victim)
+    end
+    if redis.call('ZCARD',KEYS[1])>=100 then return 0 end
+    redis.call('SET',KEYS[2],ARGV[4],'PX',ARGV[5]);redis.call('ZADD',KEYS[1],ARGV[2],ARGV[3]);redis.call('ZADD',KEYS[4],ARGV[2],ARGV[3])
+    redis.call('PEXPIRE',KEYS[1],ARGV[5]);redis.call('PEXPIRE',KEYS[4],ARGV[5]);return 1
+   `,[key('sessions'),sessionKey(id),authKey(s.owner),bucketKey],[now(),s.createdAt+SESSION_TTL,id,JSON.stringify(snapshot(s)),SESSION_TTL,MAX_SESSIONS_PER_BUCKET,s.owner,MAX_JUDGE_WORKFLOWS_PER_OWNER,sessionKey(''),lockKey(''),traceKey('')])===1;
    const attempt=()=>run(`
     if redis.call('EXISTS',KEYS[3])==0 then return 0 end
     redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]);redis.call('ZREMRANGEBYSCORE',KEYS[4],'-inf',ARGV[1])
@@ -112,7 +134,6 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
     const ids=await run("return redis.call('ZRANGE',KEYS[1],0,-1)",[bucketKey]);
     for(const old of Array.isArray(ids)?ids:[]){
      if(await get(lockKey(old)))continue;
-     if(sessionBucket(s)==='judge:shared'&&(await state.get(old))?.owner!==s.owner)continue;
      await evict(old,bucketKey);result=await attempt();break;
     }
    }

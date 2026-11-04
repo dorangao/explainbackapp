@@ -19,7 +19,16 @@ export function JudgeCheck({
   const [check, setCheck] = useState<Check | null>(null),
     [answer, setAnswer] = useState(""),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [retryAt, setRetryAt] = useState(0),
+    [now, setNow] = useState(Date.now);
+  const wait = Math.max(0, Math.ceil((retryAt - now) / 1000));
+  const blocked = cooldown || wait > 0 || error === "disabled";
+  useEffect(() => {
+    if (!retryAt) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [retryAt]);
   const version = useRef(0),
     form = useRef<HTMLFormElement>(null),
     answerInput = useRef<HTMLInputElement>(null);
@@ -36,10 +45,20 @@ export function JudgeCheck({
       const next = await postJson<Check>("/api/judge-challenge", { kind });
       if (token === version.current) setCheck(next);
     } catch (e) {
-      if (token === version.current)
+      if (token === version.current) {
         setError(
-          e instanceof ApiError && e.status === 429 ? "rate" : "network",
+          e instanceof ApiError && e.code === "JUDGE_DISABLED"
+            ? "disabled"
+            : e instanceof ApiError && e.status === 429
+              ? "rate"
+              : "network",
         );
+        if (e instanceof ApiError && e.status === 429) {
+          const time = Date.now();
+          setNow(time);
+          setRetryAt(time + (e.retryAfter ?? 60) * 1000);
+        }
+      }
     } finally {
       if (token === version.current) setBusy(false);
     }
@@ -76,7 +95,7 @@ export function JudgeCheck({
       className="judge-check"
       onSubmit={async (e) => {
         e.preventDefault();
-        if (!check || busy || working || cooldown) return;
+        if (!check || busy || working || blocked) return;
         const success = await onLogin({
           judge: true,
           challengeId: check.id,
@@ -123,16 +142,24 @@ export function JudgeCheck({
         <p role="status">
           {say(
             language,
-            error === "rate"
-              ? "Too many checks requested. Please wait before requesting another check."
-              : error === "expired"
-                ? "This check expired. Request a new one."
-                : "Could not load the check. Please try again.",
-            error === "rate"
-              ? "验证请求过于频繁，请稍候再获取新的验证。"
-              : error === "expired"
-                ? "验证已过期，请获取新的验证。"
-                : "无法加载验证，请重试。",
+            error === "disabled"
+              ? "Judge mode is currently unavailable. Public lessons remain available."
+              : error === "rate"
+                ? wait > 0
+                  ? `Too many checks requested. Try again in ${wait} seconds.`
+                  : "You can request a new check now."
+                : error === "expired"
+                  ? "This check expired. Request a new one."
+                  : "Could not load the check. Please try again.",
+            error === "disabled"
+              ? "评审模式目前不可用，公开课程仍可浏览。"
+              : error === "rate"
+                ? wait > 0
+                  ? `验证请求过于频繁，请在 ${wait} 秒后重试。`
+                  : "现在可以获取新的验证。"
+                : error === "expired"
+                  ? "验证已过期，请获取新的验证。"
+                  : "无法加载验证，请重试。",
           )}
         </p>
       )}
@@ -159,7 +186,7 @@ export function JudgeCheck({
         <button
           type="button"
           className="text-button"
-          disabled={busy || working || cooldown}
+          disabled={busy || working || blocked}
           onClick={() => void load("image")}
         >
           {say(language, "New image", "换一张图片")}
@@ -167,7 +194,7 @@ export function JudgeCheck({
         <button
           type="button"
           className="text-button"
-          disabled={busy || working || cooldown}
+          disabled={busy || working || blocked}
           onClick={() => void load("text")}
         >
           {say(language, "Use a text check", "改用文字验证")}
@@ -175,7 +202,7 @@ export function JudgeCheck({
       </div>
       <button
         type="submit"
-        disabled={busy || working || cooldown || !check || !answer.trim()}
+        disabled={busy || working || blocked || !check || !answer.trim()}
       >
         {say(
           language,

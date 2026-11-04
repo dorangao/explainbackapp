@@ -3,15 +3,32 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createJudgeAccess} from '../src/judge-access.mjs';
 export function judgeResourceContract(name,factory){
- test(`${name}: public workflows cannot crowd out administrator capacity`,async()=>{
-  const {state,auth,judgeStore}=await factory();const gate=createJudgeAccess({auth,store:judgeStore,enabled:true});let created=0;
-  for(let n=0;n<4;n++){
+ test(`${name}: each trial is bounded inside the shared pool without evicting another trial`,async()=>{
+  const {state,auth,judgeStore}=await factory();const gate=createJudgeAccess({auth,store:judgeStore,enabled:true});
+  for(let n=0;n<10;n++){
    const login=await gate.auth.login(await judgeBody(gate,'visitor'+n),'',{client:'visitor'+n});
-   for(let i=0;i<30;i++)created+=Number(await state.create(`judge-${n}-${i}`,{owner:login.id,audience:login.audience.label,createdAt:Date.now()}));
+   for(let i=0;i<30;i++)assert.equal(await state.create(`judge-${n}-${i}`,{owner:login.id,audience:login.audience.label,createdAt:Date.now()+i}),true);
+   const live=await Promise.all(Array.from({length:30},(_,i)=>state.get(`judge-${n}-${i}`)));
+   assert.equal(live.filter(Boolean).length,3);
   }
-  assert.equal(created,30);
+  const last=await gate.auth.login(await judgeBody(gate,'last'),'',{client:'last'});
+  assert.equal(await state.create('overflow',{owner:last.id,audience:last.audience.label,createdAt:Date.now()}),false);
+  for(let n=0;n<10;n++)assert.ok(await state.get(`judge-${n}-29`));
   const admin=await auth.login({username:'test',password:'synthetic-only-password'});
   assert.equal(await state.create('admin-workflow',{owner:admin.id,audience:null,createdAt:Date.now()}),true);
+ });
+ test(`${name}: concurrent creates keep at most three workflows and locked work cannot block another trial`,async()=>{
+  const {state,auth,judgeStore}=await factory();const gate=createJudgeAccess({auth,store:judgeStore,enabled:true});
+  const first=await gate.auth.login(await judgeBody(gate,'first'),'',{client:'first'});
+  const workflow={owner:first.id,audience:first.audience.label,createdAt:Date.now()};
+  await Promise.all(Array.from({length:30},(_,i)=>state.create('concurrent-'+i,workflow)));
+  const live=(await Promise.all(Array.from({length:30},async(_,i)=>await state.get('concurrent-'+i)?'concurrent-'+i:null))).filter(Boolean);
+  assert.equal(live.length,3);
+  for(const id of live)assert.ok(await state.acquire(id));
+  assert.equal(await state.create('locked-overflow',workflow),false);
+  const second=await gate.auth.login(await judgeBody(gate,'second'),'',{client:'second'});
+  assert.equal(await state.create('other-trial',{owner:second.id,audience:second.audience.label,createdAt:Date.now()}),true);
+  for(const id of live)assert.ok(await state.get(id));
  });
  test(`${name}: anonymous saved records have an atomic aggregate cap, and deletion reclaims it`,async()=>{
   const {state}=await factory();

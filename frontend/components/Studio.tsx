@@ -1,6 +1,6 @@
 import { attemptKey, emptyTryoutUI, type TryoutUI } from "../lib/workspace";
 import { CreateWorkspaceHeader } from "./CreateWorkspaceHeader";
-import { t } from "../lib/messages";
+import { t, type MessageKey } from "../lib/messages";
 import {
   lazy,
   Suspense,
@@ -294,6 +294,7 @@ export function Studio({
     alive,
     epoch,
   } = provider;
+  const isJudge = providerStatus?.access?.kind === "judge";
   const sessionAllowance =
     providerStatus?.access?.kind === "judge" ? providerStatus.access.quota : 8;
   const sessionUsed = Math.max(0, sessionAllowance - remaining);
@@ -652,6 +653,21 @@ export function Studio({
   // rejection reason when it sent one.
   const failureMessage = (error: unknown) => {
     if (error instanceof ApiError) {
+      const judgeErrors: Record<string, MessageKey> = {
+        JUDGE_SESSION_LIMIT: "Studio.judgeSessionLimit",
+        JUDGE_DAILY_LIMIT: "Studio.judgeDailyLimit",
+        JUDGE_STORAGE: "Studio.judgeStorage",
+        JUDGE_STORAGE_AFTER_CALL: "Studio.judgeStorageAfterCall",
+        JUDGE_WORKFLOW_LIMIT: "Studio.judgeWorkflowLimit",
+        JUDGE_DISABLED: "Studio.judgeDisabled",
+        JUDGE_EXPIRED: "Studio.judgeExpired",
+        JUDGE_SAVE_LIMIT: "Studio.judgeSaveLimit",
+        JUDGE_DAILY_SAVE_LIMIT: "Studio.judgeDailySaveLimit",
+        JUDGE_SAVED_LIMIT: "Studio.judgeSavedLimit",
+        API_RATE_LIMIT: "Studio.failRateLimit",
+      };
+      const specific = error.code && judgeErrors[error.code];
+      if (specific) return t(language, specific);
       const key = (
         {
           401: "Studio.failSignIn",
@@ -1857,7 +1873,9 @@ export function Studio({
               </p>
             )}
             <p className="fine">
-              {remaining} {t(language, "Studio.requestsLeftInThisProvider")}
+              {isJudge
+                ? `${remaining} / ${sessionAllowance} ${t(language, "Studio.judgeCallsLeft")}`
+                : `${remaining} ${t(language, "Studio.requestsLeftInThisProvider")}`}
             </p>
             {savedItem && !lessonId && (
               <div className="saved-bar">
@@ -1969,11 +1987,17 @@ export function Studio({
             steps={judgeSteps}
             reviewed={reviewed}
             running={judgeRunning || busy || saving}
-            blocked={judgeBlocker(
-              judgeSteps,
-              providerStatus?.access?.remaining ?? null,
-              remaining,
-            )}
+            blocked={
+              isJudge && remaining <= 0
+                ? "judge"
+                : judgeBlocker(
+                    judgeSteps,
+                    isJudge
+                      ? null
+                      : (providerStatus?.access?.remaining ?? null),
+                    remaining,
+                  )
+            }
             used={sessionUsed}
             actions={authenticated && Boolean(target?.configured)}
             onRun={(id) => void runJudgeStep(id)}
@@ -2648,10 +2672,19 @@ export function Studio({
         )}
         {remaining === 0 && authenticated && (
           <div className="notice">
-            <p>{t(language, "Studio.thisProviderSessionHasUsed")}</p>
-            <button className="secondary" onClick={() => invalidate()}>
-              {t(language, "Studio.startANewProviderSession")}
-            </button>
+            <p>
+              {t(
+                language,
+                isJudge
+                  ? "Studio.judgeSessionLimit"
+                  : "Studio.thisProviderSessionHasUsed",
+              )}
+            </p>
+            {!isJudge && (
+              <button className="secondary" onClick={() => invalidate()}>
+                {t(language, "Studio.startANewProviderSession")}
+              </button>
+            )}
           </div>
         )}
         {authenticated && (

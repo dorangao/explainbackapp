@@ -225,15 +225,12 @@ export function useAuth() {
       } catch (e) {
         if (mounted.current && token === version.current) {
           // A rejected trial restart leaves its existing cookie and workspace valid.
-          if (
-            e instanceof ApiError &&
-            !loginAccepted &&
-            (e.status === 429 ||
-              ["JUDGE_DISABLED", "JUDGE_CHALLENGE"].includes(e.code ?? ""))
-          ) {
-            setError(e.code || "API_RATE_LIMIT");
+          if (!loginAccepted) {
+            setError(e instanceof ApiError ? e.code || "NETWORK" : "NETWORK");
             setRetryAt(
-              e.retryAfter ? Date.now() + e.retryAfter * 1000 : undefined,
+              e instanceof ApiError && e.retryAfter
+                ? Date.now() + e.retryAfter * 1000
+                : undefined,
             );
             return false;
           }

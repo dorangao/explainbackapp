@@ -956,6 +956,54 @@ export const messages = {
     en: "The request is too large. Use a smaller image or a shorter text.",
     zh: "请求过大，请使用更小的图片或更短的文本。",
   },
+  "Studio.judgeCallsLeft": {
+    en: "AI calls left in this Judge session",
+    zh: "次 AI 调用剩余 / 当前评审会话",
+  },
+  "Studio.judgeSessionLimit": {
+    en: "This Judge session has used its AI call allowance. Export your work before using New judge session in the session banner. Public lessons remain available.",
+    zh: "本次评审会话的 AI 调用额度已用完。请先导出作品，再使用会话横幅中的“新建评审会话”。公开课程仍可浏览。",
+  },
+  "Studio.judgeDailyLimit": {
+    en: "The shared daily Judge allowance is used up. It resets at 00:00 UTC. Public lessons remain available.",
+    zh: "评审模式的共享每日额度已用完，将于 UTC 00:00 重置。公开课程仍可浏览。",
+  },
+  "Studio.judgeStorage": {
+    en: "Judge usage storage is temporarily unavailable. No model call was sent. Please try again later.",
+    zh: "评审用量存储暂时不可用，未发送模型请求。请稍后再试。",
+  },
+  "Studio.judgeStorageAfterCall": {
+    en: "Judge usage storage is temporarily unavailable after a model call. The call may already be charged. Wait and check your usage before retrying.",
+    zh: "模型调用后评审用量存储暂时不可用，本次调用可能已计入额度。请稍候查看用量，再决定是否重试。",
+  },
+  "Studio.judgeWorkflowLimit": {
+    en: "Judge workspace capacity is busy. Wait for current work to finish, then try again.",
+    zh: "评审工作区容量繁忙。请等待当前任务完成后重试。",
+  },
+  "Studio.judgeDisabled": {
+    en: "Judge mode is currently unavailable. Public lessons remain available.",
+    zh: "评审模式目前不可用，公开课程仍可浏览。",
+  },
+  "Studio.judgeExpired": {
+    en: "Your Judge session has ended. Start a new Judge session to continue. Public lessons remain available.",
+    zh: "评审会话已结束。请新建评审会话以继续，公开课程仍可浏览。",
+  },
+  "Studio.judgeSaveLimit": {
+    en: "This Judge session has used its save allowance. Export your work to keep it.",
+    zh: "本次评审会话的保存额度已用完，请导出作品以保留。",
+  },
+  "Studio.judgeDailySaveLimit": {
+    en: "The shared daily Judge save allowance is used up. Export your work or try after 00:00 UTC.",
+    zh: "评审模式的共享每日保存额度已用完，请导出作品或在 UTC 00:00 后重试。",
+  },
+  "Studio.judgeSavedLimit": {
+    en: "Trial saved-lesson storage is full. Export your work; the host can clear older trial lessons.",
+    zh: "试用课程存储已满，请导出作品；管理员可以清理旧的试用课程。",
+  },
+  "Studio.failRateLimit": {
+    en: "Too many requests. Please wait before trying again. Your current draft is preserved.",
+    zh: "请求过于频繁，请稍候重试。当前草稿已保留。",
+  },
   "Studio.failBudget": {
     en: "The hourly request budget for this access is used up. Saved and reviewed lessons still open without live requests; try again next hour.",
     zh: "此访问的每小时请求额度已用完。已保存和已审阅的课程仍可打开，无需在线请求；请下一小时再试。",

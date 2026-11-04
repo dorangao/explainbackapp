@@ -60,6 +60,54 @@ describe("Judge mode access", () => {
     });
     expect(screen.queryByText(/not configured/i)).toBeNull();
   });
+  it.each(["rate", "disabled"])(
+    "handles a %s response while loading the quick check",
+    async (failure) => {
+      vi.useFakeTimers();
+      const fetcher = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            code:
+              failure === "rate" ? "JUDGE_CHALLENGE_RATE" : "JUDGE_DISABLED",
+            retryAfter: 28,
+          }),
+          { status: failure === "rate" ? 429 : 403 },
+        ),
+      );
+      vi.stubGlobal("fetch", fetcher);
+      render(
+        <AccessPanel
+          language="en"
+          info={{
+            configured: false,
+            codes: false,
+            open: false,
+            authenticated: false,
+            judgeMode: true,
+          }}
+          working={false}
+          error=""
+          onLogin={vi.fn()}
+          onClose={() => {}}
+        />,
+      );
+      await act(async () => {});
+      const newCheck = screen.getByRole("button", {
+        name: "New image",
+      }) as HTMLButtonElement;
+      expect(newCheck.disabled).toBe(true);
+      expect(screen.getByRole("status").textContent).toMatch(
+        failure === "rate"
+          ? /28 seconds/
+          : /Judge mode is currently unavailable/,
+      );
+      fireEvent.click(newCheck);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      act(() => vi.advanceTimersByTime(28000));
+      expect(newCheck.disabled).toBe(failure === "disabled");
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    },
+  );
   it("shows the actual cooldown and enables an explicit retry when it ends", async () => {
     vi.useFakeTimers();
     const login = vi.fn();

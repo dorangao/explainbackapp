@@ -198,6 +198,10 @@ describe("Studio homepage entry", () => {
     expect(tally()).toContain("Used in this session: 1");
     view.rerender({ status: judgeStatus(0) });
     expect(tally()).toContain("Used in this session: 50");
+    expect(tally()).not.toMatch(/hourly|provider session/);
+    expect(
+      screen.queryByRole("button", { name: "Start a new provider session" }),
+    ).toBeNull();
     view.rerender({ status: judgeStatus(50, "next-judge") });
     expect(tally()).toContain("Used in this session: 0");
     view.rerender({ status: judgeStatus(51, "next-judge") });
@@ -1779,6 +1783,36 @@ describe("Failure states", () => {
     await screen.findByText(/每小时请求额度已用完/);
     expect(screen.queryByText(/hourly request budget/)).toBeNull();
   });
+  it.each([
+    [
+      "JUDGE_SESSION_LIMIT",
+      429,
+      "en",
+      /Judge session has used its AI call allowance/,
+    ],
+    ["JUDGE_DAILY_LIMIT", 429, "en", /resets at 00:00 UTC/],
+    ["JUDGE_STORAGE", 503, "en", /No model call was sent/],
+    ["JUDGE_STORAGE_AFTER_CALL", 503, "en", /may already be charged/],
+    ["JUDGE_WORKFLOW_LIMIT", 429, "en", /workspace capacity/],
+    ["JUDGE_DISABLED", 403, "zh", /评审模式目前不可用/],
+    ["JUDGE_DAILY_LIMIT", 429, "zh", /UTC 00:00/],
+    ["JUDGE_STORAGE", 503, "zh", /未发送模型请求/],
+  ] as const)(
+    "explains %s in %s %s without provider or hourly advice",
+    async (code, httpStatus, language, message) => {
+      mount(
+        { authenticated: true, status, view: "create", language },
+        compose(() => {
+          throw new ApiError("Server error", httpStatus, code);
+        }),
+      );
+      await create();
+      await screen.findByText(message);
+      expect(
+        screen.queryByText(/try again next hour|not configured on the server/),
+      ).toBeNull();
+    },
+  );
   it("names a reset session and an unconfigured model", async () => {
     const { unmount } = mount(
       { authenticated: true, status, view: "create" },

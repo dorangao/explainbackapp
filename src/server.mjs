@@ -1,5 +1,5 @@
 import {AsyncLocalStorage} from 'node:async_hooks';
-import {createMemoryJudgeStore,createJudgeAccess,JUDGE_CALLS} from './judge-access.mjs';
+import {createMemoryJudgeStore,createJudgeAccess,judgeError,JUDGE_CALLS} from './judge-access.mjs';
 import express from 'express';
 import {quantumCoachRequest,readQuantumCoach} from './quantum-coach.mjs';
 import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
@@ -78,7 +78,7 @@ export function createHandler({
   const judgeGate=createJudgeAccess({auth,store:judgeStore,enabled:judgeMode});
   auth=judgeGate.auth;
   const judgeContext=new AsyncLocalStorage();
-  const metered=(invoke,model)=>invoke&&((...args)=>{const context=judgeContext.getStore();if(context?.tester?.audience?.kind!=='judge')return invoke(...args);return judgeGate.run(context.tester,{model:model(...args),action:context.action},()=>invoke(...args));});
+  const metered=(invoke,model)=>invoke&&((...args)=>{const context=judgeContext.getStore();if(context?.tester?.audience?.kind!=='judge')return invoke(...args);return judgeGate.run(context.tester,{model:model(...args),action:context.action},()=>{context.providerDispatched=true;return invoke(...args);});});
   const providerRouter=router;
   const modelName=id=>providerRouter.list().find(t=>t.id===(id??providerRouter.defaultId))?.model??'unknown';
   router={...providerRouter,call:metered(providerRouter.call,modelName),startBackground:metered(providerRouter.startBackground,modelName)};
@@ -242,7 +242,7 @@ export function createHandler({
         const target=selected(body.llm);if(!target.configured)throw new RequestError(503,'Selected provider is not configured.');
         const sessionId=newSessionId();
         const s={workflow:path==='/api/studio/session'?'lesson-studio':'quantum-showcase',language:body.language,llm:target,owner:tester.id,audience:tester.audience?.label??null,createdAt:Date.now(),attempts:0};
-        if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached.');
+        if(!await state.create(sessionId,s))throw judge?judgeError('JUDGE_WORKFLOW_LIMIT'):new RequestError(429,'Session limit reached.');
         json(200,{sessionId,llm:target,attemptsRemaining:sessionLimit});return;
       }
       if (path === '/api/session') { // baseline coach and claim-testing sessions
@@ -259,7 +259,7 @@ export function createHandler({
         const sessionId = newSessionId();
         s.llm=target;s.owner=tester.id;s.audience=tester.audience?.label??null;
         s.demoUsed=traceEnabled;
-        if(!await state.create(sessionId,s))throw new RequestError(429,'Session limit reached. Reset an existing session.');
+        if(!await state.create(sessionId,s))throw judge?judgeError('JUDGE_WORKFLOW_LIMIT'):new RequestError(429,'Session limit reached. Reset an existing session.');
         json(200, { sessionId, ...view(s),attemptsRemaining:Math.max(0,coachLimit-s.attempts),llm:s.llm }); return;
       }
       if(typeof body.sessionId!=='string'||!/^[a-f0-9]{48}$/.test(body.sessionId))throw new RequestError(404,'Session expired. Start a new session.');
@@ -272,7 +272,13 @@ export function createHandler({
         s=await state.get(lockedId);
         if(!s||s.owner!==tester.id)throw new RequestError(404,'Session expired. Start a new session.');
       }
-      const save=async rows=>{if(!await state.save(body.sessionId,s,lock,rows))throw new RequestError(409,'Session was reset or expired; the response was discarded.');};
+      const save=async rows=>{
+       let saved;try{saved=await state.save(body.sessionId,s,lock,rows);}catch(error){
+        if(judge)throw judgeError(judgeContext.getStore()?.providerDispatched?'JUDGE_STORAGE_AFTER_CALL':'JUDGE_STORAGE');
+        throw error;
+       }
+       if(!saved)throw new RequestError(409,'Session was reset or expired; the response was discarded.');
+      };
       if(s.workflow==='lesson-studio'&&path==='/api/studio/poll'){
         if(!s.background)throw new RequestError(404,'No background lesson is available.');
         if(s.background.result){json(200,{...s.background.result,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;}
