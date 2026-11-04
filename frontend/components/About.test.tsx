@@ -6,7 +6,7 @@ import { PageHeader } from "./PageHeader";
 afterEach(cleanup);
 
 describe("About page and the shared page header", () => {
-  it("renders one h1 under a crumb trail, four sections and the evaluation and source links", () => {
+  it("renders one h1 under a crumb trail, the guide sections and public links", () => {
     render(<About language="en" />);
     expect(screen.getAllByRole("heading", { level: 1 }).length).toBe(1);
     expect(
@@ -24,6 +24,7 @@ describe("About page and the shared page header", () => {
       "How evaluation works",
       "Limits and privacy",
       "Source",
+      "Judge access and feedback",
     ])
       expect(screen.getByRole("heading", { level: 2, name })).toBeTruthy();
     expect(
@@ -36,6 +37,18 @@ describe("About page and the shared page header", () => {
         .getByRole("link", { name: "Source on GitHub" })
         .getAttribute("href"),
     ).toBe("https://github.com/dorangao/explainbackapp");
+    expect(
+      screen
+        .getByRole("link", { name: "Judge mode guide" })
+        .getAttribute("href"),
+    ).toBe(
+      "https://github.com/dorangao/explainbackapp/blob/main/docs/judge-mode.md",
+    );
+    expect(
+      screen
+        .getByRole("link", { name: "contact@sketchplaywrite.com" })
+        .getAttribute("href"),
+    ).toBe("mailto:contact@sketchplaywrite.com");
     cleanup();
     render(<About language="zh" />);
     expect(
@@ -44,6 +57,7 @@ describe("About page and the shared page header", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "限制与隐私" }),
     ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "评审模式使用指南" })).toBeTruthy();
   });
   it("step three says code checks the transfer answer and a model assesses the explanation only with creation access", () => {
     const stepThree = () =>

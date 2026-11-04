@@ -105,6 +105,7 @@ export function AccessPanel({
               "无需账号或邀请码。每个会话有效期为30分钟，最多可调用AI 50次，并受共享每日额度限制。一次操作可能调用多次。",
             )}
           </p>
+          <p className="fine">{t(language, "AccessPanel.judgeAvailability")}</p>
           <JudgeCheck
             language={language}
             working={working}

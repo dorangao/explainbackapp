@@ -92,6 +92,26 @@ export function About({ language }: { language: Language }) {
             </li>
           </ul>
         </section>
+        <section aria-labelledby="about-judge">
+          <h2 id="about-judge">{t(language, "About.judgeAccess")}</h2>
+          <p>{t(language, "About.judgeEntry")}</p>
+          <p>{t(language, "AccessPanel.judgeAvailability")}</p>
+          <p>
+            <a
+              href={`${EVALUATION_DOCS_URL}judge-mode.md`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {t(language, "About.judgeGuide")}
+            </a>
+          </p>
+          <p>
+            {t(language, "About.feedbackContact")}{" "}
+            <a href="mailto:contact@sketchplaywrite.com">
+              contact@sketchplaywrite.com
+            </a>
+          </p>
+        </section>
       </div>
     </section>
   );

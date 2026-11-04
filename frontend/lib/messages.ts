@@ -4,8 +4,12 @@ import type { Language } from "./types";
 export const messages = {
   "AccessPanel.closeSignIn": { en: "Close sign-in", zh: "关闭登录" },
   "AccessPanel.creatingWithMuseNeedsPreview": {
-    en: "Creating with Muse needs preview access. The learning library is always open.",
-    zh: "使用 Muse 创建课程需要预览权限，互动课程库始终开放。",
+    en: "Live creation needs access. Temporary Judge mode is not enabled on this server; the public learning library remains available without signing in.",
+    zh: "实时创建需要访问权限。此服务未启用临时评审模式；无需登录仍可浏览公开课程库。",
+  },
+  "AccessPanel.judgeAvailability": {
+    en: "Judge mode is temporary evaluation access and may be paused or disabled at any time, including during an active session. Public lessons remain available without signing in.",
+    zh: "评审模式是临时评估权限，可能随时暂停或停用，包括正在使用的会话。无需登录仍可浏览公开课程。",
   },
   "AccessPanel.creationAccessIsNotConfigured": {
     en: "Creation access is not configured on this server. You can still explore every reviewed lesson.",
@@ -113,8 +117,8 @@ export const messages = {
     zh: "模型输出和可运行的计算并不能证明科学上正确或教学上有效。课程在演示前需要人工审阅。",
   },
   "About.limit2": {
-    en: "Browsing never needs an account. Creating needs preview access, and every model request counts against an hourly budget shown in the header.",
-    zh: "浏览无需账号。创建需要预览权限，每次模型请求都计入页眉显示的每小时额度。",
+    en: "Browsing needs no account. Live creation uses Judge mode when enabled, a reviewer access code or tester sign-in. Judge trials have session and shared daily limits; reviewer codes have hourly budgets.",
+    zh: "浏览无需账号。实时创建可使用已启用的评审模式、评审访问码或测试账号登录。临时评审有会话及共享每日额度；评审访问码采用每小时额度。",
   },
   "About.limit3": {
     en: "Lesson requests and responses, including any attached image, are sent to Meta's Muse models and stored there. Use synthetic examples.",
@@ -133,6 +137,16 @@ export const messages = {
     zh: "托管站点使用 Vercel Web Analytics 统计页面访问，不使用 Cookie：只记录访问的页面或课程，并去除其中的邀请码。课程内容和模型请求不会发送给它。",
   },
   "About.source": { en: "Source", zh: "源码" },
+  "About.judgeAccess": {
+    en: "Judge access and feedback",
+    zh: "评审访问与反馈",
+  },
+  "About.judgeEntry": {
+    en: "When enabled, choose Judge mode, complete the image or text check, then start a session. No account or invite code is needed. Export work before the session ends.",
+    zh: "启用后，选择评审模式，完成图像或文字验证，然后开始会话。无需账号或邀请码。请在会话结束前导出作品。",
+  },
+  "About.judgeGuide": { en: "Judge mode guide", zh: "评审模式使用指南" },
+  "About.feedbackContact": { en: "Feedback or inquiries:", zh: "反馈或咨询：" },
   "About.sourceBody": {
     en: "The code, the evaluation suites and the documentation are public.",
     zh: "代码、评估测试集和文档都是公开的。",
