@@ -3,6 +3,12 @@ import {RequestError} from './request-error.mjs';
 import {publicCover} from './lesson-covers.mjs';
 import {buildSavedLesson,attachImages,lessonSummary,publicLesson,sharedLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
 import {recordImageUrls} from './blob.mjs';
+// Serverless platforms may shadow Express's req.query with a legacy URL parser.
+// Read the raw URL with WHATWG APIs and keep duplicate cursors invalid.
+function requestCursor(req){
+  const values=new URL(req.url,'http://localhost').searchParams.getAll('cursor');
+  return values.length===0?'0':values.length===1?values[0]:null;
+}
 // Saved and shared lessons. The server registers the public shared routes before its
 // sign-in gate and the creator routes after it; both share its reply and tracking helpers.
 export function registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin=()=>false}){
@@ -13,7 +19,7 @@ export function registerSharedRoutes(app,{state,reply,tracked,ownerOf,isAdmin=()
   app.get('/api/covers', tracked(async (req,res) => reply(res,200,{covers:Object.fromEntries(Object.entries(await state.getCovers()).map(([id,c])=>[id,publicCover(c)]))})));
   // Shared lessons open without signing in, like the gallery. Ids are unguessable.
   app.get('/api/shared', tracked(async (req,res) => {
-    const cursor=req.query.cursor??'0';
+    const cursor=requestCursor(req);
     if(typeof cursor!=='string'||!/^(0|[1-9]\d{0,8})$/.test(cursor))throw new RequestError(400,'Use a valid shared lesson cursor.');
     const offset=Number(cursor), page=await state.listSharedPage(MAX_SHARED_LISTED,offset);
     reply(res,200,{lessons:page.lessons.map(r=>withMine(res,r,lessonSummary(r))),cursor:page.hasMore?String(offset+MAX_SHARED_LISTED):null});
@@ -29,7 +35,7 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
   app.get('/api/lessons', tracked(async (req,res) => {
     const tester=res.locals.tester;
     if(!isAdmin(tester))return reply(res,200,{lessons:(await state.listLessons(ownerOf(tester))).map(lessonSummary),limit:MAX_SAVED_PER_OWNER});
-    const cursor=req.query.cursor??'0';
+    const cursor=requestCursor(req);
     if(typeof cursor!=='string'||!/^\d{1,20}$/.test(cursor)||BigInt(cursor)>18446744073709551615n)throw new RequestError(400,'Use a valid lesson cursor.');
     const page=await state.listAllLessons(cursor);
     reply(res,200,{lessons:page.lessons.map(r=>permissions(tester,r)),limit:null,scope:'all',cursor:page.cursor});
