@@ -723,6 +723,7 @@ export const messages = {
     zh: "为本课撰写了讲解秀",
   },
   "ShowPlayer.aFreshCase": { en: "A FRESH CASE", zh: "新情境" },
+  "ShowPlayer.settings": { en: "Voice & pace", zh: "声音与速度" },
   "ShowPlayer.browserVoice": { en: "Browser voice", zh: "浏览器朗读" },
   "ShowPlayer.voice": { en: "Narration voice", zh: "朗读声音" },
   "ShowPlayer.voiceBest": { en: " · best available", zh: " · 推荐" },
