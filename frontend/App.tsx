@@ -418,6 +418,16 @@ export function App() {
             onRestart={openAccess}
           />
         )}
+        {!auth.info.authenticated &&
+          auth.judgeExpired &&
+          auth.info.judgeMode && (
+            <JudgeSession
+              access={null}
+              language={language}
+              working={auth.working}
+              onRestart={openAccess}
+            />
+          )}
         {auth.info.admin && showJudgeUsage && (
           <JudgeUsage
             key={`judge-usage-${auth.identity}`}
@@ -631,22 +641,28 @@ export function App() {
             />
           </div>
         )}
-        {auth.error && !showAccess && (
-          <p className="notice" role="status">
-            {say(
-              language,
-              auth.error === "TESTER_REQUIRED"
-                ? "Your session ended. Reviewed lessons remain available."
-                : "Connection needs attention. The learning library is still available.",
-              auth.error === "TESTER_REQUIRED"
-                ? "会话已结束，经审阅的课程仍可使用。"
-                : "连接需要检查，互动课程库仍可使用。",
-            )}{" "}
-            <button className="text-button" onClick={openAccess}>
-              {t(language, "App.signIn")}
-            </button>
-          </p>
-        )}
+        {auth.error &&
+          !showAccess &&
+          !(
+            auth.error === "TESTER_REQUIRED" &&
+            auth.judgeExpired &&
+            auth.info.judgeMode
+          ) && (
+            <p className="notice" role="status">
+              {say(
+                language,
+                auth.error === "TESTER_REQUIRED"
+                  ? "Your session ended. Reviewed lessons remain available."
+                  : "Connection needs attention. The learning library is still available.",
+                auth.error === "TESTER_REQUIRED"
+                  ? "会话已结束，经审阅的课程仍可使用。"
+                  : "连接需要检查，互动课程库仍可使用。",
+              )}{" "}
+              <button className="text-button" onClick={openAccess}>
+                {t(language, "App.signIn")}
+              </button>
+            </p>
+          )}
       </main>
       <BackToTop language={language} target={main} />
       <footer className="site-footer">

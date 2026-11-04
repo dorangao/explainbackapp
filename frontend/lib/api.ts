@@ -75,13 +75,27 @@ export function useAuth() {
     [loading, setLoading] = useState(true),
     [working, setWorking] = useState(false),
     [error, setError] = useState(""),
+    [judgeExpired, setJudgeExpired] = useState(false),
     [retryAt, setRetryAt] = useState<number>(),
     [identity, setIdentity] = useState(0);
   const version = useRef(0),
     mounted = useRef(true),
     authenticated = useRef(false),
+    judgeDeadline = useRef<number | null>(null),
     recoveryScope = useRef<string | null>(null);
+  const receiveStatus = useCallback((next: Status) => {
+    judgeDeadline.current =
+      next.access?.kind === "judge" ? next.access.expiresAt : null;
+    setStatus(next);
+  }, []);
   const loseAccess = useCallback((message = "") => {
+    // Keep only a UI expiry flag; private status and recovery still get cleared.
+    setJudgeExpired(
+      message === "TESTER_REQUIRED" &&
+        judgeDeadline.current !== null &&
+        judgeDeadline.current <= Date.now(),
+    );
+    judgeDeadline.current = null;
     version.current++;
     authenticated.current = false;
     if (recoveryScope.current) revokeStudioRecovery(recoveryScope.current);
@@ -116,7 +130,7 @@ export function useAuth() {
     try {
       const next = await request<Status>("/api/status");
       if (mounted.current && token === version.current && authenticated.current)
-        setStatus(next);
+        receiveStatus(next);
     } catch (e) {
       if (
         token === version.current &&
@@ -125,7 +139,7 @@ export function useAuth() {
       )
         loseAccess("TESTER_REQUIRED");
     }
-  }, [loseAccess]);
+  }, [loseAccess, receiveStatus]);
   // Fixed server expiry: refreshing never extends a trial. Poll for usage in other tabs.
   const judgeExpiry =
     status?.access?.kind === "judge" ? status.access.expiresAt : null;
@@ -164,7 +178,7 @@ export function useAuth() {
         authenticated.current = auth.authenticated;
         if (auth.authenticated) {
           const next = await request<Status>("/api/status");
-          if (mounted.current && token === version.current) setStatus(next);
+          if (mounted.current && token === version.current) receiveStatus(next);
         }
       } catch (failure) {
         if (mounted.current && token === version.current) {
@@ -180,57 +194,61 @@ export function useAuth() {
       mountedRef.current = false;
       versionRef.current++;
     };
-  }, [loseAccess]);
-  const login = useCallback(async (body: unknown) => {
-    const token = ++version.current;
-    const initialScope = storedStudioScope();
-    setWorking(true);
-    setError("");
-    setRetryAt(undefined);
-    let loginAccepted = false;
-    try {
-      const auth = await request<AuthInfo>("/api/login", body);
-      loginAccepted = true;
-      const next = await request<Status>("/api/status");
-      if (!mounted.current || token !== version.current) return false;
-      if (storedStudioScope() !== initialScope) return false;
-      activateStudioRecovery(auth.recoveryScope);
-      recoveryScope.current = auth.recoveryScope ?? null;
-      authenticated.current = true;
-      setInfo((i) => ({
-        ...i,
-        authenticated: true,
-        admin: auth.admin === true,
-        recoveryScope: auth.recoveryScope,
-      }));
-      setStatus(next);
-      setIdentity((i) => i + 1);
-      return true;
-    } catch (e) {
-      if (mounted.current && token === version.current) {
-        // A rejected trial restart leaves its existing cookie and workspace valid.
-        if (
-          e instanceof ApiError &&
-          !loginAccepted &&
-          (e.status === 429 ||
-            ["JUDGE_DISABLED", "JUDGE_CHALLENGE"].includes(e.code ?? ""))
-        ) {
-          setError(e.code || "API_RATE_LIMIT");
-          setRetryAt(
-            e.retryAfter ? Date.now() + e.retryAfter * 1000 : undefined,
-          );
-          return false;
+  }, [loseAccess, receiveStatus]);
+  const login = useCallback(
+    async (body: unknown) => {
+      const token = ++version.current;
+      const initialScope = storedStudioScope();
+      setWorking(true);
+      setError("");
+      setRetryAt(undefined);
+      let loginAccepted = false;
+      try {
+        const auth = await request<AuthInfo>("/api/login", body);
+        loginAccepted = true;
+        const next = await request<Status>("/api/status");
+        if (!mounted.current || token !== version.current) return false;
+        if (storedStudioScope() !== initialScope) return false;
+        activateStudioRecovery(auth.recoveryScope);
+        recoveryScope.current = auth.recoveryScope ?? null;
+        authenticated.current = true;
+        setInfo((i) => ({
+          ...i,
+          authenticated: true,
+          admin: auth.admin === true,
+          recoveryScope: auth.recoveryScope,
+        }));
+        receiveStatus(next);
+        setJudgeExpired(false);
+        setIdentity((i) => i + 1);
+        return true;
+      } catch (e) {
+        if (mounted.current && token === version.current) {
+          // A rejected trial restart leaves its existing cookie and workspace valid.
+          if (
+            e instanceof ApiError &&
+            !loginAccepted &&
+            (e.status === 429 ||
+              ["JUDGE_DISABLED", "JUDGE_CHALLENGE"].includes(e.code ?? ""))
+          ) {
+            setError(e.code || "API_RATE_LIMIT");
+            setRetryAt(
+              e.retryAfter ? Date.now() + e.retryAfter * 1000 : undefined,
+            );
+            return false;
+          }
+          authenticated.current = false;
+          setInfo((i) => ({ ...i, authenticated: false, admin: false }));
+          setStatus(null);
+          setError(e instanceof ApiError ? e.code || "NETWORK" : "NETWORK");
         }
-        authenticated.current = false;
-        setInfo((i) => ({ ...i, authenticated: false, admin: false }));
-        setStatus(null);
-        setError(e instanceof ApiError ? e.code || "NETWORK" : "NETWORK");
+        return false;
+      } finally {
+        if (mounted.current && token === version.current) setWorking(false);
       }
-      return false;
-    } finally {
-      if (mounted.current && token === version.current) setWorking(false);
-    }
-  }, []);
+    },
+    [receiveStatus],
+  );
   const logout = useCallback(async () => {
     const token = ++version.current;
     setWorking(true);
@@ -291,6 +309,7 @@ export function useAuth() {
     loading,
     working,
     error,
+    judgeExpired,
     retryAt,
     identity,
     login,

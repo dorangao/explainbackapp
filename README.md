@@ -46,7 +46,8 @@ up to 50 AI calls, subject to the app's shared daily allowance. One action can u
 calls (for example, a show script and its images); failures and retries also count.
 The session banner shows the remaining calls and time. Refreshing preserves the session.
 
-**New judge session** starts a separate private workspace and revokes the previous
+**New judge session** appears only after expiry or when the session has no calls left.
+It starts a separate private workspace and revokes the previous
 session. Export any work you want to keep before restarting or expiry. Saves have a separate allowance; export remains available if saving is full.
 The administrator can inspect session usage and saved lessons; this is an anonymous trial, not verified
 judge identity. Generated content still requires human review.

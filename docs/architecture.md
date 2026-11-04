@@ -151,6 +151,12 @@ cookie (Secure in hosted environments), a fixed absolute expiry, and a separate
 revokes the previous login and creates a new saved-lesson owner and browser recovery
 scope. Reloads reuse the existing scope. Trials cannot replace global gallery covers.
 
+The session banner offers a restart only after its call allowance is exhausted or
+its deadline passes. On expiry the client still clears private status and browser
+recovery; it retains only an in-memory expiry flag to show the restart entry. A
+successful sign-in or explicit sign-out clears that flag. The restart always goes
+through the existing quick check and server limits.
+
 `POST /api/judge-challenge` issues a short-lived, single-use recognition check. The
 default is a five-digit PNG rendered by `src/judge-challenge.mjs` using Node's built-in
 crypto/zlib; an accessible text addition check is available. No external CAPTCHA
