@@ -332,3 +332,37 @@ it("legacy recovery without a login binding is not restored", () => {
   localStorage.setItem(storageKey, JSON.stringify({ ...legacy, version: 1 }));
   expect(loadStudio()).toBeNull();
 });
+
+it("restores assistance after edits, replay, chapter changes and completion, but restart clears it", () => {
+  const multi = lesson();
+  multi.chapters.push(structuredClone(multi.chapters[0]));
+  const player = createLessonPlayer(multi);
+  player.predict("unsure");
+  player.next();
+  player.scrub(1);
+  player.next();
+  player.next();
+  player.check("0");
+  player.markAssisted();
+  player.editAnswer();
+  player.replay();
+  expect(restorePlayer(multi, player.state).state.assisted).toBe(true);
+  player.scrub(1);
+  player.next();
+  player.next();
+  player.check(String(player.experiment().transfer.answer));
+  player.next();
+  expect(player.state.assisted).toBe(true);
+  const restored = restorePlayer(multi, player.state);
+  expect(restored.state.assisted).toBe(true);
+  restored.predict("unsure");
+  restored.next();
+  restored.scrub(1);
+  restored.next();
+  restored.next();
+  restored.check(String(restored.experiment().transfer.answer));
+  restored.next();
+  expect(restorePlayer(multi, restored.state).state.assisted).toBe(true);
+  restored.restart();
+  expect(restored.state.assisted).toBe(false);
+});

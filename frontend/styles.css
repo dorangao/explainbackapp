@@ -2271,6 +2271,26 @@ body {
   width: 210px;
   margin: 10px 0 14px;
 }
+.worked-transfer {
+  margin: 16px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.worked-transfer h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+.worked-transfer-steps {
+  padding-left: 1.4em;
+  line-height: 1.6;
+}
+.worked-transfer-steps li + li {
+  margin-top: 12px;
+}
+.worked-transfer .fine {
+  margin-bottom: 0;
+}
 .calculator {
   width: min(100%, 430px);
   margin: 16px 0;

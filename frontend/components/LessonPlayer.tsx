@@ -11,6 +11,7 @@ import {
 import { emptyTryoutUI, type TryoutUI } from "../lib/workspace";
 import { t } from "../lib/messages";
 import { answerPrecision } from "../lib/answer-precision";
+import { workedTransfer } from "../lib/worked-transfer";
 import {
   presentExperiment,
   rememberUnitSystem,
@@ -111,6 +112,7 @@ export function LessonPlayer({
       initialUI.result,
     ),
     [notice, setNotice] = useState(""),
+    [revealedKey, setRevealedKey] = useState<string | null>(null),
     [observation, setObservation] = useState<{
       state: unknown;
       outcome: number;
@@ -131,6 +133,12 @@ export function LessonPlayer({
       () => rememberedUnitSystem() ?? player.lesson.units ?? "metric",
     );
   const onUIRef = useRef(onUI);
+  const workedHeading = useRef<HTMLHeadingElement>(null);
+  useLayoutEffect(() => {
+    if (revealedKey === null) return;
+    workedHeading.current?.focus({ preventScroll: true });
+    workedHeading.current?.scrollIntoView?.({ block: "nearest" });
+  }, [revealedKey]);
   onUIRef.current = onUI;
   useEffect(() => {
     onUIRef.current?.({ answer, result, observation, counts });
@@ -306,7 +314,7 @@ export function LessonPlayer({
   const shownFeedback =
     feedback ??
     (cachedFeedback && !cachedFeedback.stale ? guideCache!.reply : null);
-  const stateKey = `${state.chapter}/${state.stage}/${state.prediction}/${state.progress}/${state.transfer}/${experimentKey}`;
+  const stateKey = `${state.chapter}/${state.stage}/${state.prediction}/${state.progress}/${state.transfer}/${state.assisted}/${experimentKey}`;
   const onStateRef = useRef(onState);
   onStateRef.current = onState;
   useEffect(() => {
@@ -487,8 +495,10 @@ export function LessonPlayer({
     if (nextDisabled) return;
     focusNextStage.current = true;
     act(() => {
-      if (player.state.stage === "complete") player.restart();
-      else player.next();
+      if (player.state.stage === "complete") {
+        player.restart();
+        setRevealedKey(null);
+      } else player.next();
     });
     setAnswer("");
   };
@@ -1152,6 +1162,68 @@ export function LessonPlayer({
                             : "LessonPlayer.thatDoesNotMatchYet",
                         )}
               </p>
+              {(result === false ||
+                result === "invalid" ||
+                revealedKey === experimentKey) && (
+                <section className="worked-transfer">
+                  {revealedKey !== experimentKey ? (
+                    <button
+                      type="button"
+                      className="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        manual();
+                        player.markAssisted();
+                        setRevealedKey(experimentKey);
+                        update();
+                      }}
+                    >
+                      {say(
+                        language,
+                        "Show worked steps and answer",
+                        "显示解题步骤和答案",
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <h3 ref={workedHeading} tabIndex={-1}>
+                        {say(
+                          language,
+                          "Worked steps and answer",
+                          "解题步骤和答案",
+                        )}
+                      </h3>
+                      <ol className="worked-transfer-steps">
+                        {workedTransfer(
+                          base,
+                          precision?.kind === "authored" ? "metric" : units,
+                          language,
+                        ).map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ol>
+                      {precision?.kind === "round" && (
+                        <p>
+                          {say(language, "Rounded answer", "四舍五入的答案")}:{" "}
+                          {formatDemoNumber(
+                            Math.round(
+                              e.transfer.answer / Number(precision.step),
+                            ) * Number(precision.step),
+                          )}{" "}
+                          {shownUnit(e.transfer.unit) ? e.transfer.unit : ""}
+                        </p>
+                      )}
+                      <p className="fine">
+                        {say(
+                          language,
+                          "These calculations follow the authored formulas; the assumptions and result still need human review. This attempt uses worked help.",
+                          "这些计算基于创作公式；假设和结果仍需人工审阅。本次练习已使用解题帮助。",
+                        )}
+                      </p>
+                    </>
+                  )}
+                </section>
+              )}
             </section>
           )}
           {state.stage === "transfer" && (
@@ -1178,7 +1250,9 @@ export function LessonPlayer({
                 ✓
               </span>
               <p>
-                {t(language, "LessonPlayer.youPredictedTestedExplainedAnd")}
+                {state.assisted
+                  ? say(language, "Completed with help", "在帮助下完成")
+                  : t(language, "LessonPlayer.youPredictedTestedExplainedAnd")}
               </p>
               <p className="fine">
                 {t(language, "LessonPlayer.thisWalkthroughIsATeaching")}
