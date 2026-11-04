@@ -39,15 +39,15 @@ test('a creator draws a cover for a saved lesson of their own: the record and it
  const mine=await(await get('/api/lessons',judge)).json();assert.equal(mine.lessons[0].cover,drawn.cover);assert.equal(mine.lessons[0].coverModel,'muse-image-1.0');
  const full=await(await get('/api/lessons/'+saved.id,judge)).json();assert.equal(full.cover,drawn.cover);assert.equal(full.coverModel,'muse-image-1.0');assert.equal(full.coverDrawn,undefined,'the flag stays server-side');
  assert.deepEqual((await(await get('/api/covers')).json()).covers,{});
- // A later save without a show keeps the drawn cover; a redraw replaces the stored file.
+ // A later save without a show keeps the drawn cover; a redraw changes the URL and defers file cleanup.
  const edited=coolingLesson();edited.title={en:'Cooling coffee, revised',zh:'咖啡冷却（修订）'};
  const updated=await(await post('/api/lessons',{id:saved.id,lesson:edited},judge)).json();assert.equal(updated.cover,drawn.cover);assert.equal(updated.coverModel,'muse-image-1.0');assert.deepEqual(deleted,[]);
  const again=await(await post('/api/studio/cover',{sessionId:s.sessionId,savedId:saved.id},judge)).json();
- assert.match(again.cover,/r002\.webp$/);assert.deepEqual(deleted,[drawn.cover]);
+ assert.match(again.cover,/r002\.webp$/);assert.deepEqual(deleted,[]);
  assert.equal((await(await get('/api/lessons/'+saved.id,judge)).json()).cover,again.cover);
- // Deleting the lesson removes its cover file too.
+ // Deleting the lesson removes the record; reference-aware pruning reclaims its files later.
  assert.equal((await post('/api/lessons/delete',{id:saved.id},judge)).status,200);
- assert.deepEqual(deleted,[drawn.cover,again.cover]);
+ assert.deepEqual(deleted,[]);
 });
 
 const bi=text=>({en:text,zh:'示例'+text});

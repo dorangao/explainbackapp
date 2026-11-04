@@ -409,6 +409,7 @@ export function LessonPlayer({
         player.predict("unsure");
       if (stage === "transfer" && player.state.transfer !== true) {
         const { answer: expected, unit } = player.experiment().transfer;
+        player.markAssisted();
         setAnswer(String(toDisplay(expected, unit, unitsRef.current)));
         setResult(player.check(String(expected)));
       }

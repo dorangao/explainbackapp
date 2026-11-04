@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto';
 import {validateLesson} from '../public/lesson-schema.mjs';
-import {decodeImageDataUrl,recordImageUrls} from './blob.mjs';
+import {decodeImageDataUrl} from './blob.mjs';
 import {maxShowSlides} from './lesson-show.mjs';
 // Saved lessons: a signed-in creator (a reviewer invite or the tester account) keeps the
 // lessons it made, and may share one by link. A shared lesson is readable without
@@ -90,7 +90,8 @@ export function buildSavedLesson(body,{owner,now=Date.now(),previous=null}={}){
 }
 // Resolves the images a save request references. A value is kept when it is already a
 // blob URL under this owner, uploaded when it is an image data URL and a store exists,
-// and dropped otherwise. Returns the URLs of the previous record that are no longer used.
+// and dropped otherwise. Previously stored files remain for reference-aware pruning:
+// another saved lesson or gallery cover may still reference the same URL.
 export async function attachImages(record,body,{store=null,owner,previous=null,uploaded=[]}={}){
  const resolve=async value=>{
   if(value===null||value===undefined||!store)return null;
@@ -117,8 +118,6 @@ export async function attachImages(record,body,{store=null,owner,previous=null,u
    const url=await resolve(value);if(url)record.illustrations[index]=url;
   }
  }
- const kept=new Set(recordImageUrls(record));
- return recordImageUrls(previous).filter(url=>!kept.has(url));
 }
 // What lists and public readers see. The owner id never leaves the server.
 export const lessonSummary=r=>({id:r.id,title:r.title,intro:r.intro,kind:r.kind,hasShow:Boolean(r.show),hasTryout:Boolean(r.tryout),graded:Object.keys(r.grades??{}).length,model:r.model,lessonModel:r.lessonModel??null,showModel:r.showModel??null,cover:r.cover??null,coverModel:r.coverModel??null,sketch:r.sketch??null,shared:r.shared===true,reviewedAt:r.reviewedAt??null,currency:r.lesson?.currency??null,createdAt:r.createdAt,updatedAt:r.updatedAt});

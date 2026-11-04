@@ -35,7 +35,7 @@ test('memory state keeps creator-drawn covers by lesson id',async()=>{
  covers.cooling.src='changed';assert.equal((await state.getCovers()).cooling.src,'https://x/a.webp','copies, not references');
 });
 
-test('a signed-in creator draws a cover for a reviewed lesson; the library reads it without the owner; a redraw replaces the stored file',async t=>{
+test('a gallery cover redraw preserves its old image when a saved lesson still references it',async t=>{
  const {store,puts,deleted}=fakeBlob();
  const prompts=[];
  const {post,get,codeCookie}=await setup(t,{imageStore:store,imageCall:async({prompt})=>{prompts.push(prompt);return {dataUrl:webp(prompts.length),model:'muse-image-1.0',usage:null};}});
@@ -52,12 +52,15 @@ test('a signed-in creator draws a cover for a reviewed lesson; the library reads
  const listed=await(await get('/api/covers')).json();
  assert.deepEqual(listed.covers.cooling,{src:drawn.cover,model:'muse-image-1.0',createdAt:drawn.createdAt,promptVersion:'cover-v1'});
  assert.ok(!JSON.stringify(listed).includes('judges'));
+ const saved=await(await post('/api/lessons',{lesson:coverLesson('cooling'),sketch:drawn.cover},judge)).json();
+ assert.equal(saved.sketch,drawn.cover);
  // Another creator redraws it: the new file replaces the old one for everyone.
  const other=await codeCookie('OTHER-INVITE-2');
  const s2=await(await post('/api/studio/session',{synthetic:true,language:'en'},other)).json();
  const again=await(await post('/api/studio/cover',{sessionId:s2.sessionId,lessonId:'cooling'},other)).json();
- assert.match(again.cover,/r002\.webp$/);assert.deepEqual(deleted,[drawn.cover]);
+ assert.match(again.cover,/r002\.webp$/);assert.deepEqual(deleted,[]);
  assert.equal((await(await get('/api/covers')).json()).covers.cooling.src,again.cover);
+ assert.equal((await(await get('/api/lessons/'+saved.id,judge)).json()).sketch,drawn.cover);
  // Signed out, nothing can be drawn.
  assert.equal((await post('/api/studio/cover',{sessionId:s.sessionId,lessonId:'cooling'})).status,401);
 });

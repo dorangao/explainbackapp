@@ -59,7 +59,7 @@ test('an admin edits and deletes another creator’s private lesson without taki
  assert.equal((await post('/api/lessons/delete',{id:saved.id},admin,'https://elsewhere.example')).status,403);
  assert.equal((await post('/api/lessons/delete',{id:saved.id},admin)).status,200);
  assert.equal(await state.getLesson(saved.id),null);assert.equal((await state.listLessons(original.owner)).length,0);
- assert.ok(blob.deleted.includes(original.sketch));
+ assert.ok(!blob.deleted.includes(original.sketch),'image cleanup is deferred even for administrator deletion');
  assert.equal((await post('/api/lessons/delete',{id:saved.id},admin)).status,404);
 });
 

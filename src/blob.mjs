@@ -67,7 +67,7 @@ export function createBlobStore({token=process.env.BLOB_READ_WRITE_TOKEN,putImpl
   async list(options){return list({...options,token});},
  };
 }
-// Every blob URL a saved record references; used when it is deleted or its images change.
+// Every blob URL a saved record references; used by reference-aware orphan pruning.
 export function recordImageUrls(record){
  const urls=[];
  if(record?.cover)urls.push(record.cover);

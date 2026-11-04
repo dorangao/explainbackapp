@@ -411,4 +411,7 @@ test("guided replay walks a gallery lesson through every stage without clicks an
     timeout: 20000,
   });
   await expect(page.getByText("Guided replay finished.")).toBeVisible();
+  await expect(
+    page.getByText("Completed with help", { exact: true }),
+  ).toBeVisible();
 });

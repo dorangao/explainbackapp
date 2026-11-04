@@ -1,5 +1,11 @@
-import { afterEach, beforeEach, expect, it } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { LessonPlayer } from "./LessonPlayer";
 import { createLessonPlayer } from "../lib/shared";
 import {
@@ -7,6 +13,8 @@ import {
   processLesson,
 } from "../../test-support/generated-lessons.mjs";
 import type { Language, Lesson, ModelDemo } from "../lib/types";
+import type { Pace } from "../lib/studio-cache";
+import { restorePlayer } from "../lib/studio-store";
 
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
@@ -22,7 +30,11 @@ function coffee() {
   demo.transfer.at = 8;
   return lesson;
 }
-function mount(lesson = coffee(), language: Language = "en") {
+function mount(
+  lesson = coffee(),
+  language: Language = "en",
+  pace: Pace = "off",
+) {
   const player = createLessonPlayer(lesson);
   player.predict("disagree");
   player.next();
@@ -36,6 +48,7 @@ function mount(lesson = coffee(), language: Language = "en") {
       visible
       busy={false}
       canAsk={false}
+      pace={pace}
       feedback={null}
       onGuide={() => {
         throw new Error("No model request expected");
@@ -47,6 +60,34 @@ function mount(lesson = coffee(), language: Language = "en") {
   );
   return player;
 }
+for (const language of ["en", "zh"] as const)
+  it(`marks an automatic replay answer as assisted and restores that status (${language})`, async () => {
+    vi.useFakeTimers();
+    try {
+      const player = mount(coffee(), language, "fast");
+      expect(player.state.assisted).toBe(false);
+      fireEvent.click(
+        screen.getByRole("button", { name: /Resume replay|继续回放/ }),
+      );
+      await act(async () => {
+        vi.advanceTimersByTime(3100);
+      });
+      expect(player.state.stage).toBe("complete");
+      expect(player.state.assisted).toBe(true);
+      expect(
+        screen.getByText(
+          language === "zh" ? "在帮助下完成" : "Completed with help",
+          { exact: true },
+        ),
+      ).toBeTruthy();
+      expect(restorePlayer(player.lesson, player.state).state.assisted).toBe(
+        true,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
 function submit(value: string) {
   fireEvent.change(
     screen.getByRole("textbox", { name: /Your answer|你的答案/ }),

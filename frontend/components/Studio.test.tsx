@@ -1286,6 +1286,9 @@ describe("Guided replay", () => {
       });
       expect(section.getAttribute("data-stage")).toBe("complete");
       expect(screen.getByText(/Guided replay finished/)).toBeTruthy();
+      expect(
+        screen.getByText("Completed with help", { exact: true }),
+      ).toBeTruthy();
       expect(calls.filter((c) => c.startsWith("/api/studio"))).toEqual([]);
     } finally {
       vi.unstubAllGlobals();
