@@ -160,7 +160,13 @@ wraps the provider boundaries. `src/judge-redis.mjs` atomically checks authoriza
 absolute expiry, session usage and the daily total in Lua before reserving a call.
 The Redis reader restores omitted null revocation fields after Upstash Lua JSON
 rewrites, preserving active sessions while keeping explicit revocations and expiry.
-Redis also limits starts per visitor hash and globally. Local development uses the
+Redis also limits starts with a short per-client burst window and a separate global
+hourly ceiling. Only successful starts consume issuance capacity; a rejected start
+keeps the previous session intact and returns the actual remaining wait through
+`Retry-After` and JSON. The client displays a countdown and never retries automatically.
+The client burst key is versioned separately from the former hourly key so an old
+lockout does not survive the window change; global issuance and daily model counters
+retain their existing keys. Local development uses the
 same contract in memory; restarting a local server resets it. Hosted instances share
 Redis counters in the existing environment/credential namespace. Keep that namespace
 stable during a trial period: changing it or rotating tester credentials resets that
@@ -171,6 +177,16 @@ reserved by the existing global cap for other access categories.
 Storage failure blocks dispatch. Failed or uncertain provider calls keep their reserved
 slot; a completion bookkeeping failure leaves a pending entry. Late results from expired
 or replaced sessions are discarded. These are call limits, not monetary limits.
+
+Hosted deployments also use Vercel WAF fixed-window limits keyed by the platform's
+client IP, independently of claimed Origin headers. Separate rules cover sign-in,
+other API writes, and a generous API traffic backstop; public pages and assets remain
+outside those rules. Polling is excluded from the write limit. These platform rules
+are managed separately from application deployment: review a draft, observe log-mode
+traffic, verify enforcement in Preview, then enable Production enforcement. Vercel
+counters are regional, so Redis remains the authority for the global trial budget.
+The browser handles a non-JSON firewall `429` as a temporary rate limit and preserves
+its existing session and private workspace when a new login is rejected.
 
 Trial save/share attempts and saved-cover replacements have separate atomic session
 and UTC-day write ceilings, applied before uploads. Anonymous saved lessons also have

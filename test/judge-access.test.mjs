@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../src/server.mjs';
 import {testerCredentials} from '../test-support/tester.mjs';
+import {createMemoryJudgeStore} from '../src/judge-access.mjs';
 
 async function setup(t,options={}){
  const server=createApp({testerCredentials,configured:true,judgeMode:true,...options});
@@ -13,6 +14,19 @@ async function setup(t,options={}){
  return {get,post};
 }
 const cookie=r=>r.headers.get('set-cookie')?.split(';')[0]??'';
+
+test('a burst-limited start supplies the remaining wait and preserves the existing session',async t=>{
+ let time=Date.now();const judgeStore=createMemoryJudgeStore({now:()=>time});
+ const {post,get}=await setup(t,{judgeStore});let existing='';
+ for(let i=0;i<10;i++){const response=await post('/api/login',{judge:true},existing);assert.equal(response.status,200);existing=cookie(response);}
+ time+=32_100;
+ const response=await post('/api/login',{judge:true},existing);
+ assert.equal(response.status,429);assert.equal(response.headers.get('retry-after'),'28');
+ assert.equal(response.headers.get('set-cookie'),null);
+ assert.equal((await response.json()).retryAfter,28);
+ assert.equal((await get('/api/status',existing)).status,200);
+ time+=27_900;assert.equal((await post('/api/login',{judge:true},existing)).status,200);
+});
 
 test('public judge login creates isolated non-admin sessions and refresh cannot reset its allowance',async t=>{
  const {get,post}=await setup(t);

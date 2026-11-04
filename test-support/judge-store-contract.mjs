@@ -37,11 +37,23 @@ export function judgeStoreContract(name,factory){
  });
  test(`${name}: session issuance is throttled and audit output excludes authentication and client identifiers`,async()=>{
   let time=1000;const store=await factory(()=>time);
-  for(let i=0;i<3;i++)assert.ok((await start(store,'id'+i,'same-visitor')).record);
-  assert.equal((await start(store,'id3','same-visitor')).error,'JUDGE_START_LIMIT');
+  const attempts=await Promise.all(Array.from({length:15},(_,i)=>start(store,'id'+i,'same-visitor')));
+  assert.equal(attempts.filter(r=>r.record).length,10);
+  assert.deepEqual(attempts.filter(r=>r.error),Array(5).fill({error:'JUDGE_START_LIMIT',retryAfter:60}));
   assert.ok((await start(store,'other','another-visitor')).record);
   const usage=await store.list();assert.doesNotMatch(JSON.stringify(usage),/same-visitor|another-visitor|authId|client/);
-  time+=3_600_000;assert.ok((await start(store,'id4','same-visitor')).record);
+  time+=59_001;assert.deepEqual(await start(store,'blocked','same-visitor','id0'),{error:'JUDGE_START_LIMIT',retryAfter:1});
+  assert.equal((await store.find('id0')).revokedAt,null);
+  time+=999;assert.ok((await start(store,'fresh','same-visitor','id0')).record);
+  assert.equal((await store.find('id0')).revokedAt,time);
   time+=8*86400_000;assert.equal((await store.list()).sessions.length,0);
+ });
+ test(`${name}: the global hourly start ceiling survives a client burst window reset`,async()=>{
+  let time=1000;const store=await factory(()=>time);
+  const results=await Promise.all(Array.from({length:110},(_,i)=>start(store,'global'+i)));
+  assert.equal(results.filter(r=>r.record).length,100);
+  time+=60_000;
+  assert.deepEqual(await start(store,'later'),{error:'JUDGE_START_LIMIT',retryAfter:3540});
+  time+=3_540_000;assert.ok((await start(store,'after-hour')).record);
  });
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { t } from "../lib/messages";
 import type { AuthInfo, Language } from "../lib/types";
 import { say } from "../lib/types";
@@ -7,6 +7,7 @@ export function AccessPanel({
   info,
   working,
   error,
+  retryAt,
   onLogin,
   onClose,
 }: {
@@ -14,16 +15,37 @@ export function AccessPanel({
   info: AuthInfo;
   working: boolean;
   error: string;
+  retryAt?: number;
   onLogin: (body: unknown) => Promise<boolean>;
   onClose: () => void;
 }) {
   const [code, setCode] = useState(""),
     [username, setUsername] = useState(""),
     [password, setPassword] = useState("");
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    if (!retryAt) return;
+    setNow(Date.now());
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= retryAt) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [retryAt]);
+  const wait = retryAt ? Math.max(0, Math.ceil((retryAt - now) / 1000)) : 0;
+  const retryMessage: [string, string] = retryAt
+    ? wait > 0
+      ? [`Try again in ${wait} seconds.`, `请在${wait}秒后重试。`]
+      : ["You can try again now.", "现在可以重试。"]
+    : ["Please try again shortly.", "请稍后重试。"];
   const errors: Record<string, [string, string]> = {
     JUDGE_START_LIMIT: [
-      "Too many judge sessions started. Try again in an hour. Your current session, if any, is unchanged.",
-      "评审会话启动次数过多，请一小时后重试。已有会话不受影响。",
+      `Too many judge sessions started. ${retryMessage[0]} Your current session, if any, is unchanged.`,
+      `评审会话启动次数过多。${retryMessage[1]}已有会话不受影响。`,
+    ],
+    API_RATE_LIMIT: [
+      `Too many requests from this network. ${retryMessage[0]} Your current session, if any, is unchanged.`,
+      `此网络的请求过于频繁。${retryMessage[1]}已有会话不受影响。`,
     ],
     JUDGE_DISABLED: [
       "Judge mode is currently unavailable.",
@@ -79,7 +101,7 @@ export function AccessPanel({
             )}
           </p>
           <button
-            disabled={working}
+            disabled={working || wait > 0}
             onClick={() => void onLogin({ judge: true })}
           >
             {say(

@@ -1,17 +1,18 @@
 import {createHash,randomBytes} from 'node:crypto';
 import {RequestError} from './request-error.mjs';
 export const JUDGE_TTL=30*60_000,JUDGE_CALLS=50,JUDGE_DAILY_CALLS=500,JUDGE_RETENTION=7*86400_000;
-export const JUDGE_STARTS_PER_VISITOR=3,JUDGE_STARTS_GLOBAL=100;
+export const JUDGE_STARTS_PER_VISITOR=10,JUDGE_START_WINDOW=60_000,JUDGE_STARTS_GLOBAL=100,JUDGE_GLOBAL_START_WINDOW=3600_000;
 export const JUDGE_SAVES=10,JUDGE_DAILY_SAVES=100,JUDGE_SAVED_RECORDS=100;
 export const judgeOwner=owner=>typeof owner==='string'&&owner.startsWith('code:judge:');
 export const judgeDay=now=>new Date(now).toISOString().slice(0,10);
 const digest=value=>createHash('sha256').update(value).digest('hex');
 export const judgeCookieId=cookie=>{const token=typeof cookie==='string'?cookie.split(';').map(x=>x.trim()).find(x=>x.startsWith('explainback_tester='))?.slice(19):null;return /^[a-f0-9]{64}$/.test(token??'')?digest(token):null;};
 export const judgeActive=(record,now)=>Boolean(record&&record.revokedAt===null&&record.expiresAt>now);
-export function judgeError(code){
- const messages={JUDGE_SAVE_LIMIT:[429,'This judge session has used its save allowance. Export your work to keep it.'],JUDGE_DAILY_SAVE_LIMIT:[429,'The shared daily judge save allowance is used up. Export your work or try after 00:00 UTC.'],JUDGE_SAVED_LIMIT:[429,'Trial saved-lesson storage is full. Export your work; an administrator can clear older trial lessons.'],JUDGE_DISABLED:[403,'Judge mode is currently unavailable.'],JUDGE_EXPIRED:[401,'Your judge session has ended. Start a new judge session to continue.'],JUDGE_START_LIMIT:[429,'Too many judge sessions started. Try again in an hour.'],JUDGE_SESSION_LIMIT:[429,'This judge session has used its 50 model calls. Public lessons are still available.'],JUDGE_DAILY_LIMIT:[429,'The shared daily judge allowance is used up. It resets at 00:00 UTC. Public lessons are still available.']};
+export function judgeError(code,retryAfter){
+ const messages={JUDGE_SAVE_LIMIT:[429,'This judge session has used its save allowance. Export your work to keep it.'],JUDGE_DAILY_SAVE_LIMIT:[429,'The shared daily judge save allowance is used up. Export your work or try after 00:00 UTC.'],JUDGE_SAVED_LIMIT:[429,'Trial saved-lesson storage is full. Export your work; an administrator can clear older trial lessons.'],JUDGE_DISABLED:[403,'Judge mode is currently unavailable.'],JUDGE_EXPIRED:[401,'Your judge session has ended. Start a new judge session to continue.'],JUDGE_START_LIMIT:[429,'Too many judge sessions started. Please try again shortly.'],JUDGE_SESSION_LIMIT:[429,'This judge session has used its 50 model calls. Public lessons are still available.'],JUDGE_DAILY_LIMIT:[429,'The shared daily judge allowance is used up. It resets at 00:00 UTC. Public lessons are still available.']};
  const [status,message]=messages[code]??[503,'Judge usage storage is unavailable. No model call was sent.'];
- return Object.assign(new RequestError(status,message),{code});
+ const wait=Number.isFinite(retryAfter)&&retryAfter>0?Math.ceil(retryAfter):undefined;
+ return Object.assign(new RequestError(status,code==='JUDGE_START_LIMIT'?`Too many judge sessions started. ${wait?`Try again in ${wait} seconds.`:'Please try again shortly.'}`:message),{code,...(wait?{retryAfter:wait}:{})});
 }
 export const judgeRecord=({authId,publicId},now)=>({authId,id:publicId,createdAt:now,expiresAt:now+JUDGE_TTL,revokedAt:null,calls:[],saves:0});
 export function judgeCallResult({outcome,usage}={}){
@@ -28,9 +29,15 @@ export function createMemoryJudgeStore({now=Date.now}={}){
  const records=new Map(),days=new Map(),starts=new Map();
  const prune=()=>{for(const [id,r]of records)if(r.createdAt+JUDGE_RETENTION<=now())records.delete(id);for(const [id,r]of starts)if(r.until<=now())starts.delete(id);for(const [day,r]of days)if(r.until<=now())days.delete(day);};
  const count=key=>{const r=starts.get(key);return r&&r.until>now()?r.count:0;};
- const bump=key=>{const r=starts.get(key);starts.set(key,{count:count(key)+1,until:r&&r.until>now()?r.until:now()+3600_000});};
+ const bump=(key,window)=>{const r=starts.get(key);starts.set(key,{count:count(key)+1,until:r&&r.until>now()?r.until:now()+window});};
  return {
-  async start({authId,publicId,client,previousId}){prune();if(count('client:'+client)>=JUDGE_STARTS_PER_VISITOR||count('all')>=JUDGE_STARTS_GLOBAL)return {error:'JUDGE_START_LIMIT'};bump('client:'+client);bump('all');const previous=records.get(previousId);if(previous)previous.revokedAt=now();const record=judgeRecord({authId,publicId},now());records.set(authId,record);return {record:structuredClone(record)};},
+  async start({authId,publicId,client,previousId}){
+   prune();const clientKey='client:'+client;
+   const blocked=[[clientKey,JUDGE_STARTS_PER_VISITOR],['all',JUDGE_STARTS_GLOBAL]].filter(([key,limit])=>count(key)>=limit);
+   if(blocked.length)return {error:'JUDGE_START_LIMIT',retryAfter:Math.max(...blocked.map(([key])=>Math.max(1,Math.ceil((starts.get(key).until-now())/1000))))};
+   bump(clientKey,JUDGE_START_WINDOW);bump('all',JUDGE_GLOBAL_START_WINDOW);
+   const previous=records.get(previousId);if(previous)previous.revokedAt=now();const record=judgeRecord({authId,publicId},now());records.set(authId,record);return {record:structuredClone(record)};
+  },
   async find(id){prune();return structuredClone(records.get(id)??null);},
   async revoke(id){const r=records.get(id);if(r&&r.revokedAt===null)r.revokedAt=now();},
   async reserve(id,{model,action}){prune();const r=records.get(id);if(!judgeActive(r,now()))return {error:'JUDGE_EXPIRED'};if(r.calls.length>=JUDGE_CALLS)return {error:'JUDGE_SESSION_LIMIT'};const day=judgeDay(now()),used=days.get(day)?.used??0;if(used>=JUDGE_DAILY_CALLS)return {error:'JUDGE_DAILY_LIMIT'};days.set(day,{...days.get(day),used:used+1,until:Date.parse(day)+2*86400_000});const number=r.calls.length+1;r.calls.push({number,model,action,outcome:'pending',at:now()});return {number};},
@@ -52,7 +59,7 @@ export function createJudgeAccess({auth,store,enabled=false,now=Date.now}){
    if(body?.judge!==true){const logged=await auth.login(body,cookie,options);const previous=judgeCookieId(cookie);if(previous)await store.revoke(previous);return logged;}
    if(!enabled)throw judgeError('JUDGE_DISABLED');
    const token=randomBytes(32).toString('hex'),authId=digest(token),publicId=randomBytes(8).toString('hex'),previousId=judgeCookieId(cookie);
-   const started=await store.start({authId,publicId,previousId,client:digest(options.client||'unknown')});if(started.error)throw judgeError(started.error);
+   const started=await store.start({authId,publicId,previousId,client:digest(options.client||'unknown')});if(started.error)throw judgeError(started.error,started.retryAfter);
    // The issuance store atomically revokes an earlier judge login. Revoke an ordinary
    // login as well, after successful issuance; failed starts keep the old login valid.
    if(previousId)await auth.revoke(cookie);

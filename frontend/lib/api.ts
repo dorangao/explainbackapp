@@ -15,6 +15,7 @@ export class ApiError extends Error {
     public attemptsRemaining?: number,
     // Why a provider reply was rejected (validator message), when the server knows.
     public reason?: string,
+    public retryAfter?: number,
   ) {
     super(message);
   }
@@ -38,14 +39,23 @@ async function request<T>(
       ? AbortSignal.any([options.signal, timeout])
       : timeout,
   });
-  const data = await response.json();
+  // Edge rate limits may return HTML instead of the application's JSON envelope.
+  const data = await response.json().catch(() => {
+    if (!response.ok) return {};
+    throw new Error("Invalid server response.");
+  });
+  const wait = Number(data.retryAfter ?? response.headers.get("Retry-After"));
   if (!response.ok)
     throw new ApiError(
-      data.error || "Request failed.",
+      data.error ||
+        (response.status === 429
+          ? "Too many requests. Please try again shortly."
+          : "Request failed."),
       response.status,
-      data.code,
+      data.code || (response.status === 429 ? "API_RATE_LIMIT" : undefined),
       data.attemptsRemaining,
       typeof data.reason === "string" ? data.reason : undefined,
+      Number.isFinite(wait) && wait > 0 ? Math.ceil(wait) : undefined,
     );
   return data as T;
 }
@@ -63,6 +73,7 @@ export function useAuth() {
     [loading, setLoading] = useState(true),
     [working, setWorking] = useState(false),
     [error, setError] = useState(""),
+    [retryAt, setRetryAt] = useState<number>(),
     [identity, setIdentity] = useState(0);
   const version = useRef(0),
     mounted = useRef(true),
@@ -81,6 +92,7 @@ export function useAuth() {
     }));
     setStatus(null);
     setError(message);
+    setRetryAt(undefined);
     setIdentity((i) => i + 1);
     setWorking(false);
     setLoading(false);
@@ -172,8 +184,11 @@ export function useAuth() {
     const initialScope = storedStudioScope();
     setWorking(true);
     setError("");
+    setRetryAt(undefined);
+    let loginAccepted = false;
     try {
       const auth = await request<AuthInfo>("/api/login", body);
+      loginAccepted = true;
       const next = await request<Status>("/api/status");
       if (!mounted.current || token !== version.current) return false;
       if (storedStudioScope() !== initialScope) return false;
@@ -194,9 +209,13 @@ export function useAuth() {
         // A rejected trial restart leaves its existing cookie and workspace valid.
         if (
           e instanceof ApiError &&
-          ["JUDGE_START_LIMIT", "JUDGE_DISABLED"].includes(e.code ?? "")
+          !loginAccepted &&
+          (e.status === 429 || e.code === "JUDGE_DISABLED")
         ) {
-          setError(e.code!);
+          setError(e.code || "API_RATE_LIMIT");
+          setRetryAt(
+            e.retryAfter ? Date.now() + e.retryAfter * 1000 : undefined,
+          );
           return false;
         }
         authenticated.current = false;
@@ -269,6 +288,7 @@ export function useAuth() {
     loading,
     working,
     error,
+    retryAt,
     identity,
     login,
     logout,
