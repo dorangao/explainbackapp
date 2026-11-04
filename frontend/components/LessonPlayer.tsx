@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
@@ -218,8 +219,33 @@ export function LessonPlayer({
     [language, stopVoice],
   );
   const heading = useRef<HTMLHeadingElement>(null),
-    stageCard = useRef<HTMLDivElement>(null),
+    explanationHeading = useRef<HTMLHeadingElement>(null),
+    focusNextStage = useRef(false),
     state = player.state;
+  // A manual advance requests focus; resolve it only after the new stage is in
+  // the DOM. No delayed callback can later steal focus from typing or navigation.
+  useLayoutEffect(() => {
+    if (!focusNextStage.current) return;
+    focusNextStage.current = false;
+    if (!visible) return;
+    const target =
+      state.stage === "explain" ? explanationHeading.current : heading.current;
+    if (!target) return;
+    target.focus({ preventScroll: true });
+    // Hidden panels (and the layout-free test DOM) have no scroll destination.
+    if (!target.getClientRects().length) return;
+    const header = workspace
+      ? target.closest(".studio")?.querySelector(".create-workspace-header")
+      : null;
+    window.scrollTo({
+      top:
+        window.scrollY +
+        target.getBoundingClientRect().top -
+        (header?.getBoundingClientRect().height ?? 0) -
+        16,
+      behavior: "instant",
+    });
+  });
   // The player mutates in place; chapter, variant, metric and controls key the memo.
   const experimentKey = `${state.chapter}/${state.variant}/${state.metric}/${JSON.stringify(state.controls)}`;
   const base = useMemo(
@@ -458,16 +484,12 @@ export function LessonPlayer({
   }, [visible, pace, player]);
   nextRef.current = () => {
     if (nextDisabled) return;
+    focusNextStage.current = true;
     act(() => {
       if (player.state.stage === "complete") player.restart();
       else player.next();
     });
     setAnswer("");
-    // Announce the new stage without yanking the page: focus the heading in place, then
-    // bring the stage card into view only as far as needed.
-    heading.current?.focus({ preventScroll: true });
-    // Optional call: the test DOM has no scrollIntoView.
-    stageCard.current?.scrollIntoView?.({ block: "nearest" });
   };
   // The step's primary action: in the Predict row beside the three calls, else at the end.
   const nextButton = (
@@ -631,7 +653,7 @@ export function LessonPlayer({
       </nav>
       <div className="player-layout">
         <div className="player-main">
-          <div className="stage-card" ref={stageCard}>
+          <div className="stage-card">
             <div className="stage-head">
               <h3 ref={heading} tabIndex={-1}>
                 {stages[state.stage]}
@@ -851,9 +873,9 @@ export function LessonPlayer({
           )}
           {state.stage === "explain" && (
             <section className="evidence-summary">
-              <p className="eyebrow">
+              <h3 className="eyebrow" ref={explanationHeading} tabIndex={-1}>
                 {t(language, "LessonPlayer.calculatedEvidence")}
-              </p>
+              </h3>
               <p>{e.result}</p>
               <div className="explain-back">
                 <p className="eyebrow">
