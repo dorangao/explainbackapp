@@ -3,7 +3,9 @@ import {JUDGE_TTL,JUDGE_CALLS,JUDGE_SAVES,JUDGE_DAILY_SAVES,JUDGE_DAILY_CALLS,JU
 // The auth key shares the existing state adapter's authorization boundary.
 export function createRedisJudgeStore({run,key,get,authKey,now=Date.now}){
  const recordKey=id=>key('judge-session',id);
- const load=async id=>{const raw=await get(recordKey(id));if(!raw)return null;const record=JSON.parse(raw);if(!Array.isArray(record.calls))record.calls=[];return record;};
+ // Upstash Lua cjson may omit null-valued object fields when rewriting JSON.
+ // Restore the unrevoked sentinel before authorization and audit summaries use it.
+ const load=async id=>{const raw=await get(recordKey(id));if(!raw)return null;const record=JSON.parse(raw);record.revokedAt??=null;if(!Array.isArray(record.calls))record.calls=[];return record;};
  return {
   async start({authId,publicId,client,previousId}){
    const record=judgeRecord({authId,publicId},now());

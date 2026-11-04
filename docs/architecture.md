@@ -142,6 +142,8 @@ their own attempt ceiling while the provider boundary enforces the shared trial 
 `src/server.mjs` propagates the authenticated identity through `AsyncLocalStorage` and
 wraps the provider boundaries. `src/judge-redis.mjs` atomically checks authorization,
 absolute expiry, session usage and the daily total in Lua before reserving a call.
+The Redis reader restores omitted null revocation fields after Upstash Lua JSON
+rewrites, preserving active sessions while keeping explicit revocations and expiry.
 Redis also limits starts per visitor hash and globally. Local development uses the
 same contract in memory; restarting a local server resets it. Hosted instances share
 Redis counters in the existing environment/credential namespace. Keep that namespace
