@@ -247,13 +247,15 @@ test("shared readers start fresh while author Edit restores the saved explanatio
   await otherContext.close();
 });
 
-test("on a phone the header folds into a menu, the introductory tour stays visible and the facets fold behind More filters", async ({
+test("on a phone navigation stays visible, utilities fold into Menu and facets fold behind More filters", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav).toBeHidden();
+  const utilities = page.locator(".site-menu");
+  await expect(nav).toBeVisible();
+  await expect(utilities).toBeHidden();
   await expect(
     page.getByRole("link", { name: /Play the tour:/ }),
   ).toBeInViewport();
@@ -267,11 +269,13 @@ test("on a phone the header folds into a menu, the introductory tour stays visib
   ).toBeVisible();
   await page.getByRole("button", { name: "Menu" }).click();
   await expect(nav).toBeVisible();
+  await expect(utilities).toBeVisible();
   await nav.getByRole("link", { name: "About", exact: true }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "About ExplainBack" }),
   ).toBeVisible();
-  await expect(nav).toBeHidden();
+  await expect(nav).toBeVisible();
+  await expect(utilities).toBeHidden();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

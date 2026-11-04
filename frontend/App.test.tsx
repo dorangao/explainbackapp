@@ -93,7 +93,7 @@ describe("invite links", () => {
 });
 
 describe("phone menu", () => {
-  it("folds the navigation behind a Menu button that closes again on navigation", async () => {
+  it("folds utility controls behind Menu and closes them again on navigation", async () => {
     render(<App />);
     const header = document.querySelector(".site-header");
     const button = screen.getByRole("button", { name: "Menu" });

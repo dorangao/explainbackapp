@@ -165,8 +165,8 @@ body {
   gap: 2.2rem;
   border-bottom: 1px solid var(--line);
 }
-/* The phone menu: one button on small screens; on wide screens the wrapper disappears
-   and the navigation and tools lay out as before. */
+/* The phone menu contains utility controls; section navigation stays visible.
+   On wide screens the utility wrapper disappears into the header layout. */
 .menu-button {
   display: none;
 }
@@ -4107,7 +4107,7 @@ body {
   margin: 10px 0 0;
 }
 
-/* Phones: one-row header with a menu, a lesson on the first screen, rows of chips that
+/* Phones: visible section navigation, collapsible utilities, rows of chips that
    scroll sideways, single-column cards and 44 px targets. */
 @media (max-width: 720px) {
   .site-header {
@@ -4144,6 +4144,7 @@ body {
   }
   .site-menu {
     display: none;
+    order: 3;
     flex-basis: 100%;
   }
   .site-header[data-menu="open"] .site-menu {
@@ -4154,17 +4155,52 @@ body {
     padding: 4px 0 10px;
   }
   .main-nav {
-    order: 0;
-    flex-basis: auto;
-    flex-direction: column;
+    order: 2;
+    flex-basis: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     align-items: stretch;
-    gap: 0;
+    gap: 10px;
+    padding: 4px 0 5px;
   }
   .main-nav a {
-    font-size: 1rem;
-    padding: 12px 0;
-    min-height: 44px;
-    border-bottom: 1px solid var(--line);
+    --nav-edge: color-mix(in srgb, var(--surface) 70%, var(--ink));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 10px 8px;
+    border: 1px solid var(--theme-border, var(--line));
+    border-radius: 12px;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface) 94%, white),
+      var(--surface)
+    );
+    font-size: 0.9rem;
+    font-weight: 650;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 15%),
+      0 4px 0 var(--nav-edge),
+      0 6px 10px rgb(0 0 0 / 9%);
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .main-nav a[aria-current="page"] {
+    --nav-edge: color-mix(in srgb, var(--accent) 70%, black);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent, #fff);
+    transform: translateY(3px);
+    box-shadow:
+      inset 0 1px 2px rgb(0 0 0 / 12%),
+      0 1px 0 var(--nav-edge);
+  }
+  .main-nav a:active {
+    transform: translateY(4px);
+    box-shadow: inset 0 1px 3px rgb(0 0 0 / 18%);
   }
   .main-nav a[aria-current="page"]:after {
     display: none;
