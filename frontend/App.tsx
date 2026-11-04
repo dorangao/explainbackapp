@@ -25,6 +25,8 @@ import { EVALUATION_CARD_HASH, REPO_URL } from "./lib/evaluation";
 import { Brand } from "./components/Brand";
 import { Appearance } from "./components/Appearance";
 import { Studio } from "./components/Studio";
+import { JudgeSession } from "./components/JudgeSession";
+import { JudgeUsage } from "./components/JudgeUsage";
 import { AccessPanel } from "./components/AccessPanel";
 import { BackToTop } from "./components/BackToTop";
 import { useInstallPrompt } from "./lib/install";
@@ -65,6 +67,7 @@ function readRoute() {
 }
 export function App() {
   const auth = useAuth();
+  const [showJudgeUsage, setShowJudgeUsage] = useState(false);
   const { loading: authLoading, info: authInfo, login: authLogin } = auth;
   const [language, setLanguage] = useState<Language>(() => {
       try {
@@ -342,9 +345,30 @@ export function App() {
                 {t(language, "App.installApp")}
               </button>
             )}
+            {auth.info.admin && (
+              <button
+                className="text-button"
+                aria-expanded={showJudgeUsage}
+                onClick={() => {
+                  setShowJudgeUsage((v) => !v);
+                  setMenuOpen(false);
+                }}
+              >
+                {say(language, "Judge usage", "评审用量")}
+              </button>
+            )}
+            {!auth.info.authenticated && auth.info.judgeMode && (
+              <button
+                className="secondary"
+                onClick={openAccess}
+                disabled={auth.loading}
+              >
+                {say(language, "Judge mode", "评审模式")}
+              </button>
+            )}
             {auth.info.authenticated && !auth.info.open ? (
               <>
-                {auth.status?.access && (
+                {auth.status?.access && auth.status.access.kind !== "judge" && (
                   <span
                     className="account-pill"
                     role="status"
@@ -385,6 +409,21 @@ export function App() {
           <p className="connection-note" role="status">
             {t(language, "App.openingYourLearningStudio")}
           </p>
+        )}
+        {auth.info.authenticated && auth.status?.access?.kind === "judge" && (
+          <JudgeSession
+            access={auth.status.access}
+            language={language}
+            working={auth.working}
+            onRestart={openAccess}
+          />
+        )}
+        {auth.info.admin && showJudgeUsage && (
+          <JudgeUsage
+            key={`judge-usage-${auth.identity}`}
+            language={language}
+            onClose={() => setShowJudgeUsage(false)}
+          />
         )}
         {galleryShowItem?.lesson && galleryShowItem.show && (
           <section className="show-page">

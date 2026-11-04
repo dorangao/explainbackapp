@@ -35,6 +35,7 @@ const server = createApp({
   configured: true,
   traceEnabled: true,
   openAccess: false,
+  judgeMode: true,
   accessCodes: {
     codes: [
       {
@@ -226,6 +227,6 @@ const server = createApp({
     };
   },
 });
-server.listen(4187, "127.0.0.1");
+server.listen(Number(process.env.FIXTURE_PORT || 4187), "127.0.0.1");
 for (const signal of ["SIGINT", "SIGTERM"])
   process.on(signal, () => server.close());

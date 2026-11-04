@@ -21,6 +21,14 @@ export function AccessPanel({
     [username, setUsername] = useState(""),
     [password, setPassword] = useState("");
   const errors: Record<string, [string, string]> = {
+    JUDGE_START_LIMIT: [
+      "Too many judge sessions started. Try again in an hour. Your current session, if any, is unchanged.",
+      "评审会话启动次数过多，请一小时后重试。已有会话不受影响。",
+    ],
+    JUDGE_DISABLED: [
+      "Judge mode is currently unavailable.",
+      "评审模式暂不可用。",
+    ],
     NETWORK: ["Could not connect. Please try again.", "无法连接，请重试。"],
     TESTER_CREDENTIALS: [
       "That username or password did not match.",
@@ -54,7 +62,43 @@ export function AccessPanel({
       </button>
       <p className="eyebrow">{t(language, "AccessPanel.yourNextQuestion")}</p>
       <h2 id="access-title">{t(language, "AccessPanel.makeALessonOfYour")}</h2>
-      <p>{t(language, "AccessPanel.creatingWithMuseNeedsPreview")}</p>
+      {info.judgeMode ? (
+        <div className="judge-access">
+          <h3>
+            {say(
+              language,
+              "Try ExplainBack as a judge",
+              "以评审身份体验 ExplainBack",
+            )}
+          </h3>
+          <p>
+            {say(
+              language,
+              "No account or invite code needed. Each session lasts 30 minutes and includes up to 50 AI calls, subject to a shared daily allowance. One action may use several calls.",
+              "无需账号或邀请码。每个会话有效期为30分钟，最多可调用AI 50次，并受共享每日额度限制。一次操作可能调用多次。",
+            )}
+          </p>
+          <button
+            disabled={working}
+            onClick={() => void onLogin({ judge: true })}
+          >
+            {say(
+              language,
+              working ? "Starting…" : "Start Judge mode",
+              working ? "正在启动…" : "启动评审模式",
+            )}
+          </button>
+          <p className="fine">
+            {say(
+              language,
+              "A new session starts with an empty private workspace. Export work before restarting. Session usage is visible to the app administrator.",
+              "新会话使用独立的私人工作区。重新启动前请导出作品。应用管理员可以查看会话用量。",
+            )}
+          </p>
+        </div>
+      ) : (
+        <p>{t(language, "AccessPanel.creatingWithMuseNeedsPreview")}</p>
+      )}
       {info.codes && (
         <form
           onSubmit={async (e) => {
@@ -88,7 +132,10 @@ export function AccessPanel({
         </form>
       )}
       {info.configured && (
-        <details className="account-details" open={!info.codes}>
+        <details
+          className="account-details"
+          open={!info.codes && !info.judgeMode}
+        >
           <summary>{t(language, "AccessPanel.signInWithATester")}</summary>
           <form
             onSubmit={async (e) => {
@@ -133,7 +180,7 @@ export function AccessPanel({
           </form>
         </details>
       )}
-      {!info.codes && !info.configured && (
+      {!info.judgeMode && !info.codes && !info.configured && (
         <p className="notice">
           {t(language, "AccessPanel.creationAccessIsNotConfigured")}
         </p>

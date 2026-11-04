@@ -62,3 +62,24 @@ repository's Actions run (`gh attestation verify explainback-dist.tgz --repo dor
 
 No metrics or trace export to a collector, no alerting, no on-call. The health route and the
 request log are what an operator has; `docs/security.md` lists this as an open item.
+
+## Public trial access
+
+Set the server-only `EXPLAINBACK_JUDGE_MODE=1` in the intended environment and deploy
+to enable the public Judge mode entry. Missing or `0` leaves it disabled. Deploying
+with the flag disabled rejects existing judge sessions on their next request. Keep
+Production and Preview configuration separate and preserve the Redis namespace while
+a trial is active; changing credentials or the namespace resets the existing state.
+
+Sign in with the private tester/administrator account and open **Judge usage** to
+inspect session counts and the current UTC-day allowance. Refresh that view for current
+usage. Start throttling, expired sessions, session exhaustion and daily exhaustion have
+distinct responses. Daily exhaustion resets at midnight UTC; restarting a session does
+not reset the daily counter. Public library viewing remains available. See
+[architecture.md](architecture.md#public-judge-trials) for accounting and retention.
+
+Public trials share a bounded workflow pool and a bounded saved-lesson pool. Save/share
+attempts are limited separately from model calls. If trial storage is full, the admin
+can review and delete older trial lessons using the existing administrator library;
+deleting frees capacity. Generated show images remain browser-local until an explicit
+save, so merely generating a temporary show does not leave orphaned Blob uploads.

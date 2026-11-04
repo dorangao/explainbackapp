@@ -1,3 +1,5 @@
+import {judgeOwner,JUDGE_SAVED_RECORDS} from './judge-access.mjs';
+import {createRedisJudgeStore} from './judge-redis.mjs';
 import {createHash,randomBytes,randomUUID,timingSafeEqual} from 'node:crypto';
 import {SESSION_TTL,LOCK_TTL,MAX_SESSIONS_PER_BUCKET,sessionBucket,snapshot} from './state.mjs';
 import {findAccessCode,audienceOf,audienceValid} from './access-codes.mjs';
@@ -110,6 +112,7 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
     const ids=await run("return redis.call('ZRANGE',KEYS[1],0,-1)",[bucketKey]);
     for(const old of Array.isArray(ids)?ids:[]){
      if(await get(lockKey(old)))continue;
+     if(sessionBucket(s)==='judge:shared'&&(await state.get(old))?.owner!==s.owner)continue;
      await evict(old,bucketKey);result=await attempt();break;
     }
    }
@@ -140,10 +143,12 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    if ARGV[7]~='' and (existing or 'null')~=ARGV[7] then return 0 end
    if existing then local old=cjson.decode(existing);if old.owner~=ARGV[1] then return 0 end
    elseif redis.call('ZCARD',KEYS[2])>=tonumber(ARGV[3]) then return 0 end
+   if ARGV[8]=='1' and not existing and redis.call('SCARD',KEYS[4])>=tonumber(ARGV[9]) then return 0 end
    redis.call('SET',KEYS[1],ARGV[2]);redis.call('ZADD',KEYS[2],ARGV[4],ARGV[5])
+   if ARGV[8]=='1' then redis.call('SADD',KEYS[4],ARGV[5]) end
    if ARGV[6]=='1' then redis.call('ZADD',KEYS[3],ARGV[4],ARGV[5]) else redis.call('ZREM',KEYS[3],ARGV[5]) end
    return 1
-  `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0',expected===undefined?'':JSON.stringify(expected)])===1;},
+  `,[lessonKey(record.id),ownerLessonsKey(record.owner),key('shared-lessons'),key('judge-lessons')],[record.owner,JSON.stringify(record),cap,record.updatedAt,record.id,record.shared?'1':'0',expected===undefined?'':JSON.stringify(expected),judgeOwner(record.owner)?'1':'0',JUDGE_SAVED_RECORDS])===1;},
   async getLesson(id){const value=await get(lessonKey(id));return value?JSON.parse(value):null;},
   async listLessons(owner){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],0,99)",[ownerLessonsKey(owner)]);return (await readLessons(ids)).filter(r=>r.owner===owner);},
   // Admin-only bounded scan includes old/private records, even if their invite was
@@ -157,13 +162,13 @@ export function createRedisServices({command,namespace='explainback:preview:v1',
    local existing=redis.call('GET',KEYS[1]);if not existing then return 0 end
    if cjson.decode(existing).owner~=ARGV[1] then return 0 end
    if ARGV[3]~='' and existing~=ARGV[3] then return 0 end
-   redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2],ARGV[2]);redis.call('ZREM',KEYS[3],ARGV[2]);return 1
-  `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons')],[owner,id,expected===undefined?'':JSON.stringify(expected)])===1;},
+   redis.call('DEL',KEYS[1]);redis.call('ZREM',KEYS[2],ARGV[2]);redis.call('ZREM',KEYS[3],ARGV[2]);redis.call('SREM',KEYS[4],ARGV[2]);return 1
+  `,[lessonKey(id),ownerLessonsKey(owner),key('shared-lessons'),key('judge-lessons')],[owner,id,expected===undefined?'':JSON.stringify(expected)])===1;},
   async listSharedLessons(limit=48,offset=0){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],tonumber(ARGV[2]),tonumber(ARGV[2])+tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit,offset]);return (await readLessons(ids)).filter(r=>r.shared===true);},
   async listSharedPage(limit=48,offset=0){const ids=await run("return redis.call('ZREVRANGE',KEYS[1],tonumber(ARGV[2]),tonumber(ARGV[2])+tonumber(ARGV[1])-1)",[key('shared-lessons')],[limit+1,offset]);return {lessons:(await readLessons(ids.slice(0,limit))).filter(r=>r.shared===true),hasMore:ids.length>limit};},
   // Creator-drawn library covers for reviewed lessons: one hash, lesson id to JSON record.
   async putCover(id,record){await run("redis.call('HSET',KEYS[1],ARGV[1],ARGV[2]);return 1",[key('covers')],[id,JSON.stringify(record)]);return true;},
   async getCovers(){const flat=await run("return redis.call('HGETALL',KEYS[1])",[key('covers')]);const out={};for(let i=0;i+1<(Array.isArray(flat)?flat.length:0);i+=2){try{out[flat[i]]=JSON.parse(flat[i+1]);}catch{/* A damaged entry is left out. */}}return out;},
  };
- return {state,auth};
+ return {state,auth,judgeStore:createRedisJudgeStore({run,key,get,authKey,now})};
 }

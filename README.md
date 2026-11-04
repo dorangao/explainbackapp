@@ -34,6 +34,20 @@ Each claim below names where to see it in the app and the check in this reposito
 - **Search first** (optional, new topic demos): before the draft, Muse Spark gathers a few sourced figures for the topic with the Muse web search tool; the author prefers them over memory and the lesson lists the pages it relied on under its assumptions. One extra request; pages are subject matter, never instructions. See [docs/search-grounding.md](docs/search-grounding.md).
 - English and Chinese are available. Model output and a working numeric calculation do not establish scientific correctness or teaching effectiveness; lessons require human review.
 
+## Try without credentials
+
+The public library and included narrated shows open without sign-in or model calls.
+When the deployment enables **Judge mode**, select that button, then **Start Judge mode**
+to try live creation without an account or invite code. A session lasts 30 minutes with
+up to 50 AI calls, subject to the app's shared daily allowance. One action can use several
+calls (for example, a show script and its images); failures and retries also count.
+The session banner shows the remaining calls and time. Refreshing preserves the session.
+
+**New judge session** starts a separate private workspace and revokes the previous
+session. Export any work you want to keep before restarting or expiry. Saves have a separate allowance; export remains available if saving is full.
+The administrator can inspect session usage and saved lessons; this is an anonymous trial, not verified
+judge identity. Generated content still requires human review.
+
 ## Local setup
 
 Use **Node 26** (the current LTS; `nvm use` reads `.nvmrc`) and npm. From this directory:
@@ -46,7 +60,7 @@ npm start
 
 Open `http://127.0.0.1:4173` for the production build. The gallery is available without a model key. To run with Vite development tooling, use `npm run dev` instead of the build and start commands. `npm run dev:open` enables sign-in-free local development; hosted cloud handling explicitly disables that mode.
 
-For live lesson creation, copy `.env.example` to `.env.local`, keep that file private, and configure `MODEL_API_KEY` and the tester credentials or reviewer access codes described in the example. The default provider is Meta; optional Ollama configuration is for local use. Model calls are explicit actions and can incur usage charges. Do not include credentials or actual access codes in source or submissions.
+For live lesson creation, copy `.env.example` to `.env.local`, keep that file private, and configure `MODEL_API_KEY` plus the tester credentials, reviewer access codes, or `EXPLAINBACK_JUDGE_MODE=1` described in the example. The default provider is Meta; optional Ollama configuration is for local use. Model calls are explicit actions and can incur usage charges. Do not include credentials or actual access codes in source or submissions.
 
 ## Checks
 
@@ -59,6 +73,8 @@ npm run build
 npx playwright install chromium  # once, for browser tests
 npm run test:browser
 ```
+
+To exercise the quota scripts against a real local Redis process, set `EXPLAINBACK_TEST_REDIS` to the path of `redis-server` when running `npm test`. The tests start an isolated Unix socket instance with no persistent data; CI runs this contract as well.
 
 The browser tests use a synthetic local provider fixture and include an automated WCAG audit (`e2e/accessibility.spec.ts`). The frozen suites, checksums, deterministic checks and separate AI wording rubric are described in the [evaluation card](docs/evaluation.md). Some HTTP and browser tests need localhost socket access. CI also runs `npm run scan:secrets` and `npm run audit:prod`; see [security notes and standards alignment](docs/security.md). Test results describe the checked revision and do not establish scientific or teaching correctness.
 

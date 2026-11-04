@@ -1,11 +1,13 @@
 import {randomUUID} from 'node:crypto';
+import {judgeOwner,JUDGE_SAVED_RECORDS} from './judge-access.mjs';
 export const SESSION_TTL=30*60_000;
 export const LOCK_TTL=90_000; // Longer than the hosted function's 60-second limit.
 // Live Studio sessions per sign-in bucket (one access code, or the tester account). One
 // bucket may not crowd the others out of the shared cap of 100: past its own cap, its
 // oldest session that is not inside a request is evicted to make room.
 export const MAX_SESSIONS_PER_BUCKET=30;
-export const sessionBucket=s=>s?.audience??'tester';
+// All public trials share one capacity pool, separate from invite/admin buckets.
+export const sessionBucket=s=>s?.audience?.startsWith('judge:')?'judge:shared':s?.audience??'tester';
 export const snapshot=s=>structuredClone(Object.fromEntries(Object.entries(s).filter(([k])=>k!=='trace')));
 
 // Local development adapter. The cloud adapter implements the same contract in Redis.
@@ -22,7 +24,7 @@ export function createMemoryState({now=Date.now}={}){
   async create(id,s){
    prune();
    const bucket=sessionBucket(s),own=[...sessions.entries()].filter(([,x])=>sessionBucket(x)===bucket).sort((a,b)=>a[1].createdAt-b[1].createdAt);
-   if(own.length>=MAX_SESSIONS_PER_BUCKET){const victim=own.find(([old])=>!locks.has(old));if(!victim)return false;remove(victim[0]);}
+   if(own.length>=MAX_SESSIONS_PER_BUCKET){const victim=own.find(([old,previous])=>!locks.has(old)&&(bucket!=='judge:shared'||previous.owner===s.owner));if(!victim)return false;remove(victim[0]);}
    if(sessions.size>=100)return false;sessions.set(id,snapshot(s));return true;
   },
   async get(id){prune();return sessions.has(id)?snapshot(sessions.get(id)):null;},
@@ -44,6 +46,7 @@ export function createMemoryState({now=Date.now}={}){
    if(expected!==undefined&&JSON.stringify(existing)!==JSON.stringify(expected))return false;
    if(existing&&existing.owner!==record.owner)return false;
    if(!existing&&[...lessons.values()].filter(r=>r.owner===record.owner).length>=cap)return false;
+   if(!existing&&judgeOwner(record.owner)&&[...lessons.values()].filter(r=>judgeOwner(r.owner)).length>=JUDGE_SAVED_RECORDS)return false;
    lessons.set(record.id,structuredClone(record));return true;
   },
   async getLesson(id){return lessons.has(id)?structuredClone(lessons.get(id)):null;},
