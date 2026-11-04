@@ -4,7 +4,9 @@ import {createRedisClient,createRedisServices} from './redis-state.mjs';
 import {parseAccessCodes} from './access-codes.mjs';
 
 export function cloudOrigins(env){
- const hosts=[env.VERCEL_URL,env.VERCEL_BRANCH_URL,env.VERCEL_PROJECT_PRODUCTION_URL].filter(Boolean).map(h=>'https://'+h);
+ // Production APIs use only explicitly configured app domains. Preview deployments
+ // retain their own Vercel hosts so review builds can be tested independently.
+ const hosts=env.VERCEL_ENV==='production'?[]:[env.VERCEL_URL,env.VERCEL_BRANCH_URL,env.VERCEL_PROJECT_PRODUCTION_URL].filter(Boolean).map(h=>'https://'+h);
  const origins=new Set([...hosts,...(env.EXPLAINBACK_PUBLIC_ORIGINS??'').split(',').map(x=>x.trim()).filter(Boolean)]);
  for(const origin of origins){const u=new URL(origin);if(u.protocol!=='https:'||u.origin!==origin||u.username||u.password)throw new Error('Configure HTTPS app origins.');}
  if(!origins.size)throw new Error('Configure an allowed app origin.');

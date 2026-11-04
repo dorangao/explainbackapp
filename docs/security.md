@@ -12,7 +12,7 @@ that prototype honest, not to meet a compliance bar.
 | Provider key, Blob token, Redis credentials | Leak through the repository, logs or responses | Server-only environment variables; `scripts/scan-secrets.mjs` runs in CI over every tracked file; the trace console redacts the key, the tester password and every access code; errors reaching the browser are our own messages, never provider or stack text (`src/request-error.mjs`). |
 | Hourly model budget | Abuse by anonymous visitors or a leaked code | Every model call needs a session; each code has its own hourly action budget and a cap on live sign-ins; failed sign-ins are limited per visitor with a global backstop (`src/tester-auth.mjs`). Live Studio sessions are capped per sign-in bucket as well as overall, so one code cannot stop the others from starting a session (`MAX_SESSIONS_PER_BUCKET` in `src/state.mjs`). An action budget is not a monetary cap. |
 | Session cookie | Theft or forgery | Random id, `HttpOnly`, `SameSite=Strict`, `Secure` in the cloud, bounded expiry, replaced on re-login, revoked on logout or when the code is removed (`src/tester-auth.mjs`). |
-| State-changing routes | Cross-site requests | Every `POST` checks that `Origin` equals the allowed origin; JSON only; no compressed bodies; per-route byte limits; `Cache-Control: no-store` everywhere. |
+| API routes | Cross-site requests and production alias access | Production accepts only explicit HTTPS app domains. Before session storage, every API request rejects a foreign supplied `Origin` or cross-site/sibling-site Fetch Metadata; non-read methods require the exact origin. Browser GETs may omit `Origin`. No cross-origin CORS access is granted. JSON-only writes, no compressed bodies, per-route byte limits and `Cache-Control: no-store` remain. |
 | The page | Script injection, framing, data exfiltration | CSP with `default-src 'self'`, no inline script or style, images only from self, data URLs and the Blob host; `frame-ancestors 'none'`; `X-Content-Type-Options`, `Referrer-Policy: no-referrer`, `Cross-Origin-Resource-Policy: same-origin`, `Permissions-Policy` allowing only the microphone to this origin. Vercel adds HSTS. |
 | Model replies | Prompt injection through lesson text, instructions that reach the renderer | Replies are structured output validated against our schemas (`public/lesson-schema.mjs` and the readers in `src/`); formulas are compiled and range-checked by code; the model never returns code, URLs or HTML; lesson prose is labelled untrusted in every prompt. |
 | Visitors' browsing | Tracking beyond what the prototype needs | The hosted site loads Vercel Web Analytics from its own origin (`frontend/lib/analytics.ts`): no cookies, page views keyed by route or lesson id with any invite code stripped before sending, no lesson text, images or model requests. It loads on explainback.app and Vercel preview hosts only, never on a local build. Lesson requests themselves go to Meta's models, which the About page states. |
@@ -21,6 +21,8 @@ that prototype honest, not to meet a compliance bar.
 Known, deliberate gaps: the tester account is one shared password (a prototype
 convenience, documented in `.env.example`); there is no per-user identity; the Blob URLs
 are public to anyone holding them, which is what a share link needs.
+Source headers are a browser isolation control, not proof of caller identity: scripts
+can forge them. Authenticated sessions, ownership and atomic budgets remain necessary.
 
 ## Checks that run on every change
 
@@ -32,6 +34,8 @@ are public to anyone holding them, which is what a share link needs.
   `vercel.json` sends the same values for static files, so the two cannot drift.
 - `test/server.test.mjs`, `test/lesson-http.test.mjs`, `test/access-codes.test.mjs`: origin
   checks, body limits, sign-in limits, redaction, session expiry and revocation.
+- `test/api-origin.test.mjs`, `test/cloud-config.test.mjs`: production host allowlist,
+  early cross-origin rejection, same-origin GET/write compatibility and Preview isolation.
 - `e2e/accessibility.spec.ts`: axe-core WCAG 2.1 A/AA audit over the library, a lesson,
   the show player, the signed-in studio and a draft review; serious or critical findings fail.
 

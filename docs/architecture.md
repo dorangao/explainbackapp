@@ -120,6 +120,22 @@ Liquid Glass uses translucent material on the header and controls, with opaque r
 | Muse Spark Open | Open weights; any self-hosted build runs through the same Ollama option | `EXPLAINBACK_OLLAMA_MODELS` |
 | Muse Code | A development product, not an API; not part of the app | — |
 
+## Hosted API boundary
+
+Production requires an explicit HTTPS `EXPLAINBACK_PUBLIC_ORIGINS` allowlist. It does
+not automatically accept deployment, branch or project aliases; Preview retains those
+hosts for isolated testing. An unlisted API host is rejected before session storage.
+For API requests, a supplied `Origin` must equal that host's allowed origin, and
+`Sec-Fetch-Site` cannot identify a cross-site or sibling-origin request. Non-read methods
+require the exact `Origin`. Same-origin browser GETs, which normally omit it, continue
+to work, as do headerless read-only health checks. No cross-origin CORS access is granted.
+
+These checks prevent browser cross-origin use; they are not caller authentication.
+Non-browser clients can forge source headers. Session authorization, ownership checks,
+atomic model budgets and rate limits still enforce access and cost bounds. Vercel WAF
+rules can reject matching traffic before function invocation, but are not required for
+the application's origin policy. Do not replace session controls with a header rule.
+
 ## Public judge trials
 
 `EXPLAINBACK_JUDGE_MODE=1` enables a public button and `POST /api/login` with

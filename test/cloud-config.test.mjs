@@ -10,6 +10,15 @@ test('cloud origins accept only configured HTTPS hosts and ignore forwarded head
  assert.throws(()=>cloudOrigins({EXPLAINBACK_PUBLIC_ORIGINS:'http://localhost:4173'}));
  assert.throws(()=>cloudOrigins({}));
 });
+test('production accepts only explicit app domains and never falls back to Vercel aliases',()=>{
+ const env={VERCEL_ENV:'production',VERCEL_URL:'example-unique.vercel.app',VERCEL_BRANCH_URL:'example-main.vercel.app',VERCEL_PROJECT_PRODUCTION_URL:'example.vercel.app',EXPLAINBACK_PUBLIC_ORIGINS:'https://explainback.app'};
+ const origin=cloudOrigins(env);
+ assert.equal(origin({headers:{host:'explainback.app'}}),'https://explainback.app');
+ for(const host of [env.VERCEL_URL,env.VERCEL_BRANCH_URL,env.VERCEL_PROJECT_PRODUCTION_URL,'www.explainback.app','explainback.app.attacker.example'])assert.equal(origin({headers:{host,'x-forwarded-host':'explainback.app'}}),null,host);
+ assert.throws(()=>cloudOrigins({...env,EXPLAINBACK_PUBLIC_ORIGINS:''}));
+ const preview=cloudOrigins({...env,VERCEL_ENV:'preview'});
+ assert.equal(preview({headers:{host:env.VERCEL_URL}}),'https://'+env.VERCEL_URL);
+});
 test('Redis transport is authenticated, bounded, and never retries or leaks raw errors',async()=>{
  let calls=0;
  const client=createRedisClient({url:'https://redis.example',token:'fixture-secret',fetchImpl:async(url,options)=>{calls++;assert.equal(options.headers.Authorization,'Bearer fixture-secret');assert.equal(options.redirect,'error');assert.ok(options.signal);return Response.json({error:'private provider details'},{status:500});}});

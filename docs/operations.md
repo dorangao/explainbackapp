@@ -47,6 +47,12 @@ every minute without spending anything.
 
 Environment variables apply to new deployments only. After changing a variable in the
 Vercel project (production and preview are separate), create a deployment to activate it.
+Production requires `EXPLAINBACK_PUBLIC_ORIGINS` to contain only the intended HTTPS app
+domains. Vercel aliases are not accepted automatically in Production; API requests to
+them return 403. Preview retains its deployment/branch hosts. Keep health monitors on
+an allowed domain. Test normal browser reads/writes and rejected foreign-origin calls
+after changing this allowlist. Custom WAF rules are an optional earlier rejection layer;
+origin headers never replace authentication or model-call budgets.
 Reviewer labels, quota plans and distribution records belong in the separate private
 repository. Code values and live invite links stay out of both repositories; see
 `docs/repo-guidelines.md`.

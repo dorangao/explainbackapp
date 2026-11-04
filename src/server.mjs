@@ -168,6 +168,13 @@ export function createHandler({
     const origin = getOrigin(req);
     if (!origin) throw new RequestError(403, 'This host is not allowed.');
     res.locals.origin = origin;
+    if(req.path.startsWith('/api/')){
+      const supplied=req.headers.origin,site=req.headers['sec-fetch-site'];
+      const unsafe=!['GET','HEAD'].includes(req.method);
+      // Reject foreign browser contexts before any Redis/auth/provider work. Browser
+      // GETs often omit Origin; absent Fetch Metadata also supports monitoring/tools.
+      if((supplied!==undefined&&supplied!==origin)||(site!==undefined&&!['same-origin','none'].includes(site))||(unsafe&&supplied!==origin))throw new RequestError(403,'This API request must come from this app.');
+    }
     if (!req.path.startsWith('/api/') && await serveFrontend(req,res,safeHeaders)) return;
     res.locals.tester = await access.authenticate(req.headers.cookie);
     judgeContext.run({tester:res.locals.tester,action:req.path},next);
