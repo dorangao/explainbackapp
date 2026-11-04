@@ -655,7 +655,9 @@ export function Gallery({
     [shared, setShared] = useState<SavedSummary[]>([]),
     [sortBy, setSortBy] = useState<SortBy>("default"),
     [order, setOrder] = useState<SortOrder>("desc"),
-    [pageSize, setPageSize] = useState<8 | 24 | 48>(8),
+    // Multiples of three: the desktop grid has three columns, so every full page ends on a
+    // complete row (18 and 36 also fill the two-column tablet grid).
+    [pageSize, setPageSize] = useState<9 | 18 | 36>(9),
     [page, setPage] = useState(0),
     [sharedLoading, setSharedLoading] = useState(true),
     [sharedError, setSharedError] = useState(false),
@@ -951,12 +953,12 @@ export function Gallery({
               aria-label={language === "zh" ? "每页课程数" : "Lessons per page"}
               value={pageSize}
               onChange={(event) =>
-                setPageSize(Number(event.target.value) as 8 | 24 | 48)
+                setPageSize(Number(event.target.value) as 9 | 18 | 36)
               }
             >
-              <option value={8}>8</option>
-              <option value={24}>24</option>
-              <option value={48}>48</option>
+              <option value={9}>9</option>
+              <option value={18}>18</option>
+              <option value={36}>36</option>
             </select>
             <svg
               className="catalog-chevron"
