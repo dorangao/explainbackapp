@@ -197,17 +197,28 @@ export function App() {
     }
   }, [auth.info.authenticated]);
   // Sign in: show the access panel (it sits at the end of the page), fold the phone menu,
-  // then bring the panel into view and focus the code field. Phones do not scroll to a
+  // then bring the panel into view and focus the chosen entry. Phones do not scroll to a
   // field focused after the tap, so the scroll is explicit and the focus skips its own.
-  const openAccess = useCallback(() => {
+  const revealAccess = useCallback((entry: "code" | "judge") => {
     setShowAccess(true);
     setMenuOpen(false);
     setTimeout(() => {
       const panel = accessRef.current;
       panel?.scrollIntoView?.({ block: "start" });
-      panel?.querySelector("input")?.focus({ preventScroll: true });
+      const target =
+        entry === "judge"
+          ? (panel?.querySelector<HTMLElement>(".judge-check input") ??
+            panel?.querySelector<HTMLElement>(".judge-check"))
+          : (panel?.querySelector<HTMLElement>("#reviewer-code") ??
+            panel?.querySelector<HTMLElement>("input"));
+      target?.focus({ preventScroll: true });
     }, 0);
   }, []);
+  const openAccess = useCallback(() => revealAccess("code"), [revealAccess]);
+  const openJudgeAccess = useCallback(
+    () => revealAccess("judge"),
+    [revealAccess],
+  );
   const login = async (body: unknown) => {
     const ok = await auth.login(body);
     if (ok) {
@@ -360,7 +371,7 @@ export function App() {
             {!auth.info.authenticated && auth.info.judgeMode && (
               <button
                 className="secondary"
-                onClick={openAccess}
+                onClick={openJudgeAccess}
                 disabled={auth.loading}
               >
                 {say(language, "Judge mode", "评审模式")}
@@ -415,7 +426,7 @@ export function App() {
             access={auth.status.access}
             language={language}
             working={auth.working}
-            onRestart={openAccess}
+            onRestart={openJudgeAccess}
           />
         )}
         {!auth.info.authenticated &&
@@ -425,7 +436,7 @@ export function App() {
               access={null}
               language={language}
               working={auth.working}
-              onRestart={openAccess}
+              onRestart={openJudgeAccess}
             />
           )}
         {auth.info.admin && showJudgeUsage && (

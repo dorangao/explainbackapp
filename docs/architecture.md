@@ -157,6 +157,12 @@ recovery; it retains only an in-memory expiry flag to show the restart entry. A
 successful sign-in or explicit sign-out clears that flag. The restart always goes
 through the existing quick check and server limits.
 
+The guided tour derives Judge usage from the current trial's quota and remaining
+allowance, bounded at zero, rather than the separate provider workflow budget. Judge
+entry focuses the quick check while it loads and then its answer; ordinary sign-in
+targets the reviewer code field. A delayed check does not take focus back after a
+visitor moves to another sign-in field.
+
 `POST /api/judge-challenge` issues a short-lived, single-use recognition check. The
 default is a five-digit PNG rendered by `src/judge-challenge.mjs` using Node's built-in
 crypto/zlib; an accessible text addition check is available. No external CAPTCHA

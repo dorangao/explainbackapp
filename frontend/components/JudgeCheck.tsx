@@ -20,8 +20,13 @@ export function JudgeCheck({
     [answer, setAnswer] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const version = useRef(0);
+  const version = useRef(0),
+    form = useRef<HTMLFormElement>(null),
+    answerInput = useRef<HTMLInputElement>(null);
   const load = useCallback(async (kind: "image" | "text" = "image") => {
+    // Keep focus in this check while its input is replaced and buttons disable.
+    if (form.current?.contains(document.activeElement))
+      form.current.focus({ preventScroll: true });
     const token = ++version.current;
     setBusy(true);
     setError("");
@@ -58,8 +63,16 @@ export function JudgeCheck({
     );
     return () => clearTimeout(timer);
   }, [check]);
+  useEffect(() => {
+    // The entry can focus this form while the check loads. Hand focus to its
+    // answer once ready, unless the visitor has moved to another sign-in field.
+    if (check && !busy && form.current?.contains(document.activeElement))
+      answerInput.current?.focus({ preventScroll: true });
+  }, [check, busy]);
   return (
     <form
+      ref={form}
+      tabIndex={-1}
       className="judge-check"
       onSubmit={async (e) => {
         e.preventDefault();
@@ -131,6 +144,7 @@ export function JudgeCheck({
             check.kind === "image" ? "输入图中的五位数字" : "你的答案",
           )}
           <input
+            ref={answerInput}
             value={answer}
             onChange={(e) => setAnswer(e.target.value.replace(/[^0-9]/g, ""))}
             inputMode="numeric"
