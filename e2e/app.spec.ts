@@ -277,6 +277,22 @@ test("mobile library and player fit the viewport in both languages with keyboard
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  const navigation = page.getByRole("navigation", { name: "Main navigation" });
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    for (const name of ["Library", "Create", "About"]) {
+      const link = navigation.getByRole("link", { name, exact: true });
+      await expect(link).toBeVisible();
+      const bounds = await link.boundingBox();
+      expect(bounds!.width).toBeGreaterThanOrEqual(44);
+      expect(bounds!.height).toBeGreaterThanOrEqual(44);
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Skip to content" }),
@@ -292,6 +308,20 @@ test("mobile library and player fit the viewport in both languages with keyboard
     ).toBe(true);
   }
   await page.getByRole("button", { name: "关闭菜单" }).click();
+  const chineseNavigation = page.getByRole("navigation", { name: "主导航" });
+  await chineseNavigation
+    .getByRole("link", { name: "关于", exact: true })
+    .click();
+  await expect(
+    chineseNavigation.getByRole("link", { name: "关于", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect(page.locator(".site-header")).toHaveAttribute(
+    "data-menu",
+    "closed",
+  );
+  await chineseNavigation
+    .getByRole("link", { name: "课程库", exact: true })
+    .click();
   await page.locator(".gallery .lesson-link").first().click();
   expect(
     await page.evaluate(

@@ -299,34 +299,34 @@ export function App() {
           <span className="menu-icon" aria-hidden="true" />
           {t(language, menuOpen ? "App.closeMenu" : "App.menu")}
         </button>
-        <div className="site-menu" id="site-menu">
-          <nav
-            aria-label={t(language, "App.mainNavigation")}
-            className="main-nav"
+        <nav
+          aria-label={t(language, "App.mainNavigation")}
+          className="main-nav"
+        >
+          <a
+            href="#studio"
+            onClick={() => setLibraryVisit((n) => n + 1)}
+            aria-current={
+              area === "studio" && !route.about ? "page" : undefined
+            }
           >
-            <a
-              href="#studio"
-              onClick={() => setLibraryVisit((n) => n + 1)}
-              aria-current={
-                area === "studio" && !route.about ? "page" : undefined
-              }
-            >
-              {t(language, "App.library")}
-            </a>
-            <a
-              href="#create"
-              onClick={() => {
-                setLibraryVisit((n) => n + 1);
-                setCreateHomeVisit((n) => n + 1);
-              }}
-              aria-current={area === "create" ? "page" : undefined}
-            >
-              {t(language, "App.create")}
-            </a>
-            <a href="#about" aria-current={route.about ? "page" : undefined}>
-              {t(language, "App.about")}
-            </a>
-          </nav>
+            {t(language, "App.library")}
+          </a>
+          <a
+            href="#create"
+            onClick={() => {
+              setLibraryVisit((n) => n + 1);
+              setCreateHomeVisit((n) => n + 1);
+            }}
+            aria-current={area === "create" ? "page" : undefined}
+          >
+            {t(language, "App.create")}
+          </a>
+          <a href="#about" aria-current={route.about ? "page" : undefined}>
+            {t(language, "App.about")}
+          </a>
+        </nav>
+        <div className="site-menu" id="site-menu">
           <div className="header-tools">
             <Appearance language={language} />
             <label className="language-switch">

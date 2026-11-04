@@ -82,6 +82,9 @@ test("the phone library passes the automated WCAG audit with the menu closed and
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Main navigation" }),
+  ).toBeVisible();
   await audit(page, "library on a phone");
   await page.getByRole("button", { name: "Menu" }).click();
   await expect(
