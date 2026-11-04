@@ -186,7 +186,7 @@ export function createHandler({
   app.post(['/api/login','/api/logout'], requireOrigin, parseBody, tracked(async (req,res,next) => {
     if(req.path==='/api/logout'){await access.revoke(req.headers.cookie);return reply(res,200,{authenticated:false},{'Set-Cookie':access.expiredCookie??expiredTesterCookie});}
     try { const result=await access.login(req.body,req.headers.cookie,{client:clientAddress(req)}); return reply(res,200,{authenticated:true,recoveryScope:recoveryScope(result),admin:isAdmin(result)},{'Set-Cookie':result.cookie}); }
-    catch(error){ if(!error.status)return next(error);return reply(res,error.status,{error:error.message,code:error.code}); }
+    catch(error){ if(!error.status)return next(error);const retryAfter=Number.isFinite(error.retryAfter)&&error.retryAfter>0?Math.ceil(error.retryAfter):undefined;return reply(res,error.status,{error:error.message,code:error.code,...(retryAfter?{retryAfter}:{})},retryAfter?{'Retry-After':String(retryAfter)}:{}); }
   }));
   // A creator's identity for ownership. Reviewer invites own their lessons by label, so
   // the same invite sees them again after signing in from another browser; the tester

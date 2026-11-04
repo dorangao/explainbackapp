@@ -624,6 +624,7 @@ export function App() {
               info={auth.info}
               working={auth.working}
               error={auth.error}
+              retryAt={auth.retryAt}
               onLogin={login}
               onClose={() => setShowAccess(false)}
             />

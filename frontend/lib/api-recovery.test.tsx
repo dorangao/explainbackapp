@@ -174,57 +174,70 @@ it("a late logout completion cannot clear another tab's new recovery login", asy
   expect(localStorage.getItem(recoveryScopeKey)).toBe("newer-login");
 });
 
-it("judge restarts remount private work and a throttled start preserves the current session", async () => {
-  let scope = "first-judge",
-    denied = false;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (path: string) => {
-      if (path === "/api/login") {
-        if (denied)
-          return new Response(JSON.stringify({ code: "JUDGE_START_LIMIT" }), {
-            status: 429,
-          });
-        scope = "new-judge";
-      }
-      if (path !== "/api/status")
+it.each(["app", "firewall"])(
+  "judge restarts remount private work and a %s throttle preserves the current session",
+  async (layer) => {
+    let scope = "first-judge",
+      denied = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        if (path === "/api/login") {
+          if (denied)
+            return new Response(
+              layer === "app"
+                ? JSON.stringify({ code: "JUDGE_START_LIMIT", retryAfter: 28 })
+                : "<html>Too Many Requests</html>",
+              {
+                status: 429,
+                headers: { "Retry-After": "28" },
+              },
+            );
+          scope = "new-judge";
+        }
+        if (path !== "/api/status")
+          return new Response(
+            JSON.stringify({
+              configured: true,
+              codes: false,
+              open: false,
+              authenticated: true,
+              judgeMode: true,
+              admin: false,
+              recoveryScope: scope,
+            }),
+          );
         return new Response(
           JSON.stringify({
-            configured: true,
-            codes: false,
-            open: false,
-            authenticated: true,
-            judgeMode: true,
-            admin: false,
-            recoveryScope: scope,
+            access: {
+              kind: "judge",
+              expiresAt: Date.now() + 1800000,
+              remaining: 50,
+              quota: 50,
+            },
           }),
         );
-      return new Response(
-        JSON.stringify({
-          access: {
-            kind: "judge",
-            expiresAt: Date.now() + 1800000,
-            remaining: 50,
-            quota: 50,
-          },
-        }),
-      );
-    }),
-  );
-  const { result } = renderHook(() => useAuth());
-  await waitFor(() => expect(result.current.loading).toBe(false));
-  const identity = result.current.identity;
-  await act(async () => {
-    await result.current.login({ judge: true });
-  });
-  expect(result.current.identity).toBeGreaterThan(identity);
-  expect(result.current.info.recoveryScope).toBe("new-judge");
-  denied = true;
-  await act(async () => {
-    await result.current.login({ judge: true });
-  });
-  expect(result.current.info.authenticated).toBe(true);
-  expect(result.current.info.admin).toBe(false);
-  expect(result.current.status?.access?.remaining).toBe(50);
-  expect(result.current.error).toBe("JUDGE_START_LIMIT");
-});
+      }),
+    );
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const identity = result.current.identity;
+    await act(async () => {
+      await result.current.login({ judge: true });
+    });
+    expect(result.current.identity).toBeGreaterThan(identity);
+    expect(result.current.info.recoveryScope).toBe("new-judge");
+    denied = true;
+    await act(async () => {
+      await result.current.login({ judge: true });
+    });
+    expect(result.current.info.authenticated).toBe(true);
+    expect(result.current.info.admin).toBe(false);
+    expect(result.current.status?.access?.remaining).toBe(50);
+    expect(result.current.error).toBe(
+      layer === "app" ? "JUDGE_START_LIMIT" : "API_RATE_LIMIT",
+    );
+    expect(result.current.retryAt! - Date.now()).toBeGreaterThan(27000);
+    expect(localStorage.getItem(recoveryScopeKey)).toBe("new-judge");
+  },
+);

@@ -53,6 +53,14 @@ them return 403. Preview retains its deployment/branch hosts. Keep health monito
 an allowed domain. Test normal browser reads/writes and rejected foreign-origin calls
 after changing this allowlist. Custom WAF rules are an optional earlier rejection layer;
 origin headers never replace authentication or model-call budgets.
+For the hosted Judge trial, maintain IP-based WAF rules for login bursts, API writes
+(excluding polling), and a generous API traffic backstop. These are platform settings,
+not part of a Git deploy. Use `vercel firewall overview` and `vercel firewall diff`
+with the intended project/scope before publishing changes. Start new thresholds in
+log mode, inspect traffic in the Firewall dashboard, and test enforcement in Preview
+before Production. Keep account-specific thresholds and release evidence private.
+WAF limits are regional; do not remove the atomic Redis daily model budget. To undo
+an overly strict rule, change its exceeded action back to log and publish that draft.
 Reviewer labels, quota plans and distribution records belong in the separate private
 repository. Code values and live invite links stay out of both repositories; see
 `docs/repo-guidelines.md`.
@@ -83,6 +91,13 @@ usage. Start throttling, expired sessions, session exhaustion and daily exhausti
 distinct responses. Daily exhaustion resets at midnight UTC; restarting a session does
 not reset the daily counter. Public library viewing remains available. See
 [architecture.md](architecture.md#public-judge-trials) for accounting and retention.
+
+A `JUDGE_START_LIMIT` response reports the remaining client-burst or global-issuance
+wait in seconds through `Retry-After` and `retryAfter`. Wait for the displayed countdown;
+rejected starts leave an existing session usable. A non-JSON `429` can come from the
+edge firewall: inspect the matched WAF rule and traffic, rather than resetting Redis
+counters or changing credentials. Missing source headers and foreign origins return
+`403`, a separate failure from either rate limiter.
 
 Public trials share a bounded workflow pool and a bounded saved-lesson pool. Save/share
 attempts are limited separately from model calls. If trial storage is full, the admin
