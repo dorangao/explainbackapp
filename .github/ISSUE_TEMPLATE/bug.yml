@@ -1,0 +1,25 @@
+name: Bug report
+description: Something in the app or the repository does not work as documented.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what happened instead. Paste error text in a code block.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: A page or lesson link on explainback.app, or a file and line in this repository.
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: For the hosted app, the `build` value from https://explainback.app/api/health; for a local run, the commit.
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste access codes, invite links or your `.env.local`. Security problems go through [SECURITY.md](../blob/main/SECURITY.md), not an issue.

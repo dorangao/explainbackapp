@@ -1,0 +1,35 @@
+name: Report a shared lesson
+description: A lesson shared by an invited creator has wrong figures, unsafe advice or should not be public.
+title: "Report shared lesson: "
+labels: ["lesson report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Lessons under **Shared by creators** are made by invited creators and are not reviewed by ExplainBack. Thank you for flagging one. The maintainer can unshare it; the creator can edit or delete it.
+  - type: input
+    id: lesson
+    attributes:
+      label: Lesson link
+      description: The address of the lesson, for example `https://explainback.app/#shared:…`
+      placeholder: https://explainback.app/#shared:
+    validations:
+      required: true
+  - type: dropdown
+    id: problem
+    attributes:
+      label: What is wrong with it
+      options:
+        - Wrong figures or formula
+        - Unsafe or misleading advice
+        - Content that should not be public
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: What you expected, what the lesson says, and anything that helps check it.
+    validations:
+      required: false
