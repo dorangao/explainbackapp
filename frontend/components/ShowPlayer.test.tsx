@@ -86,6 +86,36 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("ShowPlayer", () => {
+  it("keeps playback and slide navigation separate from keyboard settings changes", () => {
+    const onClose = vi.fn();
+    render(
+      <ShowPlayer
+        lesson={coolingLesson() as unknown as Lesson}
+        show={show}
+        cover={null}
+        coverModel={null}
+        language="en"
+        scriptModel={null}
+        onClose={onClose}
+      />,
+    );
+    expect(document.querySelector(".show-settings")?.hasAttribute("open")).toBe(
+      false,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /^Play$/ }));
+    const summary = screen.getByText("Voice & pace");
+    fireEvent.click(summary);
+    expect(document.querySelector(".show-settings")?.hasAttribute("open")).toBe(
+      true,
+    );
+    const picker = screen.getByLabelText("Narration voice");
+    fireEvent.keyDown(picker, { key: "ArrowRight" });
+    expect(screen.getByText("1 / 5")).toBeTruthy();
+    expect(spoken).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /^Pause$/ })).toBeTruthy();
+    fireEvent.keyDown(picker, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
   it("does not invent a narration model for an older shared show", () => {
     const { rerender } = render(
       <ShowPlayer

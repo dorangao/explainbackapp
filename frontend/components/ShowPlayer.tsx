@@ -215,9 +215,20 @@ export function ShowPlayer({
   useEffect(() => stop, [stop]);
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof Element &&
+        target.closest(
+          "input, select, textarea, button, summary, a, [contenteditable='true']",
+        )
+      )
+        return;
       if (event.key === "ArrowRight") go(index + 1);
       else if (event.key === "ArrowLeft") go(index - 1);
-      else if (event.key === "Escape") onClose();
       else if (event.key === " " && event.target === document.body) {
         event.preventDefault();
         setPlaying((p) => !p);
@@ -234,85 +245,136 @@ export function ShowPlayer({
       aria-label={t(language, "ShowPlayer.lessonShow")}
     >
       <div className="show-controls">
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => go(index - 1)}
-          disabled={index === 0}
-          aria-label={t(language, "ShowPlayer.previousSlide")}
-        >
-          ←
-        </button>
-        <button type="button" onClick={() => setPlaying((p) => !p)}>
-          {playing
-            ? t(language, "ShowPlayer.pause")
-            : last
-              ? t(language, "ShowPlayer.playAgain")
-              : t(language, "ShowPlayer.play")}
-        </button>
-        <button
-          type="button"
-          className="secondary"
-          onClick={() => go(index + 1)}
-          disabled={last}
-          aria-label={t(language, "ShowPlayer.nextSlide")}
-        >
-          →
-        </button>
-        <span className="show-counter">
-          {index + 1} / {show.slides.length}
-        </span>
-        <label className="show-pace">
-          {t(language, "Replay.pace")}
-          <select
-            value={pace}
-            onChange={(event) => setPace(event.target.value as Pace)}
+        <div className="show-transport">
+          <span className="show-counter" aria-live="polite">
+            {index + 1} / {show.slides.length}
+          </span>
+          <div className="show-transport-buttons">
+            <button
+              type="button"
+              className="show-step"
+              onClick={() => go(index - 1)}
+              disabled={index === 0}
+              aria-label={t(language, "ShowPlayer.previousSlide")}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m14 6-6 6 6 6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="show-play"
+              onClick={() => setPlaying((p) => !p)}
+              aria-label={t(
+                language,
+                playing
+                  ? "ShowPlayer.pause"
+                  : last
+                    ? "ShowPlayer.playAgain"
+                    : "ShowPlayer.play",
+              )}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                {playing ? (
+                  <path d="M9 5v14M15 5v14" />
+                ) : (
+                  <path className="show-play-triangle" d="m9 5 10 7-10 7Z" />
+                )}
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="show-step"
+              onClick={() => go(index + 1)}
+              disabled={last}
+              aria-label={t(language, "ShowPlayer.nextSlide")}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m10 6 6 6-6 6" />
+              </svg>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="show-close"
+            onClick={onClose}
+            aria-label={t(language, "ShowPlayer.closeShow")}
           >
-            {(["slow", "normal", "fast"] as const).map((value) => (
-              <option key={value} value={value}>
-                {t(language, `Replay.${value}` as const)}
-              </option>
-            ))}
-          </select>
-        </label>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 6 12 12M6 18 18 6" />
+            </svg>
+          </button>
+        </div>
         <progress
           className="replay-progress"
           aria-label={t(language, "Replay.progress")}
           max={1}
           value={(index + bar) / show.slides.length}
         />
-        <label className="show-voice">
-          <input
-            type="checkbox"
-            checked={voice}
-            disabled={!speechAvailable()}
-            onChange={(event) => setVoice(event.target.checked)}
-          />
-          {t(language, "ShowPlayer.browserVoice")}
-        </label>
-        {ranked.length > 1 && (
-          <label className="show-voice-pick">
-            <span className="visually-hidden">
-              {t(language, "ShowPlayer.voice")}
-            </span>
-            <select
-              value={selected ? voiceKey(selected) : ""}
-              disabled={!voice}
-              aria-label={t(language, "ShowPlayer.voice")}
-              onChange={(event) => chooseVoice(event.target.value || null)}
+        <details className="show-settings">
+          <summary>
+            <svg
+              className="show-settings-icon"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
             >
-              {ranked.map((v, i) => (
-                <option key={voiceKey(v)} value={voiceKey(v)}>
-                  {voiceLabel(v, language)}
-                  {i === 0 ? t(language, "ShowPlayer.voiceBest") : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        <button type="button" className="text-button" onClick={onClose}>
-          {t(language, "ShowPlayer.closeShow")}
-        </button>
+              <path d="M4 7h5m0 0h11M4 17h10m0 0h6M9 4v6m5 4v6" />
+            </svg>
+            <span>{t(language, "ShowPlayer.settings")}</span>
+            <span className="show-settings-value">
+              {t(language, `Replay.${pace}` as const)}
+            </span>
+            <svg
+              className="show-settings-chevron"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </summary>
+          <div className="show-settings-fields">
+            <label className="show-pace">
+              {t(language, "Replay.pace")}
+              <select
+                value={pace}
+                onChange={(event) => setPace(event.target.value as Pace)}
+              >
+                {(["slow", "normal", "fast"] as const).map((value) => (
+                  <option key={value} value={value}>
+                    {t(language, `Replay.${value}` as const)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="show-voice">
+              <input
+                type="checkbox"
+                checked={voice}
+                disabled={!speechAvailable()}
+                onChange={(event) => setVoice(event.target.checked)}
+              />
+              {t(language, "ShowPlayer.browserVoice")}
+            </label>
+            {ranked.length > 1 && (
+              <label className="show-voice-pick">
+                <span>{t(language, "ShowPlayer.voice")}</span>
+                <select
+                  value={selected ? voiceKey(selected) : ""}
+                  disabled={!voice}
+                  aria-label={t(language, "ShowPlayer.voice")}
+                  onChange={(event) => chooseVoice(event.target.value || null)}
+                >
+                  {ranked.map((v, i) => (
+                    <option key={voiceKey(v)} value={voiceKey(v)}>
+                      {voiceLabel(v, language)}
+                      {i === 0 ? t(language, "ShowPlayer.voiceBest") : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
+        </details>
       </div>
       <div className="show-stage">
         {slide.kind === "cover" && (
