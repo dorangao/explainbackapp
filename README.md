@@ -37,9 +37,11 @@ Each claim below names where to see it in the app and the check in this reposito
 ## Try without credentials
 
 The public library and included narrated shows open without sign-in or model calls.
+**Judge mode is temporary evaluation access and may be paused or disabled at any time,
+including during an active session.** Its availability is separate from public library viewing.
 When the deployment enables **Judge mode**, select that button, complete the quick
 image or text check, then select **Start Judge mode**
-to try live creation without an account or invite code. A session lasts 30 minutes with
+to try live creation without an account or invite code. A session lasts up to 30 minutes with
 up to 50 AI calls, subject to the app's shared daily allowance. One action can use several
 calls (for example, a show script and its images); failures and retries also count.
 The session banner shows the remaining calls and time. Refreshing preserves the session.
@@ -48,6 +50,11 @@ The session banner shows the remaining calls and time. Refreshing preserves the 
 session. Export any work you want to keep before restarting or expiry. Saves have a separate allowance; export remains available if saving is full.
 The administrator can inspect session usage and saved lessons; this is an anonymous trial, not verified
 judge identity. Generated content still requires human review.
+
+If the Judge mode button is missing or access is unavailable, you can still explore
+the public library, included shows and [evaluation card](docs/evaluation.md), or use
+the local setup below. See the [Judge mode guide](docs/judge-mode.md) for entry steps,
+limits, export guidance and unavailable-access cases.
 
 ## Local setup
 
@@ -86,6 +93,8 @@ See the maintained [architecture diagram and technology stack](docs/architecture
 Operating the hosted app (health route, request log, common situations, rollback) is described in the [operations runbook](docs/operations.md). The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`. The hosted site counts page views with Vercel Web Analytics (`frontend/lib/analytics.ts`): cookieless, the route or lesson visited with any invite code removed, and never lesson content or model requests; it loads on explainback.app and Vercel preview hosts only, never on a local build.
 
 ## Contributing and reporting
+
+For feedback or inquiries, email [contact@sketchplaywrite.com](mailto:contact@sketchplaywrite.com).
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks to run and what a change should include. Bugs and wrong figures go in an [issue](https://github.com/dorangao/explainbackapp/issues/new/choose); every creator-shared lesson page has a **Report this lesson** link that prefills one. Security problems go through [SECURITY.md](SECURITY.md), not a public issue. The project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 

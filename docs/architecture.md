@@ -138,6 +138,10 @@ the application's origin policy. Do not replace session controls with a header r
 
 ## Public judge trials
 
+This is temporary evaluation access that may be disabled at any time, including
+for an active session. Public library viewing is independent of this flag. The
+[Judge mode guide](judge-mode.md) documents the visitor-facing entry and fallback paths.
+
 `EXPLAINBACK_JUDGE_MODE=1` enables a public button and `POST /api/login` with
 `{judge:true,challengeId,answer}`. It is off by default and disabling it rejects existing trial sessions.
 It needs no invite secret and does not authenticate a person's judge status. Normal

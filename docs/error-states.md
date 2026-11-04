@@ -1,6 +1,6 @@
 # What a reviewer sees when something is missing or fails
 
-Checked October 29, 2026 Pacific against the fixture server with each condition switched on (`scripts/browser-test-server.mjs` reads `FIXTURE_*` variables; see its header). Every message exists in English and Chinese, and a notice set in one language is cleared when the language changes rather than left in the old one.
+The fixture server can exercise these conditions (`scripts/browser-test-server.mjs` reads `FIXTURE_*` variables; see its header). Every message exists in English and Chinese, and a notice set in one language is cleared when the language changes rather than left in the old one.
 
 | Condition | What happens | Where it is said |
 |---|---|---|
@@ -8,7 +8,7 @@ Checked October 29, 2026 Pacific against the fixture server with each condition 
 | The provider session's own request cap is reached | A notice offers to start a new provider session; the judge path footer says so. | `Studio.thisProviderSessionHasUsed`, `JudgePath.noBudget` |
 | Another request is in flight or the session was reset (409) | "Wait a moment, then retry." | `Studio.failConflict` |
 | The chosen model is not configured (503) | "Choose another model or ask the host to configure it." | `Studio.failNotConfigured` |
-| Sign-in ended (401) | "Sign in again; your draft is kept in this browser." | `Studio.failSignIn` |
+| Sign-in ended (401) | Sign-in is required again. The private browser workspace is cleared when access is lost; export work before a temporary session ends. | `Studio.failSignIn`, `useTesterAuth.loseAccess` |
 | A request body is too large (413) | "Use a smaller image or a shorter text." | `Studio.failTooLarge` |
 | A model reply failed or was rejected (502) | The generic line plus the server's rejection reason when it has one; the draft is preserved. | `Studio.theRequestCouldNotBe`, `Studio.reason` |
 | The background Wonder job passes its deadline | "Wonder is still working in the background. Keep this page open, or start a new request." | `Studio.backgroundStillRunning` |
@@ -21,3 +21,13 @@ Checked October 29, 2026 Pacific against the fixture server with each condition 
 | Empty states | An empty shelf, a catalog search with no match and a public list with no shared lessons each say so in a sentence. | `Library.nothingSavedYet`, `Gallery.noMatches` |
 
 A chained turn whose earlier response is gone is retried once without the chain before any failure is shown. Failure messages are chosen by HTTP status in `failureMessage` (`frontend/components/Studio.tsx`), so the server's English sentences never reach a Chinese reader.
+
+## Temporary Judge access
+
+Judge access can be disabled independently of public viewing. If it is disabled,
+the entry is absent on a freshly loaded page, and existing trial access is rejected
+on the next authenticated request. Incorrect, expired or replayed quick checks require
+a new check and preserve an existing login. Session expiry, session call exhaustion,
+shared daily exhaustion and start cooldowns are separate conditions; a new session
+does not clear the daily limit. See the [Judge mode guide](judge-mode.md) for visitor
+steps and [operations](operations.md#public-trial-access) for administrator recovery.

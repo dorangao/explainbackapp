@@ -79,6 +79,12 @@ request log are what an operator has; `docs/security.md` lists this as an open i
 
 ## Public trial access
 
+Judge mode is temporary evaluation access. It may be paused or disabled as availability
+or usage changes; do not promise that it will remain enabled or that a session will
+remain usable until its expiry if access is withdrawn. The public library stays
+available without Judge access. The [visitor guide](judge-mode.md) explains entry,
+limits, export and unavailable-access cases.
+
 Set the server-only `EXPLAINBACK_JUDGE_MODE=1` in the intended environment and deploy
 to enable the public Judge mode entry. Missing or `0` leaves it disabled. Deploying
 with the flag disabled rejects existing judge sessions on their next request. Keep
