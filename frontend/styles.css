@@ -4185,8 +4185,7 @@ body {
       0 6px 10px rgb(0 0 0 / 9%);
     transition:
       transform 120ms ease,
-      box-shadow 120ms ease,
-      background 120ms ease;
+      box-shadow 120ms ease;
     -webkit-tap-highlight-color: transparent;
   }
   .main-nav a[aria-current="page"] {
