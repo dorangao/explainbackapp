@@ -214,7 +214,7 @@ describe("ShareControls", () => {
   });
 });
 describe("Gallery catalog", () => {
-  it("defaults to eight lessons and resets to page one when the page size changes", async () => {
+  it("defaults to nine lessons and resets to page one when the page size changes", async () => {
     getJson.mockImplementation(async (path: string) =>
       path === "/api/shared" ? { lessons: [], cursor: null } : { covers: {} },
     );
@@ -232,16 +232,17 @@ describe("Gallery catalog", () => {
     expect(
       screen.getByText(/Lessons without a recorded date appear last/),
     ).toBeTruthy();
-    expect(size).toHaveProperty("value", "8");
-    expect(document.querySelectorAll(".gallery-grid article").length).toBe(8);
+    expect(size).toHaveProperty("value", "9");
+    expect(document.querySelectorAll(".gallery-grid article").length).toBe(9);
     fireEvent.click(screen.getByRole("button", { name: "Next page" }));
     expect(screen.getByText("Page 2 of 3")).toBeTruthy();
-    fireEvent.change(size, { target: { value: "24" } });
+    fireEvent.change(size, { target: { value: "18" } });
+    expect(document.querySelectorAll(".gallery-grid article").length).toBe(18);
+    expect(screen.getByText("Page 1 of 2")).toBeTruthy();
+    fireEvent.change(size, { target: { value: "36" } });
     expect(document.querySelectorAll(".gallery-grid article").length).toBe(23);
     expect(screen.queryByRole("button", { name: "Next page" })).toBeNull();
-    fireEvent.change(size, { target: { value: "48" } });
-    expect(document.querySelectorAll(".gallery-grid article").length).toBe(23);
-    fireEvent.change(size, { target: { value: "8" } });
+    fireEvent.change(size, { target: { value: "9" } });
     expect(screen.getByText("Page 1 of 3")).toBeTruthy();
   });
   it("sorts titles, creation dates and update dates in both directions, leaving undated lessons last", async () => {
@@ -275,7 +276,7 @@ describe("Gallery catalog", () => {
     render(<Gallery language="en" />);
     fireEvent.change(
       screen.getByRole("combobox", { name: "Lessons per page" }),
-      { target: { value: "48" } },
+      { target: { value: "36" } },
     );
     await screen.findByRole("heading", { name: "Zulu" });
     const titles = () =>
@@ -334,7 +335,7 @@ describe("Gallery catalog", () => {
     );
     render(<Gallery language="zh" />);
     fireEvent.change(screen.getByRole("combobox", { name: "每页课程数" }), {
-      target: { value: "48" },
+      target: { value: "36" },
     });
     await screen.findByRole("heading", { name: "香蕉" });
     fireEvent.click(screen.getByRole("button", { name: "创作者分享" }));
@@ -377,7 +378,7 @@ describe("Gallery catalog", () => {
     render(<Gallery language="en" />);
     fireEvent.change(
       screen.getByRole("combobox", { name: "Lessons per page" }),
-      { target: { value: "24" } },
+      { target: { value: "18" } },
     );
     await waitFor(() => expect(screen.getByText("48 lessons")).toBeTruthy());
     expect(
@@ -393,7 +394,7 @@ describe("Gallery catalog", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
       target: { value: "title" },
     });
-    expect(screen.getByText("Page 1 of 2")).toBeTruthy();
+    expect(screen.getByText("Page 1 of 3")).toBeTruthy();
     fireEvent.change(screen.getByRole("combobox", { name: "Sort by" }), {
       target: { value: "default" },
     });
@@ -450,7 +451,7 @@ describe("Gallery catalog", () => {
     render(<Gallery language="en" />);
     fireEvent.change(
       screen.getByRole("combobox", { name: "Lessons per page" }),
-      { target: { value: "24" } },
+      { target: { value: "36" } },
     );
     // One grid: reviewed, evaluation and shared lessons share one card.
     expect(
