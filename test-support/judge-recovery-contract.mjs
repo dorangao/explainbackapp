@@ -37,6 +37,14 @@ export function judgeRecoveryContract(name,factory){
   time=expiry;assert.equal((await store.reset({type:'session',sessionId:'public-one',reason:'Expired session',client:'client'})).error,'JUDGE_EXPIRED');
   assert.equal((await store.list()).resets.length,2);
  });
+ test(`${name}: a daily reset after saves alone preserves a zero call total`,async()=>{
+  const store=await factory(()=>1000);
+  await store.start({authId:'save-only',publicId:'save-only',client:'client'});
+  assert.ok((await store.reserveWrite('save-only')).ok);
+  await store.reset({type:'daily',reason:'Synthetic zero-call reset',client:'client'});
+  const usage=await store.list();assert.equal(usage.daily.used,0);assert.equal(usage.daily.total,0);
+  assert.equal(usage.resets[0].previousUsed,0);assert.equal(usage.sessions[0].saves,1);
+ });
  test(`${name}: start reset only clears this network and global cooldowns`,async()=>{
   const store=await factory(()=>1000);
   for(const client of ['one','two'])for(let i=0;i<10;i++)await store.start({authId:client+i,publicId:client+i,client});

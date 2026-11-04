@@ -36,7 +36,7 @@ export function createMemoryJudgeStore({now=Date.now}={}){
   async reset({type,sessionId,reason,client}){
    prune();const day=judgeDay(now());let previousUsed=0;
    if(type==='session'){const r=[...records.values()].find(r=>r.id===sessionId);if(!judgeActive(r,now()))return {error:'JUDGE_EXPIRED'};previousUsed=r.calls.length-(r.callBaseline??0);r.callBaseline=r.calls.length;}
-   else if(type==='daily'){const d=days.get(day)??{used:0,until:Date.parse(day)+2*86400_000};previousUsed=d.used;d.totalBeforeReset=(d.totalBeforeReset??0)+d.used;d.used=0;days.set(day,d);}
+   else if(type==='daily'){const d=days.get(day)??{used:0,until:Date.parse(day)+2*86400_000};previousUsed=d.used??0;d.totalBeforeReset=(d.totalBeforeReset??0)+previousUsed;d.used=0;days.set(day,d);}
    else if(type==='starts'){previousUsed=count('all');starts.delete('all');starts.delete('client:'+client);await challenges.resetChallengeCooldown(client);}
    else return {error:'JUDGE_RESET_INVALID'};
    resets.unshift({type,at:now(),reason,actor:'tester',previousUsed,...(type==='session'?{sessionId}:{})});resets.splice(100);return {ok:true};
