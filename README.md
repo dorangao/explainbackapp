@@ -82,7 +82,11 @@ The browser tests use a synthetic local provider fixture and include an automate
 
 See the maintained [architecture diagram and technology stack](docs/architecture.md). Update that document with changes to system components, integrations, model roles, storage or deployment.
 
-Operating the hosted app (health route, request log, common situations, rollback) is described in the [operations runbook](docs/operations.md). The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`.
+Operating the hosted app (health route, request log, common situations, rollback) is described in the [operations runbook](docs/operations.md). The cloud entry point is `api/index.js`. It requires shared Redis configuration and an explicitly allowed HTTPS origin, uses the hosted Meta provider, and does not honor local open-access mode. Configure secrets only as server-side environment variables. Adding a static asset to `public/` also requires checking local serving and production copying in `src/static.mjs` and `scripts/build-vercel.mjs`. The hosted site counts page views with Vercel Web Analytics (`frontend/lib/analytics.ts`): cookieless, the route or lesson visited with any invite code removed, and never lesson content or model requests; it loads on explainback.app and Vercel preview hosts only, never on a local build.
+
+## Contributing and reporting
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks to run and what a change should include. Bugs and wrong figures go in an [issue](https://github.com/dorangao/explainbackapp/issues/new/choose); every creator-shared lesson page has a **Report this lesson** link that prefills one. Security problems go through [SECURITY.md](SECURITY.md), not a public issue. The project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## Pre-existing work
 

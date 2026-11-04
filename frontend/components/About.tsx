@@ -60,6 +60,7 @@ export function About({ language }: { language: Language }) {
             <li>{t(language, "About.limit3")}</li>
             <li>{t(language, "About.limit4")}</li>
             <li>{t(language, "About.limit5")}</li>
+            <li>{t(language, "About.limit6")}</li>
           </ul>
         </section>
         <section aria-labelledby="about-source">

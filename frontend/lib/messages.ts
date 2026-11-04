@@ -128,6 +128,10 @@ export const messages = {
     en: "Sessions are temporary. Saved lessons belong to the access label that created them, and a shared link stays open after its code is revoked.",
     zh: "会话是临时的。已保存的课程归创建它的访问标签所有；分享链接在访问码撤销后仍可打开。",
   },
+  "About.limit6": {
+    en: "The hosted site counts page views with Vercel Web Analytics, without cookies: the page or lesson visited, with any invite code removed. Lesson content and model requests are never sent to it.",
+    zh: "托管站点使用 Vercel Web Analytics 统计页面访问，不使用 Cookie：只记录访问的页面或课程，并去除其中的邀请码。课程内容和模型请求不会发送给它。",
+  },
   "About.source": { en: "Source", zh: "源码" },
   "About.sourceBody": {
     en: "The code, the evaluation suites and the documentation are public.",

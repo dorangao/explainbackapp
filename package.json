@@ -1,9 +1,19 @@
 {
-  "name": "explainback-hackathon-submission",
+  "name": "explainbackapp",
+  "version": "0.1.0",
+  "description": "Turns a question or sketch into a bilingual, reviewable interactive lesson: predict, test, explain, try a fresh case.",
   "private": true,
   "type": "module",
   "license": "MIT",
   "author": "Doran Gao",
+  "homepage": "https://explainback.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dorangao/explainbackapp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dorangao/explainbackapp/issues"
+  },
   "engines": {
     "node": "26.x"
   },
