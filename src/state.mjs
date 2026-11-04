@@ -6,6 +6,7 @@ export const LOCK_TTL=90_000; // Longer than the hosted function's 60-second lim
 // bucket may not crowd the others out of the shared cap of 100: past its own cap, its
 // oldest session that is not inside a request is evicted to make room.
 export const MAX_SESSIONS_PER_BUCKET=30;
+export const MAX_JUDGE_WORKFLOWS_PER_OWNER=3;
 // All public trials share one capacity pool, separate from invite/admin buckets.
 export const sessionBucket=s=>s?.audience?.startsWith('judge:')?'judge:shared':s?.audience??'tester';
 export const snapshot=s=>structuredClone(Object.fromEntries(Object.entries(s).filter(([k])=>k!=='trace')));
@@ -24,7 +25,10 @@ export function createMemoryState({now=Date.now}={}){
   async create(id,s){
    prune();
    const bucket=sessionBucket(s),own=[...sessions.entries()].filter(([,x])=>sessionBucket(x)===bucket).sort((a,b)=>a[1].createdAt-b[1].createdAt);
-   if(own.length>=MAX_SESSIONS_PER_BUCKET){const victim=own.find(([old,previous])=>!locks.has(old)&&(bucket!=='judge:shared'||previous.owner===s.owner));if(!victim)return false;remove(victim[0]);}
+   const candidates=bucket==='judge:shared'?own.filter(([,x])=>x.owner===s.owner):own;
+   if(own.length>=MAX_SESSIONS_PER_BUCKET||(bucket==='judge:shared'&&candidates.length>=MAX_JUDGE_WORKFLOWS_PER_OWNER)){
+    const victim=candidates.find(([old])=>!locks.has(old));if(!victim)return false;remove(victim[0]);
+   }
    if(sessions.size>=100)return false;sessions.set(id,snapshot(s));return true;
   },
   async get(id){prune();return sessions.has(id)?snapshot(sessions.get(id)):null;},

@@ -307,3 +307,59 @@ it.each(["app", "firewall"])(
     expect(localStorage.getItem(recoveryScopeKey)).toBe("new-judge");
   },
 );
+
+it.each(["network", "timeout", "400", "403", "500"])(
+  "a rejected restart (%s) preserves the live identity, quota and private recovery",
+  async (failure) => {
+    let expired = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (path: string) => {
+        if (path === "/api/login") {
+          if (failure === "network") throw new TypeError("Offline");
+          if (failure === "timeout")
+            throw new DOMException("Timed out", "TimeoutError");
+          return new Response("{}", { status: Number(failure) });
+        }
+        if (expired)
+          return new Response(JSON.stringify({ code: "TESTER_REQUIRED" }), {
+            status: 401,
+          });
+        return new Response(
+          JSON.stringify(
+            path === "/api/auth"
+              ? {
+                  authenticated: true,
+                  admin: false,
+                  judgeMode: true,
+                  recoveryScope: "live-judge",
+                }
+              : {
+                  access: {
+                    kind: "judge",
+                    expiresAt: Date.now() + 1800000,
+                    remaining: 17,
+                    quota: 50,
+                  },
+                },
+          ),
+        );
+      }),
+    );
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const identity = result.current.identity;
+    await act(async () => {
+      expect(await result.current.login({ judge: true })).toBe(false);
+    });
+    expect(result.current.info.authenticated).toBe(true);
+    expect(result.current.status?.access?.remaining).toBe(17);
+    expect(result.current.identity).toBe(identity);
+    expect(localStorage.getItem(recoveryScopeKey)).toBe("live-judge");
+    expired = true;
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.info.authenticated).toBe(false);
+  },
+);

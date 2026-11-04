@@ -48,6 +48,11 @@ test("a public judge can create, reload and restart; only the admin sees usage",
     page.getByRole("heading", { name: "Cooling coffee", exact: true }),
   ).toBeVisible();
   await expect(banner).toContainText("49/50 AI calls left");
+  await expect(
+    page.getByText("49 / 50 AI calls left in this Judge session", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.reload();
   await expect(banner).toContainText("49/50 AI calls left");
   await page
@@ -66,6 +71,13 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   });
   await page.reload();
   await expect(banner).toContainText("0/50 AI calls left");
+  await expect(
+    page.getByRole("button", {
+      name: "Start a new provider session",
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  await expect(page.getByText(/hourly request budget/)).toHaveCount(0);
   await banner.screenshot({
     path: "output/playwright/judge-session-exhausted.png",
   });

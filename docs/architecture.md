@@ -155,7 +155,9 @@ The session banner offers a restart only after its call allowance is exhausted o
 its deadline passes. On expiry the client still clears private status and browser
 recovery; it retains only an in-memory expiry flag to show the restart entry. A
 successful sign-in or explicit sign-out clears that flag. The restart always goes
-through the existing quick check and server limits.
+through the existing quick check and server limits. A rejected or timed-out restart
+keeps the existing client identity, usage and private workspace until a successful
+replacement or a later authorization failure.
 
 The guided tour derives Judge usage from the current trial's quota and remaining
 allowance, bounded at zero, rather than the separate provider workflow budget. Judge
@@ -190,7 +192,9 @@ rewrites, preserving active sessions while keeping explicit revocations and expi
 Redis also limits starts with a short per-client burst window and a separate global
 hourly ceiling. Only successful starts consume issuance capacity; a rejected start
 keeps the previous session intact and returns the actual remaining wait through
-`Retry-After` and JSON. The client displays a countdown and never retries automatically.
+`Retry-After` and JSON. The client displays a countdown and never retries automatically. Quick-check issuance
+limits also honor the server cooldown and disable retries until it ends; disabling
+Judge mode displays an unavailable message rather than a connection error.
 The client burst key is versioned separately from the former hourly key so an old
 lockout does not survive the window change; global issuance and daily model counters
 retain their existing keys. Local development uses the
@@ -199,11 +203,16 @@ Redis counters in the existing environment/credential namespace. Keep that names
 stable during a trial period: changing it or rotating tester credentials resets that
 namespace's stored state, including counters. Production and Preview are separate.
 All trial workflows share one bounded capacity bucket; a trial may only evict its own
-idle workflow when that bucket is full, so anonymous starts cannot consume the slots
-reserved by the existing global cap for other access categories.
+idle workflow. Each owner also has a smaller live-workflow cap, so one login cannot
+fill the shared trial pool with free workflow creates. Redis counts, checks locks,
+evicts and inserts in one atomic script; another owner's work is never evicted. The
+existing global cap still reserves capacity for other access categories.
 Storage failure blocks dispatch. Failed or uncertain provider calls keep their reserved
 slot; a completion bookkeeping failure leaves a pending entry. Late results from expired
-or replaced sessions are discarded. These are call limits, not monetary limits.
+or replaced sessions are discarded. A storage failure checking post-call access or
+saving a completed workflow returns a distinct error warning that the call may already
+be charged. The client distinguishes Judge session, daily, capacity and storage errors
+from the ordinary provider and hourly budgets. These are call limits, not monetary limits.
 
 Hosted deployments also use Vercel WAF fixed-window limits keyed by the platform's
 client IP, independently of claimed Origin headers. Separate rules cover sign-in,

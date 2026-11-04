@@ -105,3 +105,34 @@ test('judge-generated images upload only when explicitly saved, not on every sho
  assert.equal(show.cover,image);assert.equal(uploads,0);
  const saved=await send('/api/lessons',{lesson:coolingLesson(),show:show.show,cover:show.cover});assert.equal(saved.status,200);assert.equal(uploads,1);
 });
+
+test('a storage outage after a charged call warns before another paid retry',async t=>{
+ let calls=0,unavailable=false;const store=createMemoryJudgeStore();
+ const judgeStore={...store,find:async id=>{if(unavailable)throw new Error('storage unavailable');return store.find(id);},finish:async(...args)=>{if(unavailable)throw new Error('storage unavailable');return store.finish(...args);}};
+ const {send,sessionId}=await setup(t,{judgeStore,modelCall:async()=>{calls++;unavailable=true;return ready();}});
+ const response=await send('/api/studio/compose',{sessionId,topic:'Coffee',creation:'generated'});
+ assert.equal(response.status,503);assert.equal((await response.json()).code,'JUDGE_STORAGE_AFTER_CALL');
+ assert.equal(calls,1);assert.equal((await store.list()).daily.used,1);assert.equal((await store.list()).sessions[0].pending,1);
+});
+
+test('failure to save a completed workflow warns that retrying may charge again',async t=>{
+ const {createMemoryState}=await import('../src/state.mjs');const state=createMemoryState();let calls=0;
+ const {send,sessionId,store}=await setup(t,{state:{...state,save:async(...args)=>{if(calls)throw new Error('storage unavailable');return state.save(...args);}},modelCall:async()=>{calls++;return ready();}});
+ const response=await send('/api/studio/compose',{sessionId,topic:'Coffee',creation:'generated'});
+ assert.equal(response.status,503);assert.equal((await response.json()).code,'JUDGE_STORAGE_AFTER_CALL');
+ assert.equal(calls,1);assert.equal((await store.list()).daily.used,1);
+});
+
+test('a trial at its locked workflow cap gets a capacity error without blocking the next trial',async t=>{
+ const {createMemoryState}=await import('../src/state.mjs');const state=createMemoryState();
+ const {send,post,sessionId,store}=await setup(t,{state,modelCall:async()=>ready()});
+ const workflow=await state.get(sessionId);await state.acquire(sessionId);
+ for(const id of ['second','third']){assert.equal(await state.create(id,workflow),true);await state.acquire(id);}
+ for(const path of ['/api/studio/session','/api/quantum/session','/api/session']){
+  const response=await send(path,{synthetic:true,language:'en',problemId:'crossing'});
+  assert.equal(response.status,429);assert.equal((await response.json()).code,'JUDGE_WORKFLOW_LIMIT');
+ }
+ const next=await post('/api/login',await httpJudgeBody(post));const cookie=next.headers.get('set-cookie').split(';')[0];
+ assert.equal((await post('/api/studio/session',{synthetic:true,language:'en'},cookie)).status,200);
+ assert.equal((await store.list()).daily.used,0);
+});
