@@ -35,6 +35,7 @@ export function useProviderSession({
   onBusy,
   onInvalidate,
   onSettled,
+  allowance,
 }: {
   post: Post;
   language: Language;
@@ -49,6 +50,8 @@ export function useProviderSession({
   // Called after every request settles, success or failure, so the caller can refresh
   // what the request may have changed (the hourly budget shown in the header).
   onSettled?: () => void;
+  // Judge usage is shared across workflows and can be restored by an administrator.
+  allowance?: number;
 }) {
   const [busy, setBusy] = useState(false),
     // Which request is in flight, so a button can say "working" only for its own call.
@@ -222,7 +225,7 @@ export function useProviderSession({
     busy,
     activeMode,
     busyRef,
-    remaining,
+    remaining: allowance ?? remaining,
     sessionId,
     metrics,
     languageInterrupted,

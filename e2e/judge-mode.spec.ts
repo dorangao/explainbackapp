@@ -1,4 +1,15 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+async function completeCheck(page: Page) {
+  await page
+    .getByRole("button", { name: "Use a text check", exact: true })
+    .click();
+  const question = page.getByText(/^What is \d+ \+ \d+\?$/);
+  await expect(question).toBeVisible();
+  const values = (await question.innerText()).match(/\d+/g)!.map(Number);
+  await page
+    .getByLabel("Your answer", { exact: true })
+    .fill(String(values[0] + values[1]));
+}
 test("a public judge can create, reload and restart; only the admin sees usage", async ({
   page,
 }) => {
@@ -7,6 +18,7 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   await expect(
     page.getByText(/No account or invite code needed/),
   ).toBeVisible();
+  await completeCheck(page);
   await page
     .getByRole("button", { name: "Start Judge mode", exact: true })
     .click();
@@ -31,6 +43,7 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   const reloaded = await page.request.get("/api/status").then((r) => r.json());
   expect(reloaded.access.expiresAt).toBe(initial.access.expiresAt);
   await banner.getByRole("button", { name: "New judge session" }).click();
+  await completeCheck(page);
   await page
     .getByRole("button", { name: "Start Judge mode", exact: true })
     .click();
@@ -82,6 +95,22 @@ test("a public judge can create, reload and restart; only the admin sees usage",
   await expect(
     usage.getByRole("cell", { name: "1 / 50", exact: true }),
   ).toBeVisible();
+  await usage.getByRole("button", { name: "Reset daily allowance" }).click();
+  const confirm = usage.getByRole("button", {
+    name: "Confirm reset",
+    exact: true,
+  });
+  await expect(confirm).toBeDisabled();
+  await usage.getByLabel("Reason for reset").fill("Browser reset verification");
+  await expect(confirm).toBeDisabled();
+  await usage.getByLabel("I confirm this reset").check();
+  await confirm.click();
+  await expect(usage.getByText("0 / 500", { exact: true })).toBeVisible();
+  await expect(
+    usage.getByText(/Total provider calls today: 1\./),
+  ).toBeVisible();
+  await usage.getByText("Administrator reset history", { exact: true }).click();
+  await expect(usage.getByText(/Browser reset verification/)).toBeVisible();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(usage).toHaveCount(0);
 });

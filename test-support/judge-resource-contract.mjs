@@ -1,3 +1,4 @@
+import {judgeBody} from './judge-login.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createJudgeAccess} from '../src/judge-access.mjs';
@@ -5,7 +6,7 @@ export function judgeResourceContract(name,factory){
  test(`${name}: public workflows cannot crowd out administrator capacity`,async()=>{
   const {state,auth,judgeStore}=await factory();const gate=createJudgeAccess({auth,store:judgeStore,enabled:true});let created=0;
   for(let n=0;n<4;n++){
-   const login=await gate.auth.login({judge:true},'',{client:'visitor'+n});
+   const login=await gate.auth.login(await judgeBody(gate,'visitor'+n),'',{client:'visitor'+n});
    for(let i=0;i<30;i++)created+=Number(await state.create(`judge-${n}-${i}`,{owner:login.id,audience:login.audience.label,createdAt:Date.now()}));
   }
   assert.equal(created,30);

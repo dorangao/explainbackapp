@@ -273,6 +273,10 @@ export function Studio({
   const provider = useProviderSession({
     post,
     language,
+    allowance:
+      providerStatus?.access?.kind === "judge"
+        ? providerStatus.access.remaining
+        : undefined,
     sessionTarget: target ?? null,
     onBusy,
     onInvalidate: clearFeedback,

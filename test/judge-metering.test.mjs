@@ -1,3 +1,4 @@
+import {judgeBody,httpJudgeBody} from '../test-support/judge-login.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../src/server.mjs';
@@ -13,7 +14,7 @@ async function setup(t,options={}){
  await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>{server.close(r);server.closeAllConnections();}));
  const origin=`http://127.0.0.1:${server.address().port}`;
  const post=(path,body,cookie='')=>fetch(origin+path,{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(body)});
- const login=await post('/api/login',{judge:true});const cookie=login.headers.get('set-cookie').split(';')[0];
+ const login=await post('/api/login',await httpJudgeBody(post));const cookie=login.headers.get('set-cookie').split(';')[0];
  const send=(path,body)=>post(path,body,cookie);
  const session=await(await send('/api/studio/session',{synthetic:true,language:'en'})).json();
  return {store,cookie,send,post,sessionId:session.sessionId,get:path=>fetch(origin+path,{headers:{Cookie:cookie}})};
@@ -45,7 +46,7 @@ test('HTTP quota errors stop dispatch at 50 across workflow sessions, remain 429
  const next=await(await send('/api/studio/session',{synthetic:true,language:'en'})).json();
  const blocked=await send('/api/studio/compose',{sessionId:next.sessionId,topic:'Coffee',creation:'generated'});
  assert.equal(blocked.status,429);assert.equal((await blocked.json()).code,'JUDGE_SESSION_LIMIT');assert.equal(calls,1);
- const fresh=await post('/api/login',{judge:true},cookie),freshCookie=fresh.headers.get('set-cookie').split(';')[0];
+ const fresh=await post('/api/login',await httpJudgeBody(post),cookie),freshCookie=fresh.headers.get('set-cookie').split(';')[0];
  assert.equal((await post('/api/studio/compose',{sessionId,topic:'Coffee'},freshCookie)).status,404);
  assert.equal((await store.list()).daily.used,50);
 });
@@ -57,10 +58,19 @@ test('background dispatch counts once while repeated polling is free',async t=>{
  for(let i=0;i<2;i++)assert.equal((await send('/api/studio/poll',{sessionId})).status,200);
  assert.equal(calls,1);assert.equal((await store.list()).daily.used,1);
 });
+test('a manual session allowance reset permits continued work in the existing workflow',async t=>{
+ const {store,cookie,send,sessionId,get}=await setup(t,{modelCall:async()=>ready()});
+ for(let i=0;i<50;i++)assert.equal((await send('/api/studio/compose',{sessionId,topic:'Coffee',creation:'generated'})).status,200);
+ const before=await(await get('/api/status')).json();assert.equal(before.access.remaining,0);
+ await store.reset({type:'session',sessionId:before.access.label,reason:'Synthetic retry',client:'unused'});
+ assert.equal((await send('/api/studio/compose',{sessionId,topic:'Coffee',creation:'generated'})).status,200);
+ assert.equal((await(await get('/api/status')).json()).access.remaining,49);
+ assert.equal((await store.find(judgeCookieId(cookie))).calls.length,51);
+});
 test('expiry during a provider call discards its result; storage reservation failure never calls provider',async()=>{
  let time=1000;const store=createMemoryJudgeStore({now:()=>time});
  const gate=createJudgeAccess({auth:createTesterAuth(),store,enabled:true,now:()=>time});
- const login=await gate.auth.login({judge:true});let calls=0;
+ const login=await gate.auth.login(await judgeBody(gate));let calls=0;
  await assert.rejects(gate.run(login,{model:'m',action:'a'},async()=>{calls++;time+=1800000;return ready();}),{code:'JUDGE_EXPIRED'});
  assert.equal(calls,1);assert.equal((await store.list()).daily.used,1);
  const unavailable=createJudgeAccess({auth:createTesterAuth(),store:{...store,reserve:async()=>{throw new Error('unavailable');}},enabled:true});
