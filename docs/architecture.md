@@ -20,6 +20,7 @@ flowchart LR
   API -->|"Validated lesson or feedback"| Browser
   Browser -->|"User-confirmed playback"| Engine
   Browser --> Canvas["Lesson canvas: confirmed image region/control<br/>SVG prediction and calculated curve"]
+  Browser --> Calculator["Local calculator: arithmetic and common math functions<br/>explicit result insertion, no model request"]
   Canvas -->|"Bounded drawing points with explain-back"| API
   Local["Local Node development server"] -.->|"in-memory state / optional Ollama"| API
 ```
@@ -80,6 +81,7 @@ Saved records carry separate client-reported `lessonModel` and `showModel` label
 | Client | React 19, TypeScript, Vite; bilingual English / Simplified Chinese interface | `frontend/`, `package.json` |
 | Appearance | Paper, Liquid Glass and Meta Blue with light/dark palettes; independent System (default), Light and Dark modes; semantic CSS colors and a bilingual preview-tile picker; browser-local preferences | `public/appearance.js`, `public/themes.css`, `frontend/appearance.css`, `frontend/components/Appearance.tsx` |
 | Simulations and graphics | Plain ES modules, D3 scale/shape/selection; bounded expressions and predefined engines | `public/`, `frontend/components/ExperimentView.tsx` |
+| Calculator | Bounded browser-only arithmetic parser and reusable bilingual touch/keyboard calculator; inline for numeric fresh cases and coached transfer fields, plus a standalone menu dialog | `frontend/lib/calculator.ts`, `frontend/components/Calculator.tsx`, `frontend/components/LessonPlayer.tsx`, `frontend/components/labs/Workspace.tsx`, `frontend/App.tsx` |
 | Lesson canvas | SVG and Pointer Events; prediction drawing and keyboard point entry in every numeric model lesson, optional creator-confirmed image regions/control links, prediction overlay, shared bounded drawing validation and server-recomputed comparison values | `frontend/components/CanvasBindingEditor.tsx`, `frontend/components/PredictionCanvas.tsx`, `public/lesson-canvas.mjs` |
 | Server | Node.js 26, Express 5; shared local and Vercel API handler; lesson pagination reads request cursors with WHATWG URL APIs, independently of platform query helpers, and rejects duplicate cursors | `src/server.mjs`, `src/lesson-routes.mjs`, `api/index.js` |
 | AI | Meta Muse Wonder, Spark, Image, Voice and SAM 3.1; OpenAI-compatible Responses SDK for text, direct Meta APIs for image, audio and segmentation; Muse Glimmer or a Muse Spark Open build through Ollama locally | `src/meta.mjs`, `src/llm/`, `src/cloud.mjs` |
@@ -94,6 +96,14 @@ Saved records carry separate client-reported `lessonModel` and `showModel` label
 | Verification | Node test runner, Vitest, React Testing Library, Playwright, TypeScript, Oxlint and Prettier | `package.json`, `test/`, `frontend/`, `e2e/` |
 
 For exact installed versions, use `package-lock.json`. Keep credentials out of documentation; see `docs/repo-guidelines.md` for what stays out of this public repository.
+
+## Calculator
+
+Every numeric fresh case in the shared lesson player offers a collapsed calculator, including gallery, generated, saved and shared lessons. Coached numeric transfer fields reuse it with an explicit destination for each answer. The header's Calculator tool opens the same keypad in a native modal dialog without navigating away from the current work. It is available without signing in. Expressions, results and angle mode stay in component memory: the menu tool survives closing and reopening during the page session, while an inline calculator resets when its chapter, experiment settings or display units change. Nothing is persisted, sent to a model or included in lesson records.
+
+The calculator evaluates only the learner's expression. It supports arithmetic, parentheses, powers, postfix percent (division by 100), square roots, absolute values, exponential and logarithmic functions, sine/cosine/tangent, min/max, π and e, and scientific notation. Radians are the default, with an explicit degrees option. In the calculator `ln` is natural logarithm and `log` / `log10` are base 10; the generated-model expression language remains separate and unchanged. Length, token and nesting bounds reject excessive input; unknown syntax, invalid domains and non-finite results cannot be inserted. Text is never evaluated as JavaScript.
+
+Use result transfers the unrounded finite number only after an explicit click; it does not submit or mark an answer. Editing the expression or angle mode invalidates the calculator's previous result. The learner must use the displayed answer units; the calculator does not infer units, select a formula, read the lesson's hidden expected answer or validate scientific claims. Existing answer conversion, precision hints, grading tolerances and human review boundaries remain authoritative.
 
 ## Appearance and browser preferences
 

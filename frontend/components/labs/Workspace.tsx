@@ -8,6 +8,7 @@ import {
   TransferReport,
 } from "./ClaimWorkbench";
 import type { View } from "./view";
+import { Calculator } from "../Calculator";
 
 function ReasoningPanel({ view, dom }: { view: View; dom: Dom }) {
   const { s, c, lang } = view;
@@ -269,6 +270,26 @@ function ReasoningPanel({ view, dom }: { view: View; dom: Dom }) {
           <p id="values-note" className="fine">
             {valuesNote}
           </p>
+          {claimMode && phase === "transfer" && (
+            <Calculator
+              key={`${session?.sessionId}/${problem?.expression}`}
+              language={lang}
+              disabled={s.busy || s.sessionInterrupted || active}
+              targets={([0, 1] as const).map((index) => ({
+                targetId:
+                  index === 0 ? "transfer-asymptote" : "transfer-crossing",
+                label:
+                  (zh ? "填入：" : "Use for: ") +
+                  fieldLabel(
+                    index,
+                    index === 0
+                      ? copy["asymptote-label"]
+                      : copy["crossing-label"],
+                  ),
+                onUse: (value) => c.setTransfer(index, value),
+              }))}
+            />
+          )}
         </fieldset>
         <button
           type="submit"

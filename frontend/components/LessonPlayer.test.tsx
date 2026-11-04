@@ -192,3 +192,41 @@ it("gives a choice-specific retry without numeric precision instructions", () =>
   fireEvent.click(screen.getByRole("button", { name: "A new DNS lookup" }));
   expect(player.state.transfer).toBe(true);
 });
+
+it("uses the shared calculator on numeric fresh cases without automatically grading or revealing an answer", () => {
+  const player = mount();
+  fireEvent.click(screen.getByText("Calculator", { selector: "summary" }));
+  const expression = screen.getByRole("textbox", { name: "Expression" });
+  expect((expression as HTMLInputElement).value).toBe("");
+  fireEvent.change(expression, { target: { value: "20+65*exp(-0.05*8)" } });
+  fireEvent.click(screen.getByRole("button", { name: "Calculate" }));
+  expect(player.state.transfer).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Use result (°C)" }));
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: "Your answer (°C)",
+      }) as HTMLInputElement
+    ).value,
+  ).toBe("63.57080299231656");
+  expect(player.state.transfer).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Check answer locally" }));
+  expect(player.state.transfer).toBe(true);
+  fireEvent.click(screen.getByRole("button", { name: /US \(°F, ft, lb\)/ }));
+  expect(
+    (screen.getByRole("textbox", { name: "Expression" }) as HTMLInputElement)
+      .value,
+  ).toBe("");
+  expect(
+    (
+      screen.getByRole("textbox", {
+        name: "Your answer (°F)",
+      }) as HTMLInputElement
+    ).value,
+  ).toBe("");
+});
+
+it("keeps the calculator out of choice-only fresh cases", () => {
+  mount(processLesson() as Lesson);
+  expect(screen.queryByText("Calculator", { selector: "summary" })).toBeNull();
+});
