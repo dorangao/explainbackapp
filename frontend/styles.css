@@ -2635,15 +2635,6 @@ body {
     max-height: 140px;
     object-fit: contain;
   }
-  /* A cover fills the single-column card at its own 3:2 instead of sitting letterboxed
-     at 140px; the drawn SVG art keeps its height. */
-  img.lesson-art-image {
-    height: auto;
-    max-height: none;
-    aspect-ratio: 3 / 2;
-    object-fit: cover;
-    padding: 0;
-  }
   .lesson-card-body {
     padding: 20px;
   }
@@ -3005,10 +2996,18 @@ body {
   }
 }
 
-/* Sketch-sourced gallery lesson */
-.lesson-art-image {
-  object-fit: contain;
+/* Cover illustrations fill their 3:2 frame at every card width. */
+img.lesson-art-image {
+  height: auto;
+  max-height: none;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
   background: var(--theme-surface, #fff);
+  padding: 0;
+}
+/* Source sketches retain the whole diagram, including labels near the edges. */
+img.lesson-art-sketch {
+  object-fit: contain;
   padding: 0.4rem 0.6rem;
 }
 .lesson-origin {
