@@ -26,6 +26,17 @@ can forge them. Authenticated sessions, ownership and atomic budgets remain nece
 
 ## Checks that run on every change
 
+GitHub's `main` ruleset requires a pull request, an up-to-date branch, the Node build
+and browser check, a successful Vercel preview and resolved review threads. Routine
+administrator bypass is disabled. Auto-merge is available only when explicitly selected
+for a pull request and its required checks pass.
+
+Workflow actions in `.github/workflows/verify.yml` are pinned to full official commit
+SHAs, with release tags retained as comments for Dependabot. The repository permits
+GitHub-owned actions and keeps the default workflow token read-only; the provenance job
+requests its signing permissions separately. GitHub-managed CodeQL default setup scans
+JavaScript/TypeScript and Actions workflows. These checks do not establish lesson accuracy.
+
 - `npm run scan:secrets`: fails CI on a committed key, token, private key, Redis URL with
   credentials or a real access-code assignment (placeholders are allowed).
 - `npm run audit:prod`: fails CI on a high or critical advisory in a production dependency.
