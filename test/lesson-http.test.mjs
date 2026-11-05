@@ -228,3 +228,16 @@ test('studio replies carry the model’s reasoning summary when the provider gav
  const made=await(await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration'})).json();
  assert.equal(made.reasoning,'Picked one chapter because the topic has one claim.');assert.deepEqual(asked,['auto']);
 });
+test('a provider HTTP failure names its fixed dashboard hint on a local server and nothing when hosted',async t=>{
+ const fail=async()=>{throw Object.assign(new Error(`Meta API returned HTTP 401 for key ${testerCredentials.password}.`),{status:401});};
+ const {post}=await setup(t,fail);
+ const s=await(await post('/api/studio/session',{synthetic:true,language:'en'})).json();
+ const rejected=await post('/api/studio/compose',{sessionId:s.sessionId,topic:'Car acceleration'});
+ assert.equal(rejected.status,502);const body=await rejected.json();
+ assert.equal(body.reason,'Check your Meta API key.');assert.ok(!JSON.stringify(body).includes(testerCredentials.password));assert.ok(!JSON.stringify(body).includes('401'));
+ process.env.VERCEL='1';t.after(()=>{delete process.env.VERCEL;});
+ const hostedApp=await setup(t,fail);
+ const h=await(await hostedApp.post('/api/studio/session',{synthetic:true,language:'en'})).json();
+ const hostedBody=await(await hostedApp.post('/api/studio/compose',{sessionId:h.sessionId,topic:'Car acceleration'})).json();
+ assert.match(hostedBody.error,/could not be completed or validated/);assert.equal(hostedBody.reason,undefined);
+});
