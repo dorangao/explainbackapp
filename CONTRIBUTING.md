@@ -25,6 +25,8 @@ npm run build
 npm run test:browser   # Playwright; `npx playwright install chromium` once
 ```
 
+`npm run verify` runs the first four in one go and `npm run verify:browser` adds Playwright.
+
 Then make sure of the following:
 
 - **Tests.** New behaviour comes with a test next to the existing ones: `test/` for the
@@ -49,6 +51,14 @@ Then make sure of the following:
   repository-wide format is planned once judging of the event entry is over.
 - Commit subjects are short and imperative. Changes written with an AI coding tool are
   welcome; keep the tool's co-author trailer so the history says who did what.
+
+## Working with an AI coding agent
+
+[AGENTS.md](AGENTS.md) is the operating manual coding agents read (Codex, Cursor, Devin and
+Copilot directly; Claude Code through `CLAUDE.md`, which imports it): the repository map, the
+commands, the conventions and the boundaries above in one place, with `frontend/AGENTS.md`
+and `src/AGENTS.md` for area rules. When you change a command or a convention, change it
+there in the same pull request.
 
 ## Reporting problems
 

@@ -1,6 +1,8 @@
 .env
 .env.*
 !.env.example
+# Personal coding-agent settings
+.claude/settings.local.json
 node_modules
 .vercel/
 dist/
