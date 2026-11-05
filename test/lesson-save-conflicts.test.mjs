@@ -112,20 +112,23 @@ test('a slow delete reports a conflict and keeps images after a concurrent updat
  assert.deepEqual(removed,[]);
 });
 
-test('a cover redraw retains an old cover still used by the same lesson',async()=>{
+for(const reuse of ['same','another'])test(`a saved cover redraw retains an old cover still used by the ${reuse} lesson`,async()=>{
  const {drawCover}=await import('../src/studio-images.mjs');
  const {buildSavedLesson}=await import('../src/lessons.mjs');
  const state=createMemoryState(),removed=[];
  const old='https://fixture.public.blob.vercel-storage.com/images/old.png';
  const next='https://fixture.public.blob.vercel-storage.com/images/next.png';
- const original={...buildSavedLesson({lesson:coolingLesson()},{owner:'fixture',now:1}),cover:old,sketch:old};
+ const original={...buildSavedLesson({lesson:coolingLesson()},{owner:'fixture',now:1}),cover:old,sketch:reuse==='same'?old:null};
+ const sibling={...buildSavedLesson({lesson:coolingLesson()},{owner:'fixture',now:1}),sketch:old};
  await state.putLesson(original,50,null);
+ await state.putLesson(sibling,50,null);
  await state.create('fixture-session',{owner:'login',createdAt:Date.now()});
  let response;
  const ctx={body:{savedId:original.id,sessionId:'fixture-session'},s:{attempts:0,llm:{}},owner:'fixture',tester:{id:'login'},state,sessionLimit:8,bucket:'fixture',limit:10,save:async()=>true,access:{active:async()=>true},traceEnabled:false,imageBudgetMs:()=>1000,
   imageCall:async()=>({dataUrl:tinyPng,model:'fixture'}),storeImage:async()=>next,imageStore:{remove:async urls=>removed.push(...urls)},json:(status,body)=>{response={status,body};}};
  await drawCover(ctx);
  assert.equal(response.status,200);
- assert.equal((await state.getLesson(original.id)).sketch,old);
+ assert.equal((await state.getLesson(original.id)).cover,next);
+ assert.equal((await state.getLesson(reuse==='same'?original.id:sibling.id)).sketch,old);
  assert.ok(!removed.includes(old),'the old cover still belongs to the sketch');
 });

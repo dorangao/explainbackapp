@@ -7,7 +7,6 @@ import {validateLesson} from '../public/lesson-schema.mjs';
 import {validateShowScript,MAX_SAVED_PER_OWNER} from './lessons.mjs';
 import {illustrationPrompt} from './lesson-show.mjs';
 import {coverPrompt,coverPromptVersion,coverLesson} from './lesson-covers.mjs';
-import {recordImageUrls} from './blob.mjs';
 // The two image routes of a Lesson Studio session. Each receives the action handler's
 // context: the session `s`, request `body`, the signed-in `tester`, the budget bucket and
 // limit, the session lock, `save`, `json`, `quotaExceeded`, shared services and the
@@ -40,7 +39,8 @@ export async function detectInImage(ctx){
 // A library cover for a reviewed lesson, drawn by Muse Image from the lesson's title and
 // introduction with the prompt scripts/lesson-covers.mjs uses. The result is kept in the
 // app's state as a creator-drawn override that every visitor's library reads over the
-// shipped manifest; the override it replaces is removed from the store when held there.
+// shipped manifest. Superseded images remain for reference-aware pruning because other
+// saved lessons or gallery covers can still reference their URLs.
 export async function drawCover(ctx){
   const {body,s}=ctx;
   if(!ctx.imageCall)throw new RequestError(503,'The image model is not configured.');
@@ -62,17 +62,12 @@ export async function drawCover(ctx){
     await stillOwned(ctx,call);
     const src=await ctx.storeImage(image,ctx.owner);
     const createdAt=new Date().toISOString().slice(0,10);
-    let previous=null;
     if(savedId){
-      previous=owned.cover??null;
       const next={...owned,cover:src,coverModel:image.model,coverDrawn:true,updatedAt:Date.now()};
       if(!await ctx.state.putLesson(next,MAX_SAVED_PER_OWNER,owned)){if(src!==owned.cover)await ctx.imageStore?.remove([src]);throw new RequestError(409,'This lesson changed while saving its cover. Reopen it before trying again.');}
-      if(previous&&recordImageUrls(next).includes(previous))previous=null;
     }else{
-      previous=(await ctx.state.getCovers())[lessonId]?.src??null;
       await ctx.state.putCover(lessonId,{src,model:image.model,createdAt,promptVersion:coverPromptVersion,owner:ctx.owner});
     }
-    if(previous&&previous!==src&&ctx.imageStore&&!previous.startsWith('data:')){try{await ctx.imageStore.remove([previous]);}catch{/* A stale file is harmless. */}}
     call?.finish('accepted');try{await trace?.flush();}catch{}
     await ctx.save(trace?.read());
     ctx.json(200,{...(savedId?{savedId}:{lessonId}),cover:src,model:image.model,createdAt,promptVersion:coverPromptVersion,prompt,elapsedMs:Math.round(performance.now()-startedAt),usage:usage(image.usage),llm:s.llm,attemptsRemaining:Math.max(0,ctx.sessionLimit-s.attempts)});

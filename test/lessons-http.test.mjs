@@ -200,7 +200,21 @@ test('redis shared-list paging uses the same stable tie order as memory',async()
 
 const webpBytes=()=>{const b=Buffer.alloc(40);b.write('RIFF',0,'latin1');b.write('WEBP',8,'latin1');return b;};
 const image=(seed=1)=>{const b=webpBytes();b[20]=seed;return `data:image/webp;base64,${b.toString('base64')}`;};
-test('with Blob storage a saved lesson keeps its cover, illustrations and sketch as URLs; replaced and deleted images are removed',async t=>{
+for(const action of ['replace','delete'])test(`${action} keeps stored images referenced by another saved lesson`,async t=>{
+ const {store,deleted}=fakeBlob();
+ const {post,get,codeCookie}=await setup(t,{imageStore:store});
+ const cookie=await codeCookie('JUDGE-INVITE-1');
+ const first=await(await post('/api/lessons',{lesson:coolingLesson(),show:show(),cover:image(1),illustrations:{1:image(2)},sketch:image(3)},cookie)).json();
+ const secondResponse=await post('/api/lessons',{lesson:coolingLesson(),show:show(),cover:first.cover,illustrations:first.illustrations,sketch:first.sketch},cookie);
+ assert.equal(secondResponse.status,200);const second=await secondResponse.json();
+ const response=action==='delete'?await post('/api/lessons/delete',{id:first.id},cookie):await post('/api/lessons',{id:first.id,lesson:coolingLesson(),sketch:image(4)},cookie);
+ assert.equal(response.status,200);
+ const surviving=await(await get('/api/lessons/'+second.id,cookie)).json();
+ assert.equal(surviving.cover,first.cover);assert.equal(surviving.sketch,first.sketch);assert.deepEqual(surviving.illustrations,first.illustrations);
+ assert.deepEqual(deleted,[],'a surviving record must keep every referenced image');
+});
+
+test('with Blob storage a saved lesson keeps image URLs and defers replaced or deleted images to pruning',async t=>{
  const {store,puts,deleted}=fakeBlob();
  const {post,get,codeCookie}=await setup(t,{imageStore:store});
  const judge=await codeCookie('JUDGE-INVITE-1'),other=await codeCookie('OTHER-INVITE-2');
@@ -214,21 +228,21 @@ test('with Blob storage a saved lesson keeps its cover, illustrations and sketch
  await post('/api/lessons/share',{id:saved.id,shared:true},judge);
  const open=await(await get('/api/shared/'+saved.id)).json();assert.equal(open.cover,saved.cover);assert.equal(open.illustrations['1'],full.illustrations['1']);
  assert.equal((await(await get('/api/shared')).json()).lessons[0].cover,saved.cover);
- // Re-saving with the same URLs uploads nothing; a new cover replaces the old blob.
+ // Re-saving with the same URLs uploads nothing; replacing references leaves blob cleanup to pruning.
  const same=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:saved.cover,coverModel:'muse-image-1.0',illustrations:full.illustrations,sketch:saved.sketch},judge)).json();
  assert.equal(same.cover,saved.cover);assert.deepEqual(same.illustrations,saved.illustrations);assert.equal(puts.length,3);assert.deepEqual(deleted,[]);
  const redrawn=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:image(4),coverModel:'muse-image-1.0',sketch:saved.sketch},judge)).json();
- assert.match(redrawn.cover,/r004\.webp$/);assert.deepEqual(deleted.sort(),[saved.cover,full.illustrations['1']].sort());
+ assert.match(redrawn.cover,/r004\.webp$/);assert.deepEqual(deleted,[]);
  // A URL under another creator's prefix, or off our host, is refused.
  const theirs=await(await post('/api/lessons',{lesson:coolingLesson(),sketch:image(5)},other)).json();
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),sketch:theirs.sketch},judge)).status,400);
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),sketch:'https://example.com/x.webp'},judge)).status,400);
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),illustrations:{7:image(6)}},judge)).status,400);
  assert.equal((await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),show:show(),cover:'data:image/webp;base64,QUJD'},judge)).status,400);
- // A cover without a show is dropped; deleting removes every stored image.
+ // A cover without a show is dropped; deleting removes the record without deleting reusable files.
  const noShow=await(await post('/api/lessons',{id:saved.id,lesson:coolingLesson(),cover:redrawn.cover,sketch:saved.sketch},judge)).json();
- assert.equal(noShow.cover,null);assert.ok(deleted.includes(redrawn.cover));
- deleted.length=0;await post('/api/lessons/delete',{id:saved.id},judge);assert.deepEqual(deleted,[saved.sketch]);
+ assert.equal(noShow.cover,null);assert.deepEqual(deleted,[]);
+ await post('/api/lessons/delete',{id:saved.id},judge);assert.deepEqual(deleted,[]);
 });
 test('without Blob storage images are dropped on save and the status says so',async t=>{
  const {post,get,codeCookie}=await setup(t);const judge=await codeCookie('JUDGE-INVITE-1');

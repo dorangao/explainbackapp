@@ -2,7 +2,6 @@ import {judgeError,judgeOwner} from './judge-access.mjs';
 import {RequestError} from './request-error.mjs';
 import {publicCover} from './lesson-covers.mjs';
 import {buildSavedLesson,attachImages,lessonSummary,publicLesson,sharedLesson,validLessonId,MAX_SAVED_PER_OWNER,MAX_SHARED_LISTED} from './lessons.mjs';
-import {recordImageUrls} from './blob.mjs';
 // Serverless platforms may shadow Express's req.query with a legacy URL parser.
 // Read the raw URL with WHATWG APIs and keep duplicate cursors invalid.
 function requestCursor(req){
@@ -49,7 +48,9 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     const owner=ownerOf(res.locals.tester),body=req.body;
     if(!await access.active(res.locals.tester.id))return reply(res,401,{error:'Sign in to tester access.',code:'TESTER_REQUIRED'});
     const editable=async({ownerOnly=false}={})=>{const record=validLessonId(body.id)?await state.getLesson(body.id):null;if(!record||(record.owner!==owner&&(ownerOnly||!isAdmin(res.locals.tester))))throw new RequestError(404,'Saved lesson not found.');return record;};
-    if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id,record))throw new RequestError(409,'This lesson changed or was deleted. Reopen it before deleting.');await imageStore?.remove(recordImageUrls(record));return reply(res,200,{deleted:true,id:body.id});}
+    // Committed image URLs can belong to other records. Physical deletion belongs to
+    // reference-aware pruning, not this request (including concurrent reuse).
+    if(req.path==='/api/lessons/delete'){const record=await editable();if(!await state.deleteLesson(record.owner,body.id,record))throw new RequestError(409,'This lesson changed or was deleted. Reopen it before deleting.');return reply(res,200,{deleted:true,id:body.id});}
     await beforeWrite(res.locals.tester);
     if(req.path==='/api/lessons/share'){
       if(typeof body.shared!=='boolean')throw new RequestError(400,'Use a boolean shared flag.');
@@ -67,13 +68,12 @@ export function registerLessonRoutes(app,{state,access,imageStore,ownerOf,isAdmi
     // Blob storage exists, dropped otherwise. Uploads happen before the cap check, so a
     // refused save removes what it uploaded.
     const uploaded=[];
-    let stale;try{stale=await attachImages(record,body,{store:imageStore,owner:recordOwner,previous,uploaded});}catch{await imageStore?.remove(uploaded);throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
+    try{await attachImages(record,body,{store:imageStore,owner:recordOwner,previous,uploaded});}catch{await imageStore?.remove(uploaded);throw new RequestError(400,'Images must be the show cover, slide illustrations or the source sketch, each under 1.5 MB.');}
     if(!await state.putLesson(record,MAX_SAVED_PER_OWNER,previous)){
       await imageStore?.remove(uploaded);
       if(!previous&&judgeOwner(recordOwner))throw judgeError('JUDGE_SAVED_LIMIT');
       throw new RequestError(409,previous?'This lesson changed or was deleted while saving. Your draft is still available; reopen the saved lesson before updating it.':`You can keep up to ${MAX_SAVED_PER_OWNER} saved lessons. Delete one to save another.`);
     }
-    await imageStore?.remove(stale);
     reply(res,200,{...permissions(res.locals.tester,record),illustrations:record.illustrations??{}});
   }));
 }
