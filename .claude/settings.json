@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(npm run check)",
+      "Bash(npm run verify)",
+      "Bash(npm run verify:browser)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run typecheck:app)",
+      "Bash(npm run lint)",
+      "Bash(npm run format:check)",
+      "Bash(npm run build)",
+      "Bash(npm run scan:secrets)",
+      "Bash(npm run audit:prod)",
+      "Bash(npm test *)",
+      "Bash(npm run test:unit *)",
+      "Bash(npm run test:browser *)",
+      "Bash(node --test *)",
+      "Bash(npx --no-install vitest run *)",
+      "Bash(npx --no-install playwright test *)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff --stat)",
+      "Bash(git diff --check)",
+      "Bash(git diff --cached)",
+      "Bash(git diff --cached --stat)",
+      "Bash(git log --oneline -5)",
+      "Bash(git show --stat)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list)"
+    ],
+    "deny": [
+      "Read(/.env)",
+      "Read(/.env.local)",
+      "Read(/.env.*.local)",
+      "Read(/secrets/**)",
+      "Bash(npm run eval:live *)",
+      "Bash(npm run eval:models *)",
+      "Bash(npm run eval:studio *)",
+      "Bash(npm run shows:gallery *)",
+      "Bash(npm run claim:smoke *)",
+      "Bash(node *scripts/evaluate.mjs*)",
+      "Bash(node *scripts/compare-models.mjs*)",
+      "Bash(node *scripts/eval-studio.mjs*)",
+      "Bash(node *scripts/make-gallery-shows.mjs*)",
+      "Bash(node *scripts/claim-smoke.mjs*)"
+    ]
+  }
+}

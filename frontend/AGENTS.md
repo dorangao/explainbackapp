@@ -15,11 +15,11 @@ Applies with the root `AGENTS.md`.
   that must survive a reload lives in `lib/studio-store.ts` under the recovery scope, not in
   ad-hoc `localStorage` keys.
 - Styles are in `styles.css`, `appearance.css`, `canvas.css` and `labs.css` with CSS custom
-  properties for colour; both light and dark appearance must work. The library grid is three
-  columns above 800 px, two to 540 px, one below.
+  properties for colour; both light and dark appearance must work. Check the complete CSS
+  cascade for responsive layouts: later narrow-screen rules override earlier grid rules.
 - Accessibility: name every control, keep one `h1` per page, manage focus when you replace
   content (see the Judge check and the two-step delete), and keep `e2e/accessibility.spec.ts`
   green.
 - Format with `npm run format`; lint with `npm run lint`. `react/exhaustive-deps` is an error.
-- Component tests: `npx vitest run frontend/components/<Name>.test.tsx`. Browser flows:
-  `npm run build && npx playwright test e2e/<spec>.spec.ts`.
+- Component tests: `npx --no-install vitest run frontend/components/<Name>.test.tsx`. Browser
+  flows: `npm run build && npx --no-install playwright test e2e/<spec>.spec.ts`.

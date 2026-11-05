@@ -13,9 +13,10 @@ https://explainback.app from this repository.
 
 **The one invariant.** The model writes a *lesson contract* (claim, variables, ranges,
 formulas as text, explanation, fresh case). Application code compiles and range-checks the
-formulas, computes every number, and marks every learner answer. Generated code is never
-executed; a malformed contract is rejected, not repaired; the model coaches on an
-explanation but never grades it on its own. Keep that line wherever you touch the flow, and
+formulas, computes the experiment results, and checks numeric and choice transfer answers.
+Generated code is never executed; a malformed contract is rejected, not repaired. Model
+feedback assesses explanations against supplied evidence; it does not establish mastery or
+scientific correctness. Keep that line wherever you touch the flow, and
 keep the wording that generated lessons and model feedback are not verified science or
 evidence of teaching effectiveness.
 
@@ -23,7 +24,7 @@ evidence of teaching effectiveness.
 
 | Path | What lives there |
 |---|---|
-| `frontend/` | React 18 + TypeScript + Vite client. `App.tsx` routes by URL hash; `components/` one component per file with its `*.test.tsx` beside it; `lib/` pure modules (`api.ts` session and fetch layer, `messages.ts` every user-facing string in both languages, `types.ts`); `hooks/`; `components/labs/` the claim-testing labs |
+| `frontend/` | React 19 + TypeScript + Vite client. `App.tsx` routes by URL hash; `components/` one component per file with its `*.test.tsx` beside it; `lib/` pure modules (`api.ts` session and fetch layer, `messages.ts` every user-facing string in both languages, `types.ts`); `hooks/`; `components/labs/` the claim-testing labs |
 | `public/*.mjs` | Shared engines as plain ES modules used by the browser *and* the server tests: lesson schema and player, formula catalog and plot, canvas validation, gallery lessons and shows. No bundler-only syntax here |
 | `src/` | Express 5 server. `server.mjs` builds the app (`createApp`) and holds the action routes; `lesson-routes.mjs` saved and shared lessons; `state.mjs` / `redis-state.mjs` the in-memory and Upstash Redis state adapters (same contract); `tester-auth.mjs`, `access-codes.mjs`, `judge-*.mjs` access; `meta.mjs` and `llm/` the model transport; `cloud.mjs` the hosted configuration |
 | `api/index.js` | The single Vercel serverless function; wraps the Express app |
@@ -42,21 +43,23 @@ Node 26 (`nvm use` reads `.nvmrc`). Install with `npm ci --ignore-scripts`.
 | Run the production build locally | `npm run build && npm start` | http://127.0.0.1:4173; the library works without a model key |
 | Develop with Vite | `npm run dev` | `npm run dev:open` skips sign-in locally; the hosted handler refuses that mode |
 | Fast checks | `npm run check` | typecheck, lint, server tests, client tests |
-| Everything CI runs except the browser | `npm run verify` | secret scan, Prettier check, `check`, build |
-| Everything including Playwright | `npm run verify:browser` | needs `npx playwright install chromium` once |
+| Local checks and build | `npm run verify` | secret scan, production dependency audit, Prettier check, `check`, build |
+| Local checks plus Playwright | `npm run verify:browser` | needs `npx --no-install playwright install chromium` once |
 | One server test file | `node --test test/judge-access.test.mjs` | |
-| One client test file | `npx vitest run frontend/components/Library.test.tsx` | jsdom, Testing Library |
-| One browser spec | `npm run build && npx playwright test e2e/library.spec.ts` | the fixture server serves `dist/`; without a build Playwright fails with "Timed out waiting 15000ms from config.webServer" |
+| One client test file | `npx --no-install vitest run frontend/components/Library.test.tsx` | jsdom, Testing Library |
+| One browser spec | `npm run build && npx --no-install playwright test e2e/library.spec.ts` | the fixture server serves `dist/`; without a build Playwright fails with "Timed out waiting 15000ms from config.webServer" |
 | Format TypeScript | `npm run format` | Prettier covers `frontend/`, `e2e/` and the root `*.ts` only |
 
 The Playwright fixture (`scripts/browser-test-server.mjs`) needs no credentials and makes no
 paid calls; `FIXTURE_*` environment variables select failure modes for the error-state specs.
 Setting `EXPLAINBACK_TEST_REDIS` to a `redis-server` binary runs the Redis Lua contract tests
-too; CI does this, so a change to a Lua script is only proven green in CI.
+too. CI always enables these tests; for a Lua change, run them locally with real Redis or
+wait for that CI result. `verify` does not install Redis or browser binaries.
 
 CI (`.github/workflows/verify.yml`) runs, in order: `scan:secrets`, `audit:prod`, `typecheck`,
 `lint`, `format:check`, `test` with real Redis, `test:unit`, `build`, `test:browser`. The job
-"Node 26 / build and browser checks" is a required status check on `main`.
+"Node 26 / build and browser checks" and the Vercel deployment check are required on `main`;
+the branch must also be up to date and review threads resolved.
 
 ## Conventions
 
@@ -101,7 +104,7 @@ CI (`.github/workflows/verify.yml`) runs, in order: `scan:secrets`, `audit:prod`
 
 ## Git workflow
 
-- Branch from `main`, open a pull request, let the required check pass, then merge; squash,
+- Branch from `main`, open a pull request, let both required checks pass, then merge; squash,
   merge and rebase are all allowed and the branch is deleted on merge.
 - Several agents and people may share one checkout. Before you start, run `git status` and
   note the branch; work on your own branch or worktree and never switch a branch someone else
@@ -114,8 +117,11 @@ CI (`.github/workflows/verify.yml`) runs, in order: `scan:secrets`, `audit:prod`
 
 - On Vercel, Express's `req.query` can be shadowed by a legacy parser; parse the raw URL with
   WHATWG `URL` as `requestCursor` in `src/lesson-routes.mjs` does.
-- The service worker (`public/sw.js`) caches the app shell and never `/api/`; when you change
-  what it precaches, bump its `VERSION` constant or returning visitors keep the old shell.
+- The service worker (`public/sw.js`) uses network-first navigation and never caches `/api/`.
+  Changed worker bytes trigger installation. Version changed startup asset URLs in `SHELL`
+  and their HTML references together; retain the cache version for additive updates so
+  previously fetched hashed assets remain available offline. Bump `VERSION` only when an
+  intentional cache invalidation is needed.
 - Production accepts API requests only from the origins in `EXPLAINBACK_PUBLIC_ORIGINS`;
   preview deployments also accept their Vercel hosts. A 403 "host is not allowed" in a new
   environment is configuration, not a bug.
