@@ -59,7 +59,7 @@ limits, export guidance and unavailable-access cases.
 
 ## Local setup
 
-Use **Node 26** (the current LTS; `nvm use` reads `.nvmrc`) and npm. From this directory:
+Use **Node 26** (`nvm use` reads `.nvmrc`; the build and server also run on Node 22 and 24) and npm. From this directory:
 
 ```sh
 npm ci --ignore-scripts
@@ -70,6 +70,13 @@ npm start
 Open `http://127.0.0.1:4173` for the production build. The gallery is available without a model key. To run with Vite development tooling, use `npm run dev` instead of the build and start commands. `npm run dev:open` enables sign-in-free local development; hosted cloud handling explicitly disables that mode.
 
 For live lesson creation, copy `.env.example` to `.env.local`, keep that file private, and configure `MODEL_API_KEY` plus the tester credentials, reviewer access codes, or `EXPLAINBACK_JUDGE_MODE=1` described in the example. The default provider is Meta; optional Ollama configuration is for local use. Model calls are explicit actions and can incur usage charges. Do not include credentials or actual access codes in source or submissions.
+
+### If a model request fails locally
+
+- "The request could not be completed or validated" followed by a reason such as *Check your Meta API key* or *Check META_MODEL against your available models* means the Meta Model API rejected the call. Check the key, the account's model access and `META_MODEL` in `.env.local`, then retry. A local server adds that hint; the hosted site keeps the generic line.
+- `EXPLAINBACK_REQUEST_LOG=1 npm start` prints one line per API request with its status and duration, and the server console names the HTTP status of a failed provider call.
+- `EXPLAINBACK_TRACE=1` adds a provider console to Studio that shows each call's shape, usage and outcome, with bodies and keys omitted.
+- A failed call still counts toward the session's allowance, as it would with a paid key.
 
 ## Checks
 

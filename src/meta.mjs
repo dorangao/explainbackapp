@@ -21,6 +21,7 @@ const HTTP_HINTS = new Map([
   [404, 'Check META_MODEL against your available models.'],
   [429, 'Check credits and rate limits before retrying.'],
 ]);
+export const providerHint = status => HTTP_HINTS.get(status) ?? null;
 export const metaTimeoutMs = model => (model.startsWith('muse-wonder') ? 50_000 : 30_000);
 // The usage summary the app reports: input and output tokens plus how many input tokens
 // the server served from its prompt cache (a subset of input, billed at the cached rate).

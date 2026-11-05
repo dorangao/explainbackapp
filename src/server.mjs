@@ -6,7 +6,7 @@ import {lessonAuthorRequest,readLessonAuthor} from './lesson-author.mjs';
 import {groundRequest,readGround} from './lesson-ground.mjs';
 import {learnerTryoutRequest,readLearnerTryout} from './lesson-tester.mjs';
 import {showRequest,readShow,illustrationPrompt} from './lesson-show.mjs';
-import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,usageSummary} from './meta.mjs';
+import {generateMetaImage,transcribeMetaAudio,segmentMetaImage,usageSummary,providerHint} from './meta.mjs';
 import {validateLesson} from '../public/lesson-schema.mjs';
 import {suctionScenario,suctionTitle} from '../public/suction.mjs';
 import {flightScenario,flightTitle} from '../public/flight.mjs';
@@ -105,6 +105,11 @@ export function createHandler({
   // carry no reason: their text is never returned to the browser.
   const tagRejection=error=>{const e=error instanceof SyntaxError?new Error('Provider reply was not valid JSON.'):error;if(e&&typeof e==='object')e.rejection=true;return e;};
   const rejectionReason=error=>{if(error?.rejection!==true||typeof error.message!=='string')return null;const text=error.message.replace(/\s+/g,' ').trim().slice(0,200);return redacted.filter(Boolean).reduce((t,key)=>t.split(key).join('[REDACTED]'),text)||null;};
+  // A provider HTTP failure is logged by status with its fixed dashboard hint, never its body.
+  // A local server also returns that hint as the reason, so someone running the app with their
+  // own key can tell a bad key or model name from a rejected draft; hosted deployments keep the generic line.
+  const hosted=Boolean(process.env.VERCEL);
+  const providerFailure=(error,path)=>{if(error instanceof RequestError||!Number.isInteger(error?.status))return null;const hint=providerHint(error.status);console.warn(`Provider HTTP ${error.status} on ${path}${hint?': '+hint:''}`);return hosted?null:hint;};
   const targets=router.list().map(t=>({...t,...(configured!==undefined&&t.id===router.defaultId?{configured}:{})}));
   const selected=id=>{const t=targets.find(t=>t.id===(id??router.defaultId));if(!t)throw new RequestError(400,'Choose an allowed provider/model.');return {...t};};
   const defaultTarget=selected();
@@ -282,7 +287,7 @@ export function createHandler({
       if(s.workflow==='lesson-studio'&&path==='/api/studio/poll'){
         if(!s.background)throw new RequestError(404,'No background lesson is available.');
         if(s.background.result){json(200,{...s.background.result,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;}
-        let raw;try{raw=await router.pollBackground(s.llm.id,s.background.id);}catch{throw new RequestError(502,'Could not retrieve the background lesson. Try again.');}
+        let raw;try{raw=await router.pollBackground(s.llm.id,s.background.id);}catch(error){const failure=new RequestError(502,'Could not retrieve the background lesson. Try again.');failure.reason=providerFailure(error,req.path);throw failure;}
         if(!await access.active(tester.id))throw new RequestError(401,'Sign in to tester access.');
         if(raw.pending){json(200,{pending:true,attemptsRemaining:Math.max(0,sessionLimit-s.attempts)});return;}
         if(raw.failed){delete s.background;await save();const failure=new RequestError(502,'Background lesson failed. Retry explicitly.');failure.code='BACKGROUND_FAILED';failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
@@ -409,7 +414,7 @@ export function createHandler({
           call?.finish(error instanceof RequestError?'discarded':'failed or rejected',reason);
           if(error instanceof RequestError)throw error;
           if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){const failure=new RequestError(409,error.message);failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;}
-          const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);failure.reason=reason;throw failure;
+          const failure=new RequestError(502,'Provider lesson could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);failure.reason=reason??providerFailure(error,req.path);throw failure;
         }finally{try{await trace?.flush();}catch{}}
       }
       if(path.startsWith('/api/studio/'))throw new RequestError(400,'Start a Lesson Studio session first.');
@@ -430,7 +435,7 @@ export function createHandler({
         }catch(error){
           call?.finish(error instanceof RequestError?'discarded':'failed or rejected');
           if(error instanceof RequestError)throw error;
-          const failure=new RequestError(502,'Provider explanation could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);throw failure;
+          const failure=new RequestError(502,'Provider explanation could not be completed or validated. Retry explicitly.');failure.attemptsRemaining=Math.max(0,sessionLimit-s.attempts);failure.reason=providerFailure(error,req.path);throw failure;
         }finally{try{await trace?.flush();}catch{}}
       }
       if(path==='/api/quantum/explain')throw new RequestError(400,'Start a quantum showcase session first.');
@@ -480,9 +485,11 @@ export function createHandler({
         traceCall?.finish(error instanceof RequestError?'discarded':'failed or rejected');
         if (error instanceof RequestError) throw error; // client errors pass through unchanged
         if(['OLLAMA_BUSY','OLLAMA_UNCERTAIN','OLLAMA_OTHER_MODEL','OLLAMA_CONTROL'].includes(error.code)){traceCall?.event({type:'error',message:error.message});throw new RequestError(409,error.message);}
-        // Deliberately do not log or return raw upstream errors, prompts or secrets.
+        // Deliberately do not log or return raw upstream errors, prompts or secrets; a provider
+        // HTTP status maps to a fixed hint only.
         const failure = new RequestError(502, 'Provider feedback could not be completed or validated. Your text is preserved. Check the selected model and connection, then retry explicitly.');
         failure.attemptsRemaining = Math.max(0, coachLimit - s.attempts);
+        failure.reason = providerFailure(error, req.path);
         throw failure;
       } finally { try{await s.trace?.flush();}catch{/* Diagnostics cannot override a committed response. */} }
     } finally {

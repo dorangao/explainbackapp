@@ -10,7 +10,7 @@ The fixture server can exercise these conditions (`scripts/browser-test-server.m
 | The chosen model is not configured (503) | "Choose another model or ask the host to configure it." | `Studio.failNotConfigured` |
 | Sign-in ended (401) | Sign-in is required again. The private browser workspace is cleared when access is lost; export work before a temporary session ends. | `Studio.failSignIn`, `useTesterAuth.loseAccess` |
 | A request body is too large (413) | "Use a smaller image or a shorter text." | `Studio.failTooLarge` |
-| A model reply failed or was rejected (502) | The generic line plus the server's rejection reason when it has one; the draft is preserved. | `Studio.theRequestCouldNotBe`, `Studio.reason` |
+| A model reply failed or was rejected (502) | The generic line plus the server's rejection reason when it has one; on a local server a provider HTTP failure adds its fixed dashboard hint (key, model access, model name, credits); the draft is preserved. | `Studio.theRequestCouldNotBe`, `Studio.reason` |
 | The background Wonder job passes its deadline | "Wonder is still working in the background. Keep this page open, or start a new request." | `Studio.backgroundStillRunning` |
 | The show came back without a cover for lack of time | The show opens; the notice says there was no time for a cover and points to Draw a cover in the player. | `Studio.theShowIsReadyNoCover` |
 | No image model on the server | Covers, illustrations and the illustrator controls are absent; the judge path marks that step "Not on this server"; credits omit the image line. | `JudgePath.unavailable` |
