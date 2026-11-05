@@ -97,7 +97,7 @@ Operating the hosted app (health route, request log, common situations, rollback
 
 For feedback or inquiries, email [contact@sketchplaywrite.com](mailto:contact@sketchplaywrite.com).
 
-[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks to run and what a change should include. Bugs and wrong figures go in an [issue](https://github.com/dorangao/explainbackapp/issues/new/choose); every creator-shared lesson page has a **Report this lesson** link that prefills one. Security problems go through [SECURITY.md](SECURITY.md), not a public issue. The project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
+[CONTRIBUTING.md](CONTRIBUTING.md) covers setup, the checks to run and what a change should include; [AGENTS.md](AGENTS.md) is the same material arranged for AI coding agents (Codex, Cursor, Devin, Copilot, and Claude Code through `CLAUDE.md`). Bugs and wrong figures go in an [issue](https://github.com/dorangao/explainbackapp/issues/new/choose); every creator-shared lesson page has a **Report this lesson** link that prefills one. Security problems go through [SECURITY.md](SECURITY.md), not a public issue. The project follows the [Contributor Covenant](CODE_OF_CONDUCT.md).
 
 ## Pre-existing work
 
