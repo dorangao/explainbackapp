@@ -36,7 +36,7 @@
     "format:check": "prettier --check frontend e2e *.ts",
     "test:unit": "vitest run",
     "check": "npm run typecheck && npm run lint && npm test && npm run test:unit",
-    "verify": "npm run scan:secrets && npm run format:check && npm run check && npm run build",
+    "verify": "npm run scan:secrets && npm run audit:prod && npm run format:check && npm run check && npm run build",
     "verify:browser": "npm run verify && npm run test:browser",
     "typecheck:app": "tsc --noEmit -p tsconfig.json",
     "scan:secrets": "node scripts/scan-secrets.mjs",

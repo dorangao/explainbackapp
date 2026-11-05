@@ -15,17 +15,16 @@ should include, and what this public repository does and does not hold.
 
 ## Before opening a pull request
 
-Run the same checks CI runs:
+Run the local verification commands:
 
 ```sh
-npm run check          # typecheck, lint, server tests, client tests
-npm run format:check   # Prettier over frontend and e2e
-npm run scan:secrets
-npm run build
-npm run test:browser   # Playwright; `npx playwright install chromium` once
+npm run verify          # secret scan, production audit, format, check, build
+npm run verify:browser  # the same checks, then Playwright
 ```
 
-`npm run verify` runs the first four in one go and `npm run verify:browser` adds Playwright.
+Install Chromium once with `npx --no-install playwright install chromium`. These commands
+do not provision Redis: set `EXPLAINBACK_TEST_REDIS` to a `redis-server` binary to run the
+Redis contract tests locally. CI always runs those tests against real Redis.
 
 Then make sure of the following:
 

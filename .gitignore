@@ -3,6 +3,7 @@
 !.env.example
 # Personal coding-agent settings
 .claude/settings.local.json
+.claude/worktrees/
 node_modules
 .vercel/
 dist/
